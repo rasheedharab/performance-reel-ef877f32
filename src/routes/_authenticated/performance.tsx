@@ -374,6 +374,15 @@ function PerformancePage() {
   const [aiBatch, setAiBatch] = useState<{ done: number; total: number } | null>(
     null,
   );
+  const [distillLoading, setDistillLoading] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [distillReview, setDistillReview] = useState<{
+    entries: DistillEntryDraft[];
+    cellAdName: string;
+    sourceMetric: string | null;
+    sourceBrandId: string | null;
+  } | null>(null);
 
   useEffect(() => {
     void loadCampaigns();
