@@ -840,12 +840,14 @@ function AudioPanel({
   assets,
   signedUrls,
   onAdd,
+  onGenerateVo,
   onOpenDetail,
 }: {
   script: ScriptLite;
   assets: AssetRow[];
   signedUrls: Record<string, string>;
   onAdd: (type: AssetType) => void;
+  onGenerateVo: () => void;
   onOpenDetail: (a: AssetRow) => void;
 }) {
   const voiceovers = assets.filter((a) => a.type === "voiceover");
@@ -866,9 +868,14 @@ function AudioPanel({
             <p className="label-mono inline-flex items-center gap-1.5">
               <Volume2 className="h-3 w-3" /> Voiceover
             </p>
-            <Button size="sm" variant="outline" onClick={() => onAdd("voiceover")}>
-              <Plus className="h-3 w-3" /> Add
-            </Button>
+            <div className="flex items-center gap-1.5">
+              <Button size="sm" variant="outline" onClick={onGenerateVo}>
+                <Sparkles className="h-3 w-3" /> Generate
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => onAdd("voiceover")}>
+                <Plus className="h-3 w-3" /> Add
+              </Button>
+            </div>
           </div>
           {script.vo_script ? (
             <div className="text-xs whitespace-pre-wrap border-l-2 border-border pl-2 text-foreground/80 mb-3 max-h-32 overflow-y-auto">
