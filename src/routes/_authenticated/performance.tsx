@@ -779,6 +779,30 @@ function PerformancePage() {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => void diagnoseAllLogged()}
+              disabled={
+                aiBatch !== null ||
+                cells.every(
+                  (c) => !metrics.some((m) => m.test_cell_id === c.id),
+                )
+              }
+              className="border-[var(--color-rec)] text-[var(--color-rec)] hover:bg-[var(--color-rec)]/5"
+            >
+              {aiBatch ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Diagnosing {aiBatch.done}/{aiBatch.total}…
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-3.5 w-3.5" /> Diagnose all logged
+                  variants
+                </>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setReportOpen(true)}
               disabled={cells.length === 0}
             >
