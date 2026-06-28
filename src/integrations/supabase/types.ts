@@ -756,13 +756,17 @@ export type Database = {
           assigned_tool: string | null
           audio_note: string | null
           camera_move: string | null
+          caption_text: string | null
           created_at: string
           duration_seconds: number | null
+          generation_method: Database["public"]["Enums"]["shot_generation_method"]
           id: string
           motion_intensity: string | null
+          reference_image_url: string | null
           reference_notes: string | null
           script_id: string
           shot_number: number | null
+          tool_reason: string | null
           updated_at: string
           user_id: string
           visual_description: string | null
@@ -771,13 +775,17 @@ export type Database = {
           assigned_tool?: string | null
           audio_note?: string | null
           camera_move?: string | null
+          caption_text?: string | null
           created_at?: string
           duration_seconds?: number | null
+          generation_method?: Database["public"]["Enums"]["shot_generation_method"]
           id?: string
           motion_intensity?: string | null
+          reference_image_url?: string | null
           reference_notes?: string | null
           script_id: string
           shot_number?: number | null
+          tool_reason?: string | null
           updated_at?: string
           user_id: string
           visual_description?: string | null
@@ -786,13 +794,17 @@ export type Database = {
           assigned_tool?: string | null
           audio_note?: string | null
           camera_move?: string | null
+          caption_text?: string | null
           created_at?: string
           duration_seconds?: number | null
+          generation_method?: Database["public"]["Enums"]["shot_generation_method"]
           id?: string
           motion_intensity?: string | null
+          reference_image_url?: string | null
           reference_notes?: string | null
           script_id?: string
           shot_number?: number | null
+          tool_reason?: string | null
           updated_at?: string
           user_id?: string
           visual_description?: string | null
@@ -835,6 +847,7 @@ export type Database = {
       deliverable_aspect: "9:16" | "4:5" | "1:1"
       deliverable_placement: "reels" | "feed" | "stories"
       script_status: "draft" | "approved" | "archived"
+      shot_generation_method: "text-to-video" | "image-to-video"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -978,6 +991,7 @@ export const Constants = {
       deliverable_aspect: ["9:16", "4:5", "1:1"],
       deliverable_placement: ["reels", "feed", "stories"],
       script_status: ["draft", "approved", "archived"],
+      shot_generation_method: ["text-to-video", "image-to-video"],
     },
   },
 } as const
