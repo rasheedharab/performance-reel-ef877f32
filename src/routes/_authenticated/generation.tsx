@@ -9,6 +9,7 @@ import {
   Pencil,
   Plus,
   Search,
+  Sparkles,
   Trash2,
   Upload,
   Volume2,
