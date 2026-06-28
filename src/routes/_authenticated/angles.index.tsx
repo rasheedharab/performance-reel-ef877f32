@@ -297,7 +297,7 @@ function AnglesWorkspace() {
       const { data } = await supabase
         .from("briefs")
         .select(
-          "id, project_name, status, awareness_stage, core_driver, objection, psychographic, benefits, wedge, offer_type, offer_detail, brand:brands(id, name, voice, no_go_list)",
+          "id, project_name, status, awareness_stage, core_driver, objection, psychographic, benefits, wedge, offer_type, offer_detail, brand:brands(id, name, brand_voice, no_go_list)",
         )
         .eq("id", briefParam)
         .maybeSingle();
@@ -317,7 +317,7 @@ function AnglesWorkspace() {
             wedge: string | null;
             offer_type: string | null;
             offer_detail: string | null;
-            brand: { id: string; name: string; voice: string | null; no_go_list: unknown } | null;
+            brand: { id: string; name: string; brand_voice: string | null; no_go_list: unknown } | null;
           };
           setSelectedBrief({
             id: d.id,
@@ -332,7 +332,7 @@ function AnglesWorkspace() {
             offer_type: d.offer_type,
             offer_detail: d.offer_detail,
             brand: d.brand ? { id: d.brand.id, name: d.brand.name } : null,
-            brand_voice: d.brand?.voice ?? null,
+            brand_voice: d.brand?.brand_voice ?? null,
             brand_no_go: d.brand?.no_go_list ?? null,
           });
         }
