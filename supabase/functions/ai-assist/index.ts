@@ -37,6 +37,7 @@ type TaskBuilder = (payload: Record<string, unknown>) => {
 
 const TASK_MODELS: Record<string, string> = {
   diagnose_variant: "claude-haiku-4-5",
+  distill_winner: "claude-haiku-4-5",
 };
 const DEFAULT_MODEL = "claude-sonnet-4-6";
 
@@ -274,6 +275,75 @@ Return ONLY this JSON shape (no other text):
   "diagnosis": "1–2 sentences, specific to this variant's numbers and lineage",
   "recommended_action": "scale | iterate_hook | iterate_body | iterate_offer | kill",
   "confidence_note": "one short line; flag if spend/impressions are too low to trust yet"
+}`;
+  return { system, user };
+};
+
+TASKS.distill_winner = (p) => {
+  const tools = Array.isArray(p.tools)
+    ? (p.tools as unknown[]).filter((x) => typeof x === "string").join(" · ")
+    : (typeof p.tools === "string" ? p.tools : "");
+  const shotPattern = Array.isArray(p.shot_pattern)
+    ? (p.shot_pattern as unknown[])
+        .filter((x) => typeof x === "string")
+        .join(" → ")
+    : (typeof p.shot_pattern === "string" ? p.shot_pattern : "");
+  const system =
+    "You are a senior creative strategist building a reusable playbook from " +
+    "winning Meta ads. Given ONE winning variant, extract the TRANSFERABLE " +
+    "PATTERN — the structural reason it worked — not the literal copy or " +
+    "the product. Produce reusable library entries: at minimum a " +
+    "hook_formula (the hook pattern, written as a fill-in-the-blank template " +
+    "a future writer can reuse with [variables]), and where clearly valuable " +
+    "a script_template (the beat skeleton) and/or a generation_prompt or " +
+    "shot_recipe (the winning visual/tool approach). Every entry must be " +
+    "product-agnostic, reusable across briefs, and specific enough to be " +
+    "actionable. Never lift the source copy verbatim — abstract it. " +
+    "Return ONLY valid JSON in the exact shape requested. No preamble, no " +
+    "markdown fences, no commentary.";
+  const user = `Distill the transferable pattern behind this WINNING variant.
+
+ANGLE
+- Title: ${p.angle_title ?? "—"}
+- Entry point: ${p.entry_point ?? "—"}
+- Description: ${p.angle_description ?? "—"}
+
+SCRIPT
+- Archetype: ${p.archetype ?? "—"}
+- Hook: ${p.hook ?? "—"}
+- Body: ${p.body ?? "—"}
+- CTA: ${p.cta ?? "—"}
+
+PRODUCTION
+- Tool(s) used: ${tools || "—"}
+- Shot pattern (beat → tool): ${shotPattern || "—"}
+
+PERFORMANCE (why we're keeping this)
+- Winning source metric: ${p.source_metric ?? "—"}
+- Hook rate: ${p.hook_rate ?? "—"}
+- Hold rate: ${p.hold_rate ?? "—"}
+- CTR: ${p.ctr ?? "—"}
+
+RULES
+- Produce 1–4 entries total. Always include at least one "hook_formula".
+- "category" MUST be one of: generation_prompt, script_template, hook_formula, shot_recipe, vo_style.
+- "content" is the reusable artifact itself — a template, formula, or recipe — written so a future writer/producer could apply it to a different product. Use [BRACKETED] placeholders for variables.
+- "notes" explains briefly WHY it worked and WHEN to reuse it.
+- "archetype", "tool", "entry_point" should be set when clearly relevant; otherwise null.
+
+Return ONLY this JSON shape (no other text):
+{
+  "entries": [
+    {
+      "category": "hook_formula | script_template | generation_prompt | shot_recipe | vo_style",
+      "title": "short, memorable name for the pattern",
+      "content": "the reusable template/formula/recipe with [BRACKETED] variables",
+      "archetype": "string or null",
+      "tool": "string or null",
+      "entry_point": "pain | outcome | objection | social_proof | identity | curiosity | null",
+      "notes": "1–2 sentences on why it worked and when to reuse"
+    }
+  ]
 }`;
   return { system, user };
 };

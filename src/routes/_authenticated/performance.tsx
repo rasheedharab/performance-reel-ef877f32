@@ -19,7 +19,6 @@ import {
   Loader2,
   AlertTriangle,
 } from "lucide-react";
-import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +45,10 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import {
+  CATEGORY_LABEL,
+  type LibraryCategory,
+} from "@/components/library-picker";
 
 const searchSchema = z.object({
   campaign: z.string().optional(),
@@ -194,6 +197,17 @@ type AiDiagnosis = {
   diagnosis: string;
   recommended_action: MetricAction;
   confidence_note: string;
+};
+
+type DistillEntryDraft = {
+  category: LibraryCategory;
+  title: string;
+  content: string;
+  archetype: string | null;
+  tool: string | null;
+  entry_point: string | null;
+  notes: string;
+  selected: boolean;
 };
 
 const PLACEMENT_LABEL: Record<Placement, { label: string; ratio: string }> = {
@@ -371,6 +385,15 @@ function PerformancePage() {
   const [aiBatch, setAiBatch] = useState<{ done: number; total: number } | null>(
     null,
   );
+  const [distillLoading, setDistillLoading] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [distillReview, setDistillReview] = useState<{
+    entries: DistillEntryDraft[];
+    cellAdName: string;
+    sourceMetric: string | null;
+    sourceBrandId: string | null;
+  } | null>(null);
 
   useEffect(() => {
     void loadCampaigns();
@@ -733,6 +756,201 @@ function PerformancePage() {
     toast.success(`Diagnosed ${eligible.length} variant(s)`);
   }
 
+  async function distillWinner(cell: TestCellRow) {
+    const cellMetrics = metrics.filter((m) => m.test_cell_id === cell.id);
+    const agg = aggregate(cellMetrics);
+    const angle = angles.find((a) => a.id === cell.angle_id);
+
+    // Build the source_metric string from the strongest available number.
+    const sourceMetric =
+      agg.roas != null
+        ? `${agg.roas.toFixed(2)}× ROAS`
+        : agg.cpa != null
+          ? `$${agg.cpa.toFixed(2)} CPA`
+          : agg.ctr != null
+            ? `${(agg.ctr * 100).toFixed(2)}% CTR`
+            : "winner";
+
+    setDistillLoading((p) => ({ ...p, [cell.id]: true }));
+    try {
+      // Pull script + shot lineage via the deliverable's cut.
+      type ScriptLineage = {
+        archetype: string | null;
+        hook: string | null;
+        body: string | null;
+        cta: string | null;
+      };
+      let script: ScriptLineage | null = null;
+      const tools: string[] = [];
+      const shotPattern: string[] = [];
+      if (cell.deliverable_id) {
+        const { data: delv } = await supabase
+          .from("deliverables")
+          .select("cut_id")
+          .eq("id", cell.deliverable_id)
+          .maybeSingle();
+        const cutId = (delv as { cut_id?: string } | null)?.cut_id;
+        if (cutId) {
+          const { data: cut } = await supabase
+            .from("cuts")
+            .select("script_id")
+            .eq("id", cutId)
+            .maybeSingle();
+          const scriptId = (cut as { script_id?: string } | null)?.script_id;
+          if (scriptId) {
+            const { data: scr } = await supabase
+              .from("scripts")
+              .select("archetype, hook, body, cta")
+              .eq("id", scriptId)
+              .maybeSingle();
+            if (scr) script = scr as ScriptLineage;
+            const { data: shots } = await supabase
+              .from("shots")
+              .select("shot_number, assigned_tool, generation_method")
+              .eq("script_id", scriptId)
+              .order("shot_number");
+            for (const s of (shots ?? []) as Array<{
+              shot_number: number | null;
+              assigned_tool: string | null;
+              generation_method: string | null;
+            }>) {
+              if (s.assigned_tool && !tools.includes(s.assigned_tool))
+                tools.push(s.assigned_tool);
+              if (s.assigned_tool)
+                shotPattern.push(
+                  `#${s.shot_number ?? "?"} ${s.assigned_tool}${s.generation_method ? ` (${s.generation_method})` : ""}`,
+                );
+            }
+          }
+        }
+      }
+
+      const { data, error } = await supabase.functions.invoke("ai-assist", {
+        body: {
+          task: "distill_winner",
+          payload: {
+            angle_title: angle?.title ?? null,
+            entry_point: angle?.entry_point ?? null,
+            angle_description: null,
+            archetype: script?.archetype ?? null,
+            hook: script?.hook ?? cell.hook_label ?? null,
+            body: script?.body ?? null,
+            cta: script?.cta ?? null,
+            tools,
+            shot_pattern: shotPattern,
+            source_metric: sourceMetric,
+            hook_rate: agg.hook_rate,
+            hold_rate: agg.hold_rate,
+            ctr: agg.ctr,
+          },
+        },
+      });
+      if (error) throw new Error(error.message);
+      const payload = data as { result?: unknown; error?: string };
+      if (payload?.error) {
+        toast.error(payload.error);
+        return;
+      }
+      const r = payload?.result as { entries?: unknown[] } | undefined;
+      if (!r || !Array.isArray(r.entries) || r.entries.length === 0) {
+        toast.error("AI didn't return any entries. Try again.");
+        return;
+      }
+      const validCats: LibraryCategory[] = [
+        "generation_prompt",
+        "script_template",
+        "hook_formula",
+        "shot_recipe",
+        "vo_style",
+      ];
+      const drafts: DistillEntryDraft[] = (
+        r.entries as Array<Record<string, unknown>>
+      )
+        .map<DistillEntryDraft | null>((e) => {
+          const cat = validCats.includes(e.category as LibraryCategory)
+            ? (e.category as LibraryCategory)
+            : "hook_formula";
+          const title = typeof e.title === "string" ? e.title : "";
+          const content = typeof e.content === "string" ? e.content : "";
+          if (!title || !content) return null;
+          return {
+            category: cat,
+            title,
+            content,
+            archetype:
+              typeof e.archetype === "string" && e.archetype ? e.archetype : null,
+            tool: typeof e.tool === "string" && e.tool ? e.tool : null,
+            entry_point:
+              typeof e.entry_point === "string" && e.entry_point
+                ? e.entry_point
+                : (angle?.entry_point ?? null),
+            notes: typeof e.notes === "string" ? e.notes : "",
+            selected: true,
+          };
+        })
+        .filter((x): x is DistillEntryDraft => x !== null);
+
+      if (drafts.length === 0) {
+        toast.error("AI returned no usable entries.");
+        return;
+      }
+
+      setDistillReview({
+        entries: drafts,
+        cellAdName: cell.ad_name ?? cell.hook_label ?? "Winning variant",
+        sourceMetric,
+        sourceBrandId: brief?.brand?.id ?? null,
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "AI distill failed");
+    } finally {
+      setDistillLoading((p) => {
+        const next = { ...p };
+        delete next[cell.id];
+        return next;
+      });
+    }
+  }
+
+  async function saveDistilledEntries(entries: DistillEntryDraft[]) {
+    if (!distillReview) return;
+    const chosen = entries.filter((e) => e.selected);
+    if (chosen.length === 0) {
+      toast.info("Nothing selected.");
+      return;
+    }
+    const { data: u } = await supabase.auth.getUser();
+    const uid = u.user?.id;
+    if (!uid) {
+      toast.error("Not signed in");
+      return;
+    }
+    const rows = chosen.map((e) => ({
+      user_id: uid,
+      title: e.title.trim(),
+      category: e.category,
+      prompt_text: e.content.trim(),
+      notes: e.notes.trim() || null,
+      archetype: e.archetype,
+      tool: e.tool,
+      entry_point: e.entry_point,
+      performance_tag: "winner",
+      source_metric: distillReview.sourceMetric,
+      source_brand_id: distillReview.sourceBrandId,
+    }));
+    const { error } = await supabase
+      .from("prompt_library")
+      .insert(rows as never);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success(
+      `Saved ${chosen.length} entr${chosen.length === 1 ? "y" : "ies"} to library`,
+    );
+    setDistillReview(null);
+  }
+
   return (
     <div className="container max-w-7xl mx-auto px-6 py-10">
       <div className="mb-6">
@@ -846,6 +1064,8 @@ function PerformancePage() {
                 ai={aiResults[cell.id] ?? null}
                 aiLoading={!!aiLoading[cell.id]}
                 onDiagnose={() => diagnoseVariant(cell)}
+                onDistill={() => distillWinner(cell)}
+                distillLoading={!!distillLoading[cell.id]}
                 onSave={(patch, date) => saveMetric(cell, patch, date)}
                 onSaveDiagnosis={(text) => {
                   const date =
@@ -923,6 +1143,17 @@ function PerformancePage() {
           onClose={() => setReportOpen(false)}
         />
       )}
+
+      {distillReview && (
+        <DistillReviewDialog
+          review={distillReview}
+          onChange={(entries) =>
+            setDistillReview((r) => (r ? { ...r, entries } : r))
+          }
+          onClose={() => setDistillReview(null)}
+          onSave={(entries) => saveDistilledEntries(entries)}
+        />
+      )}
     </div>
   );
 }
@@ -942,6 +1173,8 @@ function CellRow({
   ai,
   aiLoading,
   onDiagnose,
+  onDistill,
+  distillLoading,
   onSave,
   onSaveDiagnosis,
   onAction,
@@ -959,6 +1192,8 @@ function CellRow({
   ai: AiDiagnosis | null;
   aiLoading: boolean;
   onDiagnose: () => Promise<boolean>;
+  onDistill: () => Promise<void>;
+  distillLoading: boolean;
   onSave: (patch: Partial<MetricRow>, date: string) => Promise<void>;
   onSaveDiagnosis: (text: string) => Promise<void>;
   onAction: (a: MetricAction) => Promise<void>;
@@ -1065,50 +1300,26 @@ function CellRow({
         </div>
         <div className="flex items-center gap-2">
           {(cell.status === "winner" || agg.action_taken === "scale") && (
-            <Link
-              to="/library"
-              search={{
-                new: "1",
-                title:
-                  cell.hook_label ||
-                  cell.ad_name ||
-                  angle?.title ||
-                  "Winning variant",
-                category: "hook_formula",
-                archetype: deliverable?.placement ?? undefined,
-                entry_point: angle?.entry_point ?? undefined,
-                source_brand_id: brandId ?? undefined,
-                source_metric:
-                  agg.latest?.roas != null
-                    ? `${Number(agg.latest.roas).toFixed(2)}× ROAS`
-                    : agg.latest?.cpa != null
-                      ? `$${Number(agg.latest.cpa).toFixed(2)} CPA`
-                      : undefined,
-                performance_tag: "winner",
-                prompt_text: [
-                  `Hook: ${cell.hook_label ?? "(unlabeled)"}`,
-                  angle?.title ? `Angle: ${angle.title}` : null,
-                  angle?.entry_point
-                    ? `Entry point: ${angle.entry_point}`
-                    : null,
-                  deliverable?.placement
-                    ? `Format: ${deliverable.placement}`
-                    : null,
-                ]
-                  .filter(Boolean)
-                  .join("\n"),
-                notes: `Saved from ${brandName ?? "campaign"} — ${projectName ?? ""}`,
-              }}
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 border-emerald-700 text-emerald-700 hover:bg-emerald-50"
+              onClick={() => void onDistill()}
+              disabled={distillLoading}
+              title="Extract the reusable pattern behind this winner"
             >
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 border-emerald-700 text-emerald-700 hover:bg-emerald-50"
-              >
-                <BookmarkPlus className="h-3.5 w-3.5" />
-                Save to library
-              </Button>
-            </Link>
+              {distillLoading ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Distilling the pattern…
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Save to library
+                </>
+              )}
+            </Button>
           )}
           <Select
             value={displayAction}
@@ -1880,5 +2091,192 @@ function EmptyHint({ title, body }: { title: string; body: string }) {
         {body}
       </p>
     </div>
+  );
+}
+
+// ---------------- Distill review dialog ----------------
+const LIB_CATEGORIES: LibraryCategory[] = [
+  "generation_prompt",
+  "script_template",
+  "hook_formula",
+  "shot_recipe",
+  "vo_style",
+];
+
+function DistillReviewDialog({
+  review,
+  onChange,
+  onClose,
+  onSave,
+}: {
+  review: {
+    entries: DistillEntryDraft[];
+    cellAdName: string;
+    sourceMetric: string | null;
+    sourceBrandId: string | null;
+  };
+  onChange: (entries: DistillEntryDraft[]) => void;
+  onClose: () => void;
+  onSave: (entries: DistillEntryDraft[]) => Promise<void>;
+}) {
+  const [saving, setSaving] = useState(false);
+
+  function update(i: number, patch: Partial<DistillEntryDraft>) {
+    const next = review.entries.map((e, idx) =>
+      idx === i ? { ...e, ...patch } : e,
+    );
+    onChange(next);
+  }
+
+  const selectedCount = review.entries.filter((e) => e.selected).length;
+
+  return (
+    <Dialog open onOpenChange={(v) => !v && !saving && onClose()}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <div className="flex items-center gap-2 mb-1">
+            <Sparkles className="h-4 w-4 text-[var(--color-rec)]" />
+            <p className="label-mono">DISTILL WINNER</p>
+          </div>
+          <DialogTitle className="font-display">
+            Reusable patterns from {review.cellAdName}
+          </DialogTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            AI distilled the pattern behind this winner — refine and save what's
+            worth reusing.
+          </p>
+          {review.sourceMetric && (
+            <div className="mt-2">
+              <span className="label-mono text-[10px] px-1.5 py-0.5 rounded-[2px] bg-emerald-500/10 text-emerald-700 border border-emerald-600/30">
+                {review.sourceMetric}
+              </span>
+            </div>
+          )}
+        </DialogHeader>
+
+        <div className="space-y-3 mt-2">
+          {review.entries.map((entry, i) => (
+            <div
+              key={i}
+              className={cn(
+                "border rounded-[3px] p-3 transition-colors",
+                entry.selected
+                  ? "border-foreground/40 bg-card"
+                  : "border-dashed border-border bg-muted/20 opacity-60",
+              )}
+            >
+              <div className="flex items-start gap-2 mb-2">
+                <input
+                  type="checkbox"
+                  checked={entry.selected}
+                  onChange={(e) => update(i, { selected: e.target.checked })}
+                  className="mt-1.5 h-4 w-4 accent-[var(--color-rec)]"
+                />
+                <div className="flex-1 grid grid-cols-3 gap-2">
+                  <div className="col-span-1">
+                    <Label className="label-mono mb-1 block">Category</Label>
+                    <Select
+                      value={entry.category}
+                      onValueChange={(v) =>
+                        update(i, { category: v as LibraryCategory })
+                      }
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LIB_CATEGORIES.map((c) => (
+                          <SelectItem key={c} value={c}>
+                            {CATEGORY_LABEL[c]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="label-mono mb-1 block">Title</Label>
+                    <Input
+                      value={entry.title}
+                      onChange={(e) => update(i, { title: e.target.value })}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="ml-6 space-y-2">
+                <div>
+                  <Label className="label-mono mb-1 block">Content</Label>
+                  <Textarea
+                    value={entry.content}
+                    onChange={(e) => update(i, { content: e.target.value })}
+                    rows={4}
+                    className="font-mono text-xs"
+                  />
+                </div>
+                <div>
+                  <Label className="label-mono mb-1 block">
+                    Notes — why it worked
+                  </Label>
+                  <Textarea
+                    value={entry.notes}
+                    onChange={(e) => update(i, { notes: e.target.value })}
+                    rows={2}
+                    className="text-xs"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  {entry.archetype && (
+                    <span className="label-mono text-[10px] px-1.5 py-0.5 border border-border rounded-[2px]">
+                      {entry.archetype}
+                    </span>
+                  )}
+                  {entry.tool && (
+                    <span className="label-mono text-[10px] px-1.5 py-0.5 border border-border rounded-[2px]">
+                      {entry.tool}
+                    </span>
+                  )}
+                  {entry.entry_point && (
+                    <span className="label-mono text-[10px] px-1.5 py-0.5 border border-border rounded-[2px]">
+                      {entry.entry_point.replace("_", " ")}
+                    </span>
+                  )}
+                  {review.sourceMetric && (
+                    <span className="label-mono text-[10px] px-1.5 py-0.5 rounded-[2px] bg-emerald-500/10 text-emerald-700 border border-emerald-600/30">
+                      {review.sourceMetric}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-2 mt-4">
+          <Button variant="outline" onClick={onClose} disabled={saving}>
+            Dismiss
+          </Button>
+          <Button
+            onClick={async () => {
+              setSaving(true);
+              await onSave(review.entries);
+              setSaving(false);
+            }}
+            disabled={saving || selectedCount === 0}
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Saving…
+              </>
+            ) : (
+              <>
+                <BookmarkPlus className="h-4 w-4" />
+                Save {selectedCount} to library
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
