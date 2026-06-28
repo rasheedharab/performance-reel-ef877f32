@@ -8,6 +8,7 @@ import {
   Pencil,
   Plus,
   Search,
+  Sparkles,
   VolumeX,
   Volume2,
 } from "lucide-react";
