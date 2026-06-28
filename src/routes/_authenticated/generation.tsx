@@ -574,6 +574,7 @@ function GenerationBoard() {
                   assets={assetsByShot.get(shot.id) ?? []}
                   signedUrls={signedUrls}
                   onAddManual={() => setManualOpen({ shot })}
+                  onGenerate={() => setGenerateOpen({ shot })}
                   onSelectTake={(assetId) => setSelectedTake(shot.id, assetId)}
                   onOpenDetail={(a) => setDetailOpen(a)}
                 />
@@ -587,6 +588,7 @@ function GenerationBoard() {
             assets={audioAssets}
             signedUrls={signedUrls}
             onAdd={(type) => setAudioOpen({ type })}
+            onGenerateVo={() => setVoGenOpen(true)}
             onOpenDetail={(a) => setDetailOpen(a)}
           />
         </>
