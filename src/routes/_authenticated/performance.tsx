@@ -696,6 +696,9 @@ function PerformancePage() {
                 metrics={cellMetrics}
                 diag={diag}
                 cpaTarget={cpaTarget}
+                brandId={brief?.brand?.id ?? null}
+                brandName={brief?.brand?.name ?? null}
+                projectName={brief?.project_name ?? null}
                 onSave={(patch, date) => saveMetric(cell, patch, date)}
                 onSaveDiagnosis={(text) => {
                   const date =
