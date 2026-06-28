@@ -1350,23 +1350,32 @@ function FunnelStage({
   value,
   question,
   tier,
+  weakest,
 }: {
   label: string;
   sub: string;
   value: string;
   question: string;
   tier: Tier;
+  weakest?: boolean;
 }) {
   return (
     <div
       className={cn(
         "border rounded-[2px] p-3",
         TIER_STYLES[tier],
+        weakest &&
+          "ring-2 ring-[var(--color-rec)] ring-offset-1 ring-offset-background border-[var(--color-rec)]",
       )}
     >
       <div className="flex items-center gap-1.5 mb-1">
         <span className={cn("h-2 w-2 rounded-full", TIER_DOT[tier])} />
         <p className="font-mono text-[10px] uppercase tracking-wider">{label}</p>
+        {weakest ? (
+          <span className="ml-auto font-mono text-[9px] uppercase tracking-wider text-[var(--color-rec)] border border-[var(--color-rec)] rounded-[2px] px-1">
+            weakest
+          </span>
+        ) : null}
       </div>
       <p className="font-display text-xl font-bold leading-tight">{value}</p>
       <p className="label-mono opacity-70 mt-0.5">{sub}</p>
