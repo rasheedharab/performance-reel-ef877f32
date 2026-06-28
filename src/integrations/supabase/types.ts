@@ -458,39 +458,127 @@ export type Database = {
           },
         ]
       }
+      cut_shots: {
+        Row: {
+          asset_id: string | null
+          created_at: string
+          cut_id: string
+          id: string
+          sequence_order: number
+          shot_id: string | null
+          transition_note: string | null
+          trim_note: string | null
+          updated_at: string
+        }
+        Insert: {
+          asset_id?: string | null
+          created_at?: string
+          cut_id: string
+          id?: string
+          sequence_order?: number
+          shot_id?: string | null
+          transition_note?: string | null
+          trim_note?: string | null
+          updated_at?: string
+        }
+        Update: {
+          asset_id?: string | null
+          created_at?: string
+          cut_id?: string
+          id?: string
+          sequence_order?: number
+          shot_id?: string | null
+          transition_note?: string | null
+          trim_note?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cut_shots_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cut_shots_cut_id_fkey"
+            columns: ["cut_id"]
+            isOneToOne: false
+            referencedRelation: "cuts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cut_shots_shot_id_fkey"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "shots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cuts: {
         Row: {
+          brand_frames_ok: boolean
           brief_id: string
+          captions_added: boolean
+          color_consistent: boolean
           created_at: string
+          cta_added: boolean
           edit_notes: string | null
+          export_ready: boolean
+          hook_timing_ok: boolean
           id: string
+          music_asset_url: string | null
           name: string
+          script_id: string | null
           status: string | null
+          total_duration: number | null
           updated_at: string
           user_id: string
           version: number | null
+          vo_asset_url: string | null
         }
         Insert: {
+          brand_frames_ok?: boolean
           brief_id: string
+          captions_added?: boolean
+          color_consistent?: boolean
           created_at?: string
+          cta_added?: boolean
           edit_notes?: string | null
+          export_ready?: boolean
+          hook_timing_ok?: boolean
           id?: string
+          music_asset_url?: string | null
           name: string
+          script_id?: string | null
           status?: string | null
+          total_duration?: number | null
           updated_at?: string
           user_id: string
           version?: number | null
+          vo_asset_url?: string | null
         }
         Update: {
+          brand_frames_ok?: boolean
           brief_id?: string
+          captions_added?: boolean
+          color_consistent?: boolean
           created_at?: string
+          cta_added?: boolean
           edit_notes?: string | null
+          export_ready?: boolean
+          hook_timing_ok?: boolean
           id?: string
+          music_asset_url?: string | null
           name?: string
+          script_id?: string | null
           status?: string | null
+          total_duration?: number | null
           updated_at?: string
           user_id?: string
           version?: number | null
+          vo_asset_url?: string | null
         }
         Relationships: [
           {
@@ -498,6 +586,13 @@ export type Database = {
             columns: ["brief_id"]
             isOneToOne: false
             referencedRelation: "briefs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cuts_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "scripts"
             referencedColumns: ["id"]
           },
         ]
