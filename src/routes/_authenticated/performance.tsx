@@ -1143,6 +1143,17 @@ function PerformancePage() {
           onClose={() => setReportOpen(false)}
         />
       )}
+
+      {distillReview && (
+        <DistillReviewDialog
+          review={distillReview}
+          onChange={(entries) =>
+            setDistillReview((r) => (r ? { ...r, entries } : r))
+          }
+          onClose={() => setDistillReview(null)}
+          onSave={(entries) => saveDistilledEntries(entries)}
+        />
+      )}
     </div>
   );
 }
