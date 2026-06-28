@@ -13,11 +13,13 @@ import {
   Plus,
   Rocket,
   Search,
+  ShieldAlert,
   Trash2,
   X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Link } from "@tanstack/react-router";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
