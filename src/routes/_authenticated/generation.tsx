@@ -1644,14 +1644,37 @@ function GenerateClipDialog({
         },
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (error) throw error;
+      // supabase-js puts the function's response body on error.context for non-2xx
+      if (error) {
+        const ctxRes = (error as unknown as { context?: { response?: Response } })
+          .context?.response;
+        if (ctxRes) {
+          const parsed = await ctxRes.clone().json().catch(() => null);
+          const detailText =
+            parsed?.detail && typeof parsed.detail === "string"
+              ? parsed.detail
+              : typeof parsed?.detail === "object"
+                ? JSON.stringify(parsed.detail)
+                : null;
+          throw new Error(
+            [parsed?.error, detailText].filter(Boolean).join(" — ") ||
+              error.message,
+          );
+        }
+        throw error;
+      }
       const errPayload = (data as { error?: string } | null)?.error;
       if (errPayload) throw new Error(errPayload);
       toast.success("Generation queued");
       onSubmitted();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      toast.error(msg);
+      // Friendlier message for the most common fal failure
+      if (/exhausted balance|user is locked/i.test(msg)) {
+        toast.error("fal.ai balance exhausted. Top up at fal.ai/dashboard/billing.");
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setBusy(false);
     }
