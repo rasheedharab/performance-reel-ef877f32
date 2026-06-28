@@ -687,14 +687,19 @@ export type Database = {
           body: string | null
           created_at: string
           cta: string | null
+          desire_beat: string | null
           duration_seconds: number | null
           full_script: string | null
           hook: string | null
           id: string
+          on_screen_text: string | null
           proof_beat: string | null
-          status: string | null
+          status: Database["public"]["Enums"]["script_status"]
+          target_duration: number | null
           updated_at: string
           user_id: string
+          vo_script: string | null
+          works_sound_off: boolean
         }
         Insert: {
           angle_id: string
@@ -702,14 +707,19 @@ export type Database = {
           body?: string | null
           created_at?: string
           cta?: string | null
+          desire_beat?: string | null
           duration_seconds?: number | null
           full_script?: string | null
           hook?: string | null
           id?: string
+          on_screen_text?: string | null
           proof_beat?: string | null
-          status?: string | null
+          status?: Database["public"]["Enums"]["script_status"]
+          target_duration?: number | null
           updated_at?: string
           user_id: string
+          vo_script?: string | null
+          works_sound_off?: boolean
         }
         Update: {
           angle_id?: string
@@ -717,14 +727,19 @@ export type Database = {
           body?: string | null
           created_at?: string
           cta?: string | null
+          desire_beat?: string | null
           duration_seconds?: number | null
           full_script?: string | null
           hook?: string | null
           id?: string
+          on_screen_text?: string | null
           proof_beat?: string | null
-          status?: string | null
+          status?: Database["public"]["Enums"]["script_status"]
+          target_duration?: number | null
           updated_at?: string
           user_id?: string
+          vo_script?: string | null
+          works_sound_off?: boolean
         }
         Relationships: [
           {
@@ -819,6 +834,7 @@ export type Database = {
       brief_status: "draft" | "locked" | "in_production" | "live" | "archived"
       deliverable_aspect: "9:16" | "4:5" | "1:1"
       deliverable_placement: "reels" | "feed" | "stories"
+      script_status: "draft" | "approved" | "archived"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -961,6 +977,7 @@ export const Constants = {
       brief_status: ["draft", "locked", "in_production", "live", "archived"],
       deliverable_aspect: ["9:16", "4:5", "1:1"],
       deliverable_placement: ["reels", "feed", "stories"],
+      script_status: ["draft", "approved", "archived"],
     },
   },
 } as const
