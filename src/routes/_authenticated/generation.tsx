@@ -163,6 +163,8 @@ function GenerationBoard() {
 
   const [manualOpen, setManualOpen] = useState<{ shot: ShotRow } | null>(null);
   const [audioOpen, setAudioOpen] = useState<{ type: AssetType } | null>(null);
+  const [generateOpen, setGenerateOpen] = useState<{ shot: ShotRow } | null>(null);
+  const [voGenOpen, setVoGenOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState<AssetRow | null>(null);
 
   // signed URL cache for storage-path file_urls
