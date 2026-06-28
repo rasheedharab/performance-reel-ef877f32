@@ -600,52 +600,76 @@ export type Database = {
       deliverables: {
         Row: {
           aspect_ratio: Database["public"]["Enums"]["deliverable_aspect"] | null
+          audio_ok: boolean
           captions_burned: boolean | null
           created_at: string
           cut_id: string
+          duration_ok: boolean
           duration_seconds: number | null
           file_url: string | null
+          filename: string | null
           id: string
+          notes: string | null
           placement: Database["public"]["Enums"]["deliverable_placement"] | null
+          resolution: string | null
+          resolution_ok: boolean
+          safe_zone_ok: boolean
           spec_checked: boolean | null
           status: string | null
           updated_at: string
+          upload_ready: boolean
           user_id: string
         }
         Insert: {
           aspect_ratio?:
             | Database["public"]["Enums"]["deliverable_aspect"]
             | null
+          audio_ok?: boolean
           captions_burned?: boolean | null
           created_at?: string
           cut_id: string
+          duration_ok?: boolean
           duration_seconds?: number | null
           file_url?: string | null
+          filename?: string | null
           id?: string
+          notes?: string | null
           placement?:
             | Database["public"]["Enums"]["deliverable_placement"]
             | null
+          resolution?: string | null
+          resolution_ok?: boolean
+          safe_zone_ok?: boolean
           spec_checked?: boolean | null
           status?: string | null
           updated_at?: string
+          upload_ready?: boolean
           user_id: string
         }
         Update: {
           aspect_ratio?:
             | Database["public"]["Enums"]["deliverable_aspect"]
             | null
+          audio_ok?: boolean
           captions_burned?: boolean | null
           created_at?: string
           cut_id?: string
+          duration_ok?: boolean
           duration_seconds?: number | null
           file_url?: string | null
+          filename?: string | null
           id?: string
+          notes?: string | null
           placement?:
             | Database["public"]["Enums"]["deliverable_placement"]
             | null
+          resolution?: string | null
+          resolution_ok?: boolean
+          safe_zone_ok?: boolean
           spec_checked?: boolean | null
           status?: string | null
           updated_at?: string
+          upload_ready?: boolean
           user_id?: string
         }
         Relationships: [

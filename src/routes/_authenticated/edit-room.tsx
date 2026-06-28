@@ -953,7 +953,9 @@ function CutEditor({ cutId, briefParam }: { cutId: string; briefParam: string | 
             </Button>
             <Button
               size="sm"
-              onClick={() => navigate({ to: "/deliverables" })}
+              onClick={() =>
+                navigate({ to: "/deliverables", search: { cut: cut.id } })
+              }
             >
               <Package className="h-3.5 w-3.5" /> Build deliverables →
             </Button>
