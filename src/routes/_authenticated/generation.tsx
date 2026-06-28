@@ -625,6 +625,33 @@ function GenerationBoard() {
         />
       )}
 
+      {generateOpen && selected && (
+        <GenerateClipDialog
+          shot={generateOpen.shot}
+          briefId={briefId}
+          existingVersionCount={
+            (assetsByShot.get(generateOpen.shot.id) ?? []).length
+          }
+          onClose={() => setGenerateOpen(null)}
+          onSubmitted={async () => {
+            setGenerateOpen(null);
+            await reloadBoard();
+          }}
+        />
+      )}
+
+      {voGenOpen && selected && briefId && (
+        <GenerateVoiceoverDialog
+          briefId={briefId}
+          defaultSourceText={selected.vo_script ?? ""}
+          onClose={() => setVoGenOpen(false)}
+          onSaved={async () => {
+            setVoGenOpen(false);
+            await reloadBoard();
+          }}
+        />
+      )}
+
       {detailOpen && (
         <AssetDetailDialog
           asset={detailOpen}
