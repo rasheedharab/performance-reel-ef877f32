@@ -37,6 +37,7 @@ type TaskBuilder = (payload: Record<string, unknown>) => {
 
 const TASK_MODELS: Record<string, string> = {
   diagnose_variant: "claude-haiku-4-5",
+  distill_winner: "claude-haiku-4-5",
 };
 const DEFAULT_MODEL = "claude-sonnet-4-6";
 
