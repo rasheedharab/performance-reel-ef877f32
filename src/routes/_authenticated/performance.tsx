@@ -774,12 +774,13 @@ function PerformancePage() {
     setDistillLoading((p) => ({ ...p, [cell.id]: true }));
     try {
       // Pull script + shot lineage via the deliverable's cut.
-      let script: {
+      type ScriptLineage = {
         archetype: string | null;
         hook: string | null;
         body: string | null;
         cta: string | null;
-      } | null = null;
+      };
+      let script: ScriptLineage | null = null;
       const tools: string[] = [];
       const shotPattern: string[] = [];
       if (cell.deliverable_id) {
@@ -802,7 +803,7 @@ function PerformancePage() {
               .select("archetype, hook, body, cta")
               .eq("id", scriptId)
               .maybeSingle();
-            if (scr) script = scr as typeof script;
+            if (scr) script = scr as ScriptLineage;
             const { data: shots } = await supabase
               .from("shots")
               .select("shot_number, assigned_tool, generation_method")
@@ -862,8 +863,10 @@ function PerformancePage() {
         "shot_recipe",
         "vo_style",
       ];
-      const drafts: DistillEntryDraft[] = (r.entries as Array<Record<string, unknown>>)
-        .map((e) => {
+      const drafts: DistillEntryDraft[] = (
+        r.entries as Array<Record<string, unknown>>
+      )
+        .map<DistillEntryDraft | null>((e) => {
           const cat = validCats.includes(e.category as LibraryCategory)
             ? (e.category as LibraryCategory)
             : "hook_formula";
@@ -883,7 +886,7 @@ function PerformancePage() {
                 : (angle?.entry_point ?? null),
             notes: typeof e.notes === "string" ? e.notes : "",
             selected: true,
-          } satisfies DistillEntryDraft;
+          };
         })
         .filter((x): x is DistillEntryDraft => x !== null);
 
