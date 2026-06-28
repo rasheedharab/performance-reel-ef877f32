@@ -16,6 +16,8 @@ import {
   Target,
   Trophy,
   X,
+  Loader2,
+  AlertTriangle,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
@@ -357,6 +359,11 @@ function PerformancePage() {
   const [csvOpen, setCsvOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [aiResults, setAiResults] = useState<Record<string, AiDiagnosis>>({});
+  const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({});
+  const [aiBatch, setAiBatch] = useState<{ done: number; total: number } | null>(
+    null,
+  );
 
   useEffect(() => {
     void loadCampaigns();
