@@ -1084,7 +1084,7 @@ function ScriptDetailDialog({
                 Edit
               </Button>
               <Button asChild>
-                <Link to="/storyboard" search={{ script: script.id }}>
+                <Link to="/storyboard">
                   <Film className="h-4 w-4" />
                   Build storyboard
                   <ArrowRight className="h-4 w-4" />
