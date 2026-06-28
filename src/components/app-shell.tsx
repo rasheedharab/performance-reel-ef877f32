@@ -19,7 +19,14 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
-const nav = [
+type NavItem = {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  exact?: boolean;
+};
+
+const nav: NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/brands", label: "Brands", icon: Building2 },
   { to: "/briefs", label: "Briefs", icon: FileText },
@@ -33,7 +40,7 @@ const nav = [
   { to: "/launch", label: "Launch & Tests", icon: Rocket },
   { to: "/performance", label: "Performance", icon: LineChart },
   { to: "/library", label: "Library", icon: Library },
-] as const;
+];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -62,7 +69,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             return (
               <Link
                 key={item.to}
-                to={item.to}
+                to={item.to as string}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 rounded-[3px] text-sm transition-colors",
                   active
