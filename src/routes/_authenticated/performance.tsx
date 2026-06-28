@@ -843,6 +843,9 @@ function PerformancePage() {
                 brandId={brief?.brand?.id ?? null}
                 brandName={brief?.brand?.name ?? null}
                 projectName={brief?.project_name ?? null}
+                ai={aiResults[cell.id] ?? null}
+                aiLoading={!!aiLoading[cell.id]}
+                onDiagnose={() => diagnoseVariant(cell)}
                 onSave={(patch, date) => saveMetric(cell, patch, date)}
                 onSaveDiagnosis={(text) => {
                   const date =
