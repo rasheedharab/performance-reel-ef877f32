@@ -9,6 +9,8 @@ import {
   Pencil,
   Plus,
   Search,
+  Sparkles,
+  X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -34,6 +36,18 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
@@ -126,6 +140,10 @@ type BriefFull = BriefLite & {
   psychographic: string | null;
   benefits: unknown;
   wedge: string | null;
+  offer_type: string | null;
+  offer_detail: string | null;
+  brand_voice: string | null;
+  brand_no_go: unknown;
 };
 
 type AngleRow = {
@@ -228,6 +246,12 @@ function AnglesWorkspace() {
   const [detail, setDetail] = useState<AngleRow | null>(null);
   const [psychoExpanded, setPsychoExpanded] = useState(false);
 
+  // AI suggestions
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestError, setSuggestError] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<SuggestedAngle[] | null>(null);
+
   useEffect(() => {
     (async () => {
       const { data } = await supabase
@@ -250,11 +274,46 @@ function AnglesWorkspace() {
       const { data } = await supabase
         .from("briefs")
         .select(
-          "id, project_name, status, awareness_stage, core_driver, objection, psychographic, benefits, wedge, brand:brands(id, name)",
+          "id, project_name, status, awareness_stage, core_driver, objection, psychographic, benefits, wedge, offer_type, offer_detail, brand:brands(id, name, voice, no_go_list)",
         )
         .eq("id", briefParam)
         .maybeSingle();
-      if (alive) setSelectedBrief((data as unknown as BriefFull) ?? null);
+      if (alive) {
+        if (!data) {
+          setSelectedBrief(null);
+        } else {
+          const d = data as unknown as {
+            id: string;
+            project_name: string;
+            status: BriefStatus;
+            awareness_stage: string | null;
+            core_driver: string | null;
+            objection: string | null;
+            psychographic: string | null;
+            benefits: unknown;
+            wedge: string | null;
+            offer_type: string | null;
+            offer_detail: string | null;
+            brand: { id: string; name: string; voice: string | null; no_go_list: unknown } | null;
+          };
+          setSelectedBrief({
+            id: d.id,
+            project_name: d.project_name,
+            status: d.status,
+            awareness_stage: d.awareness_stage,
+            core_driver: d.core_driver,
+            objection: d.objection,
+            psychographic: d.psychographic,
+            benefits: d.benefits,
+            wedge: d.wedge,
+            offer_type: d.offer_type,
+            offer_detail: d.offer_detail,
+            brand: d.brand ? { id: d.brand.id, name: d.brand.name } : null,
+            brand_voice: d.brand?.voice ?? null,
+            brand_no_go: d.brand?.no_go_list ?? null,
+          });
+        }
+      }
     })();
     return () => {
       alive = false;
@@ -304,6 +363,84 @@ function AnglesWorkspace() {
     });
     return set;
   }, [angles]);
+
+  const requestSuggestions = async () => {
+    if (!selectedBrief) return;
+    setSuggesting(true);
+    setSuggestError(null);
+    setSuggestions(null);
+    setSuggestOpen(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-assist", {
+        body: {
+          task: "suggest_angles",
+          payload: {
+            awareness_stage: selectedBrief.awareness_stage,
+            core_driver: selectedBrief.core_driver,
+            objection: selectedBrief.objection,
+            psychographic: selectedBrief.psychographic,
+            benefits: selectedBrief.benefits,
+            wedge: selectedBrief.wedge,
+            offer_type: selectedBrief.offer_type,
+            offer_detail: selectedBrief.offer_detail,
+            brand_voice: selectedBrief.brand_voice,
+            no_go_list: selectedBrief.brand_no_go,
+          },
+        },
+      });
+      if (error) throw new Error(error.message);
+      const payload = data as { result?: { angles?: SuggestedAngle[] }; error?: string };
+      if (payload?.error) {
+        setSuggestError(payload.error);
+        return;
+      }
+      const raw = payload?.result?.angles;
+      if (!Array.isArray(raw)) {
+        setSuggestError("AI did not return any angles. Try again.");
+        return;
+      }
+      const cleaned = raw
+        .map((a) => normalizeSuggested(a))
+        .filter((a): a is SuggestedAngle => a !== null);
+      if (cleaned.length === 0) {
+        setSuggestError("AI returned no usable angles. Try again.");
+        return;
+      }
+      setSuggestions(cleaned);
+    } catch (e) {
+      setSuggestError(e instanceof Error ? e.message : "Something went wrong.");
+    } finally {
+      setSuggesting(false);
+    }
+  };
+
+  const addSuggested = async (s: SuggestedAngle): Promise<boolean> => {
+    if (!selectedBrief) return false;
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData.user?.id;
+    if (!userId) {
+      toast.error("Not signed in");
+      return false;
+    }
+    const nextPriority = angles?.length ?? 0;
+    const { error } = await supabase.from("angles").insert({
+      brief_id: selectedBrief.id,
+      user_id: userId,
+      title: s.title.trim(),
+      entry_point: s.entry_point,
+      target_segment: s.target_segment?.trim() || null,
+      hook_seed: s.hook_seed?.trim() || null,
+      description: s.description?.trim() || null,
+      priority: nextPriority,
+      status: "draft",
+    });
+    if (error) {
+      toast.error(error.message);
+      return false;
+    }
+    await loadAngles(selectedBrief.id);
+    return true;
+  };
 
   const benefitStrings = useMemo(() => {
     if (!selectedBrief?.benefits) return [];
@@ -507,16 +644,23 @@ function AnglesWorkspace() {
               {/* Angle grid */}
               <div className="flex items-center justify-between mb-3">
                 <p className="label-mono">Angles</p>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setEditing(null);
-                    setFormOpen(true);
-                  }}
-                >
-                  <Plus className="h-4 w-4" />
-                  New angle
-                </Button>
+                <div className="flex items-center gap-2">
+                  <SuggestButton
+                    coreDriver={selectedBrief.core_driver}
+                    loading={suggesting}
+                    onClick={requestSuggestions}
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setEditing(null);
+                      setFormOpen(true);
+                    }}
+                  >
+                    <Plus className="h-4 w-4" />
+                    New angle
+                  </Button>
+                </div>
               </div>
 
               {angles === null ? (
@@ -645,6 +789,23 @@ function AnglesWorkspace() {
           if (selectedBrief) await loadAngles(selectedBrief.id);
           setDetail({ ...a, status });
         }}
+      />
+
+      <SuggestDrawer
+        open={suggestOpen}
+        onOpenChange={(o) => {
+          setSuggestOpen(o);
+          if (!o) {
+            setSuggestions(null);
+            setSuggestError(null);
+          }
+        }}
+        loading={suggesting}
+        error={suggestError}
+        suggestions={suggestions}
+        setSuggestions={setSuggestions}
+        onAdd={addSuggested}
+        onRetry={requestSuggestions}
       />
     </div>
   );
