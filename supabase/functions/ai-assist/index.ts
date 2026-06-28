@@ -88,6 +88,68 @@ Return ONLY this JSON shape (no other text):
 }`;
     return { system: SYSTEM_BASE, user };
   },
+
+  draft_script: (p) => {
+    const benefits = Array.isArray(p.benefits)
+      ? (p.benefits as unknown[]).filter((x) => typeof x === "string").join(" · ")
+      : "";
+    const noGo = Array.isArray(p.no_go_list)
+      ? (p.no_go_list as unknown[]).filter((x) => typeof x === "string").join(" · ")
+      : (typeof p.no_go_list === "string" ? p.no_go_list : "");
+    const system =
+      "You are a senior direct-response scriptwriter for Meta video ads. " +
+      "You write scripts that scroll-stop in 0–3 seconds, weave in the audience's exact phrasing, " +
+      "and land with the sound OFF — the on-screen text alone must carry the message. " +
+      "Target 15–30 seconds. Keep the CTA accurate to the actual offer. Respect the no-go list. " +
+      "You ALWAYS return ONLY valid JSON in the exact shape requested. " +
+      "No preamble. No commentary. No markdown fences.";
+    const user = `Write ONE Meta video ad script for the angle and archetype below.
+
+ARCHETYPE: ${p.archetype ?? "—"}
+
+ANGLE
+- Title: ${p.angle_title ?? "—"}
+- Entry point: ${p.entry_point ?? "—"}
+- Hook seed (build the 0–3s open from this): ${p.hook_seed ?? "—"}
+- Description: ${p.angle_description ?? "—"}
+
+AUDIENCE
+- Core driver (#1 pain/desire): ${p.core_driver ?? "—"}
+- #1 Objection to dismantle: ${p.objection ?? "—"}
+- Customer language (use their EXACT phrasing where natural): ${p.customer_language ?? "—"}
+- Benefits: ${benefits || "—"}
+- The wedge: ${p.wedge ?? "—"}
+
+OFFER (keep CTA accurate to this)
+- Type: ${p.offer_type ?? "—"}
+- Detail: ${p.offer_detail ?? "—"}
+
+BRAND
+- Voice: ${p.brand_voice ?? "—"}
+- No-go list (do NOT use): ${noGo || "—"}
+
+REQUIREMENTS
+- Hook must be a scroll-stopping 0–3s line grounded in the hook_seed.
+- on_screen_text alone must carry the message (sound OFF).
+- vo_script should read naturally end-to-end if spoken.
+- Target 15–30 seconds. Set estimated_duration accordingly.
+- sound_off_ok = true ONLY if the on-screen text fully conveys the value prop without audio.
+
+Return ONLY this JSON shape (no other text):
+{
+  "hook": "the 0–3s line — one or two sentences max",
+  "desire_beat": "name the ache/want in their words",
+  "body": "the solution — product as resolution, not a feature list",
+  "proof_beat": "a number, testimonial beat, or before/after",
+  "cta": "one clear action that matches the offer",
+  "vo_script": "full spoken script, top to tail",
+  "on_screen_text": "the captions / lower thirds / titles that carry sound-off",
+  "estimated_duration": 22,
+  "sound_off_ok": true,
+  "duration_note": "one short sentence on pacing/why this length"
+}`;
+    return { system, user };
+  },
 };
 
 Deno.serve(async (req) => {
