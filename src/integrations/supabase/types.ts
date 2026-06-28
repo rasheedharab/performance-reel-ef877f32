@@ -117,11 +117,13 @@ export type Database = {
       brands: {
         Row: {
           avoid_competitors: string | null
+          brand_asset_urls: Json
           brand_voice: string | null
           category: string | null
           created_at: string
           fonts: string | null
           id: string
+          logo_url: string | null
           name: string
           no_go_list: string | null
           notes: string | null
@@ -138,11 +140,13 @@ export type Database = {
         }
         Insert: {
           avoid_competitors?: string | null
+          brand_asset_urls?: Json
           brand_voice?: string | null
           category?: string | null
           created_at?: string
           fonts?: string | null
           id?: string
+          logo_url?: string | null
           name: string
           no_go_list?: string | null
           notes?: string | null
@@ -159,11 +163,13 @@ export type Database = {
         }
         Update: {
           avoid_competitors?: string | null
+          brand_asset_urls?: Json
           brand_voice?: string | null
           category?: string | null
           created_at?: string
           fonts?: string | null
           id?: string
+          logo_url?: string | null
           name?: string
           no_go_list?: string | null
           notes?: string | null

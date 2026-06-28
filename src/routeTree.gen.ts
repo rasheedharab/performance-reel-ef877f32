@@ -22,8 +22,11 @@ import { Route as AuthenticatedGenerationRouteImport } from './routes/_authentic
 import { Route as AuthenticatedEditRoomRouteImport } from './routes/_authenticated/edit-room'
 import { Route as AuthenticatedDeliverablesRouteImport } from './routes/_authenticated/deliverables'
 import { Route as AuthenticatedBriefsRouteImport } from './routes/_authenticated/briefs'
-import { Route as AuthenticatedBrandsRouteImport } from './routes/_authenticated/brands'
 import { Route as AuthenticatedAnglesRouteImport } from './routes/_authenticated/angles'
+import { Route as AuthenticatedBrandsIndexRouteImport } from './routes/_authenticated/brands.index'
+import { Route as AuthenticatedBrandsNewRouteImport } from './routes/_authenticated/brands.new'
+import { Route as AuthenticatedBrandsBrandIdIndexRouteImport } from './routes/_authenticated/brands.$brandId.index'
+import { Route as AuthenticatedBrandsBrandIdEditRouteImport } from './routes/_authenticated/brands.$brandId.edit'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -91,22 +94,39 @@ const AuthenticatedBriefsRoute = AuthenticatedBriefsRouteImport.update({
   path: '/briefs',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedBrandsRoute = AuthenticatedBrandsRouteImport.update({
-  id: '/brands',
-  path: '/brands',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedAnglesRoute = AuthenticatedAnglesRouteImport.update({
   id: '/angles',
   path: '/angles',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedBrandsIndexRoute =
+  AuthenticatedBrandsIndexRouteImport.update({
+    id: '/brands/',
+    path: '/brands/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedBrandsNewRoute = AuthenticatedBrandsNewRouteImport.update({
+  id: '/brands/new',
+  path: '/brands/new',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedBrandsBrandIdIndexRoute =
+  AuthenticatedBrandsBrandIdIndexRouteImport.update({
+    id: '/brands/$brandId/',
+    path: '/brands/$brandId/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedBrandsBrandIdEditRoute =
+  AuthenticatedBrandsBrandIdEditRouteImport.update({
+    id: '/brands/$brandId/edit',
+    path: '/brands/$brandId/edit',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/auth': typeof AuthRoute
   '/angles': typeof AuthenticatedAnglesRoute
-  '/brands': typeof AuthenticatedBrandsRoute
   '/briefs': typeof AuthenticatedBriefsRoute
   '/deliverables': typeof AuthenticatedDeliverablesRoute
   '/edit-room': typeof AuthenticatedEditRoomRoute
@@ -117,11 +137,14 @@ export interface FileRoutesByFullPath {
   '/qa': typeof AuthenticatedQaRoute
   '/scripts': typeof AuthenticatedScriptsRoute
   '/storyboard': typeof AuthenticatedStoryboardRoute
+  '/brands/new': typeof AuthenticatedBrandsNewRoute
+  '/brands/': typeof AuthenticatedBrandsIndexRoute
+  '/brands/$brandId/edit': typeof AuthenticatedBrandsBrandIdEditRoute
+  '/brands/$brandId/': typeof AuthenticatedBrandsBrandIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/angles': typeof AuthenticatedAnglesRoute
-  '/brands': typeof AuthenticatedBrandsRoute
   '/briefs': typeof AuthenticatedBriefsRoute
   '/deliverables': typeof AuthenticatedDeliverablesRoute
   '/edit-room': typeof AuthenticatedEditRoomRoute
@@ -133,13 +156,16 @@ export interface FileRoutesByTo {
   '/scripts': typeof AuthenticatedScriptsRoute
   '/storyboard': typeof AuthenticatedStoryboardRoute
   '/': typeof AuthenticatedIndexRoute
+  '/brands/new': typeof AuthenticatedBrandsNewRoute
+  '/brands': typeof AuthenticatedBrandsIndexRoute
+  '/brands/$brandId/edit': typeof AuthenticatedBrandsBrandIdEditRoute
+  '/brands/$brandId': typeof AuthenticatedBrandsBrandIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/angles': typeof AuthenticatedAnglesRoute
-  '/_authenticated/brands': typeof AuthenticatedBrandsRoute
   '/_authenticated/briefs': typeof AuthenticatedBriefsRoute
   '/_authenticated/deliverables': typeof AuthenticatedDeliverablesRoute
   '/_authenticated/edit-room': typeof AuthenticatedEditRoomRoute
@@ -151,6 +177,10 @@ export interface FileRoutesById {
   '/_authenticated/scripts': typeof AuthenticatedScriptsRoute
   '/_authenticated/storyboard': typeof AuthenticatedStoryboardRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/brands/new': typeof AuthenticatedBrandsNewRoute
+  '/_authenticated/brands/': typeof AuthenticatedBrandsIndexRoute
+  '/_authenticated/brands/$brandId/edit': typeof AuthenticatedBrandsBrandIdEditRoute
+  '/_authenticated/brands/$brandId/': typeof AuthenticatedBrandsBrandIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -158,7 +188,6 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/angles'
-    | '/brands'
     | '/briefs'
     | '/deliverables'
     | '/edit-room'
@@ -169,11 +198,14 @@ export interface FileRouteTypes {
     | '/qa'
     | '/scripts'
     | '/storyboard'
+    | '/brands/new'
+    | '/brands/'
+    | '/brands/$brandId/edit'
+    | '/brands/$brandId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
     | '/angles'
-    | '/brands'
     | '/briefs'
     | '/deliverables'
     | '/edit-room'
@@ -185,12 +217,15 @@ export interface FileRouteTypes {
     | '/scripts'
     | '/storyboard'
     | '/'
+    | '/brands/new'
+    | '/brands'
+    | '/brands/$brandId/edit'
+    | '/brands/$brandId'
   id:
     | '__root__'
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/angles'
-    | '/_authenticated/brands'
     | '/_authenticated/briefs'
     | '/_authenticated/deliverables'
     | '/_authenticated/edit-room'
@@ -202,6 +237,10 @@ export interface FileRouteTypes {
     | '/_authenticated/scripts'
     | '/_authenticated/storyboard'
     | '/_authenticated/'
+    | '/_authenticated/brands/new'
+    | '/_authenticated/brands/'
+    | '/_authenticated/brands/$brandId/edit'
+    | '/_authenticated/brands/$brandId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -302,13 +341,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBriefsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/brands': {
-      id: '/_authenticated/brands'
-      path: '/brands'
-      fullPath: '/brands'
-      preLoaderRoute: typeof AuthenticatedBrandsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/angles': {
       id: '/_authenticated/angles'
       path: '/angles'
@@ -316,12 +348,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAnglesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/brands/': {
+      id: '/_authenticated/brands/'
+      path: '/brands'
+      fullPath: '/brands/'
+      preLoaderRoute: typeof AuthenticatedBrandsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/brands/new': {
+      id: '/_authenticated/brands/new'
+      path: '/brands/new'
+      fullPath: '/brands/new'
+      preLoaderRoute: typeof AuthenticatedBrandsNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/brands/$brandId/': {
+      id: '/_authenticated/brands/$brandId/'
+      path: '/brands/$brandId'
+      fullPath: '/brands/$brandId/'
+      preLoaderRoute: typeof AuthenticatedBrandsBrandIdIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/brands/$brandId/edit': {
+      id: '/_authenticated/brands/$brandId/edit'
+      path: '/brands/$brandId/edit'
+      fullPath: '/brands/$brandId/edit'
+      preLoaderRoute: typeof AuthenticatedBrandsBrandIdEditRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAnglesRoute: typeof AuthenticatedAnglesRoute
-  AuthenticatedBrandsRoute: typeof AuthenticatedBrandsRoute
   AuthenticatedBriefsRoute: typeof AuthenticatedBriefsRoute
   AuthenticatedDeliverablesRoute: typeof AuthenticatedDeliverablesRoute
   AuthenticatedEditRoomRoute: typeof AuthenticatedEditRoomRoute
@@ -333,11 +392,14 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedScriptsRoute: typeof AuthenticatedScriptsRoute
   AuthenticatedStoryboardRoute: typeof AuthenticatedStoryboardRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedBrandsNewRoute: typeof AuthenticatedBrandsNewRoute
+  AuthenticatedBrandsIndexRoute: typeof AuthenticatedBrandsIndexRoute
+  AuthenticatedBrandsBrandIdEditRoute: typeof AuthenticatedBrandsBrandIdEditRoute
+  AuthenticatedBrandsBrandIdIndexRoute: typeof AuthenticatedBrandsBrandIdIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAnglesRoute: AuthenticatedAnglesRoute,
-  AuthenticatedBrandsRoute: AuthenticatedBrandsRoute,
   AuthenticatedBriefsRoute: AuthenticatedBriefsRoute,
   AuthenticatedDeliverablesRoute: AuthenticatedDeliverablesRoute,
   AuthenticatedEditRoomRoute: AuthenticatedEditRoomRoute,
@@ -349,6 +411,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedScriptsRoute: AuthenticatedScriptsRoute,
   AuthenticatedStoryboardRoute: AuthenticatedStoryboardRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedBrandsNewRoute: AuthenticatedBrandsNewRoute,
+  AuthenticatedBrandsIndexRoute: AuthenticatedBrandsIndexRoute,
+  AuthenticatedBrandsBrandIdEditRoute: AuthenticatedBrandsBrandIdEditRoute,
+  AuthenticatedBrandsBrandIdIndexRoute: AuthenticatedBrandsBrandIdIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
