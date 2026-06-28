@@ -939,6 +939,9 @@ function CellRow({
   brandId,
   brandName,
   projectName,
+  ai,
+  aiLoading,
+  onDiagnose,
   onSave,
   onSaveDiagnosis,
   onAction,
@@ -953,6 +956,9 @@ function CellRow({
   brandId: string | null;
   brandName: string | null;
   projectName: string | null;
+  ai: AiDiagnosis | null;
+  aiLoading: boolean;
+  onDiagnose: () => Promise<boolean>;
   onSave: (patch: Partial<MetricRow>, date: string) => Promise<void>;
   onSaveDiagnosis: (text: string) => Promise<void>;
   onAction: (a: MetricAction) => Promise<void>;
