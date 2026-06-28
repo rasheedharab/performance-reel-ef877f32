@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
-import { zodValidator } from "@tanstack/zod-adapter";
 import {
   ArrowRight,
   ChevronDown,
@@ -146,7 +145,7 @@ const searchSchema = z.object({
 });
 
 export const Route = createFileRoute("/_authenticated/angles/")({
-  validateSearch: zodValidator(searchSchema),
+  validateSearch: searchSchema,
   component: AnglesWorkspace,
 });
 
