@@ -793,11 +793,17 @@ export type Database = {
       prompt_library: {
         Row: {
           archetype: string | null
+          category: Database["public"]["Enums"]["library_category"]
           created_at: string
+          entry_point: string | null
           id: string
+          is_favorite: boolean
           notes: string | null
           performance_tag: string | null
           prompt_text: string | null
+          source_brand_id: string | null
+          source_metric: string | null
+          times_used: number
           title: string
           tool: string | null
           updated_at: string
@@ -805,11 +811,17 @@ export type Database = {
         }
         Insert: {
           archetype?: string | null
+          category?: Database["public"]["Enums"]["library_category"]
           created_at?: string
+          entry_point?: string | null
           id?: string
+          is_favorite?: boolean
           notes?: string | null
           performance_tag?: string | null
           prompt_text?: string | null
+          source_brand_id?: string | null
+          source_metric?: string | null
+          times_used?: number
           title: string
           tool?: string | null
           updated_at?: string
@@ -817,17 +829,31 @@ export type Database = {
         }
         Update: {
           archetype?: string | null
+          category?: Database["public"]["Enums"]["library_category"]
           created_at?: string
+          entry_point?: string | null
           id?: string
+          is_favorite?: boolean
           notes?: string | null
           performance_tag?: string | null
           prompt_text?: string | null
+          source_brand_id?: string | null
+          source_metric?: string | null
+          times_used?: number
           title?: string
           tool?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "prompt_library_source_brand_id_fkey"
+            columns: ["source_brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       qa_reviews: {
         Row: {
@@ -1125,6 +1151,12 @@ export type Database = {
       campaign_type: "advantage_plus" | "manual_abo" | "manual_cbo"
       deliverable_aspect: "9:16" | "4:5" | "1:1"
       deliverable_placement: "reels" | "feed" | "stories"
+      library_category:
+        | "generation_prompt"
+        | "script_template"
+        | "hook_formula"
+        | "shot_recipe"
+        | "vo_style"
       metric_action:
         | "none"
         | "scale"
@@ -1278,6 +1310,13 @@ export const Constants = {
       campaign_type: ["advantage_plus", "manual_abo", "manual_cbo"],
       deliverable_aspect: ["9:16", "4:5", "1:1"],
       deliverable_placement: ["reels", "feed", "stories"],
+      library_category: [
+        "generation_prompt",
+        "script_template",
+        "hook_formula",
+        "shot_recipe",
+        "vo_style",
+      ],
       metric_action: [
         "none",
         "scale",
