@@ -1064,50 +1064,26 @@ function CellRow({
         </div>
         <div className="flex items-center gap-2">
           {(cell.status === "winner" || agg.action_taken === "scale") && (
-            <Link
-              to="/library"
-              search={{
-                new: "1",
-                title:
-                  cell.hook_label ||
-                  cell.ad_name ||
-                  angle?.title ||
-                  "Winning variant",
-                category: "hook_formula",
-                archetype: deliverable?.placement ?? undefined,
-                entry_point: angle?.entry_point ?? undefined,
-                source_brand_id: brandId ?? undefined,
-                source_metric:
-                  agg.latest?.roas != null
-                    ? `${Number(agg.latest.roas).toFixed(2)}× ROAS`
-                    : agg.latest?.cpa != null
-                      ? `$${Number(agg.latest.cpa).toFixed(2)} CPA`
-                      : undefined,
-                performance_tag: "winner",
-                prompt_text: [
-                  `Hook: ${cell.hook_label ?? "(unlabeled)"}`,
-                  angle?.title ? `Angle: ${angle.title}` : null,
-                  angle?.entry_point
-                    ? `Entry point: ${angle.entry_point}`
-                    : null,
-                  deliverable?.placement
-                    ? `Format: ${deliverable.placement}`
-                    : null,
-                ]
-                  .filter(Boolean)
-                  .join("\n"),
-                notes: `Saved from ${brandName ?? "campaign"} — ${projectName ?? ""}`,
-              }}
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 border-emerald-700 text-emerald-700 hover:bg-emerald-50"
+              onClick={() => void onDistill()}
+              disabled={distillLoading}
+              title="Extract the reusable pattern behind this winner"
             >
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 border-emerald-700 text-emerald-700 hover:bg-emerald-50"
-              >
-                <BookmarkPlus className="h-3.5 w-3.5" />
-                Save to library
-              </Button>
-            </Link>
+              {distillLoading ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Distilling the pattern…
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Save to library
+                </>
+              )}
+            </Button>
           )}
           <Select
             value={displayAction}
