@@ -150,6 +150,72 @@ Return ONLY this JSON shape (no other text):
 }`;
     return { system, user };
   },
+
+  build_shotlist: (p) => {
+    const noGo = Array.isArray(p.no_go_list)
+      ? (p.no_go_list as unknown[]).filter((x) => typeof x === "string").join(" · ")
+      : (typeof p.no_go_list === "string" ? p.no_go_list : "");
+    const hasImages = Boolean(p.has_product_images);
+    const system =
+      "You are an AI-video pre-production director and technical router for Meta video ads. " +
+      "You break scripts into SHORT, single-action shots and route each to the right AI video tool. " +
+      "HARD RULES: every shot is 4–8 seconds (never propose a single clip over 10s — split it). " +
+      "Shot durations should sum to roughly the script's target duration. " +
+      "Every shot has ONE clear visual action — never cram multiple events into one shot. " +
+      "Respect the brand no-go list. " +
+      "You ALWAYS return ONLY valid JSON in the exact shape requested. No preamble, no markdown fences.";
+    const user = `Break this script into a numbered SHOT LIST and recommend the generation method + tool for each shot.
+
+SCRIPT
+- Archetype: ${p.archetype ?? "—"}
+- Hook (0–3s): ${p.hook ?? "—"}
+- Desire beat: ${p.desire_beat ?? "—"}
+- Body: ${p.body ?? "—"}
+- Proof beat: ${p.proof_beat ?? "—"}
+- CTA: ${p.cta ?? "—"}
+- VO script: ${p.vo_script ?? "—"}
+- On-screen text: ${p.on_screen_text ?? "—"}
+- Target duration (s): ${p.target_duration ?? p.estimated_duration ?? "—"}
+
+PRODUCT
+- Name: ${p.product_name ?? "—"}
+- Description: ${p.product_description ?? "—"}
+- has_product_images: ${hasImages ? "true" : "false"}
+
+BRAND
+- Visual notes (fonts/colors): ${p.brand_visual_notes ?? "—"}
+- No-go list (avoid): ${noGo || "—"}
+
+TOOL ROUTING LOGIC (pick ONE per shot, set generation_method accordingly)
+- "Veo 3.1" — cinematic / hero / atmospheric, or needs native synced audio. 4K. Quality over volume.
+- "Kling 3.0" — high-motion, many cheap variants, or multilingual lip-sync.
+- "Runway Gen-4.5" — tight camera control / motion-brush / strict reference consistency.
+- "Arcads" — UGC / talking-head / spokesperson testimonial.
+- "HeyGen" — avatar lip-sync spokesperson.
+- "Luma Ray3" — product fidelity shot ONLY when has_product_images is true; use generation_method "image-to-video" and note in tool_reason to attach a product reference frame. (Runway Gen-4.5 is an acceptable alternative for image-to-video.)
+- Default generation_method = "text-to-video" unless a real product frame is genuinely needed.
+
+Give a one-line tool_reason per shot. Map each shot to a script beat (hook → desire → body → proof → cta) in order. Keep shots short and stitchable.
+
+Return ONLY this JSON shape (no other text):
+{
+  "shots": [
+    {
+      "shot_number": 1,
+      "visual_description": "what is visually happening in this single shot",
+      "camera_move": "Static | Push in | Pull out | Pan | Tilt | Tracking | Handheld | Orbit",
+      "motion_intensity": "Subtle | Moderate | Dynamic",
+      "duration_seconds": 6,
+      "generation_method": "text-to-video | image-to-video",
+      "assigned_tool": "Veo 3.1 | Kling 3.0 | Runway Gen-4.5 | Arcads | HeyGen | Luma Ray3",
+      "tool_reason": "one short line on why this tool",
+      "caption_text": "on-screen text for this shot (sound off)",
+      "audio_note": "VO line or sfx cue for this shot"
+    }
+  ]
+}`;
+    return { system, user };
+  },
 };
 
 Deno.serve(async (req) => {
