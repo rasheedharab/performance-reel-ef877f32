@@ -335,7 +335,7 @@ function DeliverablesPage() {
     setDeliverables((d) => d.map((x) => (x.id === id ? { ...x, ...patch } : x)));
     const { error } = await supabase
       .from("deliverables")
-      .update(patch as Record<string, unknown>)
+      .update(patch as never)
       .eq("id", id);
     if (error) {
       setDeliverables(prev);
