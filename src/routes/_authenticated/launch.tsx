@@ -534,6 +534,10 @@ function LaunchPage() {
   }
 
   async function updateCell(id: string, patch: Partial<TestCellRow>) {
+    if (patch.status === "live" && qaSignedOff === false) {
+      toast.error("QA not signed off — clear compliance before going live");
+      return;
+    }
     setCells((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
     const { error } = await supabase
       .from("test_cells")
