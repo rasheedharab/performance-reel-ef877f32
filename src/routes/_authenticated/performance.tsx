@@ -45,6 +45,10 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import {
+  CATEGORY_LABEL,
+  type LibraryCategory,
+} from "@/components/library-picker";
 
 const searchSchema = z.object({
   campaign: z.string().optional(),
