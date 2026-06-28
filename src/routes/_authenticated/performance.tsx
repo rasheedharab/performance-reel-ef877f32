@@ -1111,16 +1111,27 @@ function CellRow({
             </Link>
           )}
           <Select
-            value={agg.action_taken}
+            value={displayAction}
             onValueChange={(v) => void onAction(v as MetricAction)}
           >
-            <SelectTrigger className="h-8 w-44">
+            <SelectTrigger
+              className={cn(
+                "h-8 w-44",
+                actionIsPending &&
+                  "border-[var(--color-rec)] text-[var(--color-rec)]",
+              )}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {ACTIONS.map((a) => (
                 <SelectItem key={a.id} value={a.id}>
                   {a.label}
+                  {ai?.recommended_action === a.id && a.id !== "none" ? (
+                    <span className="ml-2 font-mono text-[10px] text-[var(--color-rec)]">
+                      AI
+                    </span>
+                  ) : null}
                 </SelectItem>
               ))}
             </SelectContent>
