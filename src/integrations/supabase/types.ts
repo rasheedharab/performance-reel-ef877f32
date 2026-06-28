@@ -857,14 +857,20 @@ export type Database = {
       }
       qa_reviews: {
         Row: {
+          ai_disclosure_ok: boolean | null
           brand_ok: boolean | null
           brief_id: string
           captions_ok: boolean | null
           claims_ok: boolean | null
+          claims_substantiated_ok: boolean | null
           created_at: string
           disclosures_ok: boolean | null
           id: string
+          legal_copy_ok: boolean | null
+          likeness_ok: boolean | null
+          notes: Json | null
           policy_ok: boolean | null
+          reviewed_at: string | null
           reviewer: string | null
           safe_zones_ok: boolean | null
           signed_off: boolean | null
@@ -873,14 +879,20 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_disclosure_ok?: boolean | null
           brand_ok?: boolean | null
           brief_id: string
           captions_ok?: boolean | null
           claims_ok?: boolean | null
+          claims_substantiated_ok?: boolean | null
           created_at?: string
           disclosures_ok?: boolean | null
           id?: string
+          legal_copy_ok?: boolean | null
+          likeness_ok?: boolean | null
+          notes?: Json | null
           policy_ok?: boolean | null
+          reviewed_at?: string | null
           reviewer?: string | null
           safe_zones_ok?: boolean | null
           signed_off?: boolean | null
@@ -889,14 +901,20 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_disclosure_ok?: boolean | null
           brand_ok?: boolean | null
           brief_id?: string
           captions_ok?: boolean | null
           claims_ok?: boolean | null
+          claims_substantiated_ok?: boolean | null
           created_at?: string
           disclosures_ok?: boolean | null
           id?: string
+          legal_copy_ok?: boolean | null
+          likeness_ok?: boolean | null
+          notes?: Json | null
           policy_ok?: boolean | null
+          reviewed_at?: string | null
           reviewer?: string | null
           safe_zones_ok?: boolean | null
           signed_off?: boolean | null
