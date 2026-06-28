@@ -12,6 +12,7 @@ import {
   Plus,
   Search,
   Send,
+  Sparkles,
   Upload,
   X,
 } from "lucide-react";
@@ -111,10 +112,26 @@ type ScriptFull = ScriptLite & {
   target_duration: number | null;
   on_screen_text: string | null;
   vo_script: string | null;
+  desire_beat: string | null;
+  body: string | null;
+  proof_beat: string | null;
+  cta: string | null;
   angle: (ScriptLite["angle"] & {
     brief:
       | (NonNullable<NonNullable<ScriptLite["angle"]>["brief"]> & {
           product_asset_urls: unknown;
+          product_name: string | null;
+          product_description: string | null;
+          brand:
+            | (NonNullable<
+                NonNullable<NonNullable<ScriptLite["angle"]>["brief"]>["brand"]
+              > & {
+                fonts: string | null;
+                primary_color: string | null;
+                secondary_color: string | null;
+                no_go_list: string | null;
+              })
+            | null;
         })
       | null;
   }) | null;
@@ -136,6 +153,22 @@ type ShotRow = {
   tool_reason: string | null;
   caption_text: string | null;
 };
+
+type DraftShot = {
+  key: string;
+  shot_number: number;
+  visual_description: string;
+  camera_move: string;
+  motion_intensity: string;
+  duration_seconds: number;
+  generation_method: GenMethod;
+  assigned_tool: string;
+  tool_reason: string;
+  caption_text: string;
+  audio_note: string;
+};
+
+const MOTION_OPTIONS = ["Subtle", "Moderate", "Dynamic"] as const;
 
 const searchSchema = z.object({
   script: z.string().optional(),
@@ -209,6 +242,11 @@ function StoryboardWorkspace() {
   const [editing, setEditing] = useState<ShotRow | null>(null);
   const [guideOpen, setGuideOpen] = useState(true);
 
+  // AI shot-list draft state
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiDrafts, setAiDrafts] = useState<DraftShot[] | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+
   // signed URLs cache for both brief product assets and shot reference images
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
 
@@ -236,7 +274,7 @@ function StoryboardWorkspace() {
       const { data } = await supabase
         .from("scripts")
         .select(
-          "id, archetype, hook, status, duration_seconds, target_duration, on_screen_text, vo_script, angle:angles(id, title, brief:briefs(id, project_name, product_asset_urls, brand:brands(id, name)))",
+          "id, archetype, hook, status, duration_seconds, target_duration, on_screen_text, vo_script, desire_beat, body, proof_beat, cta, angle:angles(id, title, brief:briefs(id, project_name, product_asset_urls, product_name, product_description, brand:brands(id, name, fonts, primary_color, secondary_color, no_go_list)))",
         )
         .eq("id", scriptParam)
         .maybeSingle();
@@ -399,6 +437,124 @@ function StoryboardWorkspace() {
     toast.success("Shot removed");
   };
 
+  // ---- AI: Build shot list ----
+  const canBuildShotlist = Boolean(
+    selectedScript && (selectedScript.hook?.trim() || selectedScript.body?.trim()),
+  );
+
+  const buildShotlist = async () => {
+    if (!selectedScript) return;
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const brand = selectedScript.angle?.brief?.brand;
+      const visualBits = [
+        brand?.fonts ? `Fonts: ${brand.fonts}` : null,
+        brand?.primary_color ? `Primary: ${brand.primary_color}` : null,
+        brand?.secondary_color ? `Secondary: ${brand.secondary_color}` : null,
+      ].filter(Boolean);
+      const payload = {
+        archetype: selectedScript.archetype,
+        hook: selectedScript.hook,
+        desire_beat: selectedScript.desire_beat,
+        body: selectedScript.body,
+        proof_beat: selectedScript.proof_beat,
+        cta: selectedScript.cta,
+        vo_script: selectedScript.vo_script,
+        on_screen_text: selectedScript.on_screen_text,
+        target_duration: selectedScript.target_duration,
+        estimated_duration: selectedScript.duration_seconds,
+        product_name: selectedScript.angle?.brief?.product_name ?? null,
+        product_description: selectedScript.angle?.brief?.product_description ?? null,
+        has_product_images: productAssetPaths.length > 0,
+        brand_visual_notes: visualBits.join(" · ") || null,
+        no_go_list: brand?.no_go_list ?? null,
+      };
+      const { data, error } = await supabase.functions.invoke("ai-assist", {
+        body: { task: "build_shotlist", payload },
+      });
+      if (error) throw new Error(error.message);
+      const err = (data as { error?: string } | null)?.error;
+      if (err) throw new Error(err);
+      const result = (data as { result?: { shots?: unknown[] } } | null)?.result;
+      const raw = Array.isArray(result?.shots) ? result!.shots! : [];
+      if (raw.length === 0) throw new Error("AI returned no shots. Try again.");
+      const drafts: DraftShot[] = raw.map((s, i) => {
+        const o = (s ?? {}) as Record<string, unknown>;
+        const motion = String(o.motion_intensity ?? "Moderate");
+        const camera = String(o.camera_move ?? "Static");
+        const tool = String(o.assigned_tool ?? "");
+        const gm = (o.generation_method === "image-to-video"
+          ? "image-to-video"
+          : "text-to-video") as GenMethod;
+        const dur = Number(o.duration_seconds);
+        return {
+          key: `ai-${Date.now()}-${i}`,
+          shot_number: Number(o.shot_number) || i + 1,
+          visual_description: String(o.visual_description ?? ""),
+          camera_move: (CAMERA_MOVES as readonly string[]).includes(camera) ? camera : "Static",
+          motion_intensity: (MOTION_OPTIONS as readonly string[]).includes(motion) ? motion : "Moderate",
+          duration_seconds: Number.isFinite(dur) && dur > 0 ? Math.round(dur) : 6,
+          generation_method: gm,
+          assigned_tool: (TOOLS as readonly string[]).includes(tool) ? tool : tool,
+          tool_reason: String(o.tool_reason ?? ""),
+          caption_text: String(o.caption_text ?? ""),
+          audio_note: String(o.audio_note ?? ""),
+        };
+      });
+      setAiDrafts(drafts);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "AI request failed";
+      setAiError(msg);
+      toast.error(msg);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const updateDraft = (key: string, patch: Partial<DraftShot>) => {
+    setAiDrafts((prev) => prev?.map((d) => (d.key === key ? { ...d, ...patch } : d)) ?? null);
+  };
+
+  const dismissDraft = (key: string) => {
+    setAiDrafts((prev) => {
+      const next = (prev ?? []).filter((d) => d.key !== key);
+      return next.length === 0 ? null : next;
+    });
+  };
+
+  const commitDrafts = async (drafts: DraftShot[]) => {
+    if (!selectedScript || drafts.length === 0) return;
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData.user?.id;
+    if (!userId) { toast.error("Not signed in"); return; }
+    const startAt = (shots?.length ?? 0) + 1;
+    const rows = drafts.map((d, i) => ({
+      script_id: selectedScript.id,
+      user_id: userId,
+      shot_number: startAt + i,
+      visual_description: d.visual_description.trim() || null,
+      camera_move: d.camera_move || null,
+      motion_intensity: d.motion_intensity || null,
+      duration_seconds: d.duration_seconds || null,
+      generation_method: d.generation_method,
+      reference_image_url: null,
+      assigned_tool: d.assigned_tool || null,
+      tool_reason: d.tool_reason.trim() || null,
+      caption_text: d.caption_text.trim() || null,
+      audio_note: d.audio_note.trim() || null,
+    }));
+    const { error } = await supabase.from("shots").insert(rows);
+    if (error) { toast.error(error.message); return; }
+    toast.success(drafts.length === 1 ? "Shot added" : `${drafts.length} shots added`);
+    const remainingKeys = new Set(drafts.map((d) => d.key));
+    setAiDrafts((prev) => {
+      const next = (prev ?? []).filter((d) => !remainingKeys.has(d.key));
+      return next.length === 0 ? null : next;
+    });
+    await loadShots(selectedScript.id);
+  };
+
   return (
     <div className="px-8 py-10 max-w-7xl mx-auto">
       <div className="mb-8">
@@ -518,14 +674,53 @@ function StoryboardWorkspace() {
             {/* Shot list */}
             <div className="flex items-center justify-between mt-6 mb-3">
               <p className="label-mono">Shots</p>
-              <Button
-                size="sm"
-                onClick={() => { setEditing(null); setFormOpen(true); }}
-              >
-                <Plus className="h-4 w-4" />
-                New shot
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={buildShotlist}
+                  disabled={!canBuildShotlist || aiLoading}
+                  title={!canBuildShotlist ? "Script needs a hook or body first" : "Have AI break this into a shot list"}
+                >
+                  {aiLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )}
+                  {aiLoading ? "Breaking it into shots…" : "Build shot list"}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => { setEditing(null); setFormOpen(true); }}
+                >
+                  <Plus className="h-4 w-4" />
+                  New shot
+                </Button>
+              </div>
             </div>
+
+            {aiError && !aiLoading && (
+              <div className="border border-[var(--color-rec)]/40 bg-[var(--color-rec)]/5 rounded-[3px] px-4 py-3 mb-3 flex items-center justify-between gap-3">
+                <p className="text-sm text-[var(--color-rec)]">{aiError}</p>
+                <button
+                  onClick={() => setAiError(null)}
+                  className="label-mono text-muted-foreground hover:text-foreground"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+
+            {aiDrafts && aiDrafts.length > 0 && (
+              <AiShotlistReview
+                drafts={aiDrafts}
+                onUpdate={updateDraft}
+                onDismiss={dismissDraft}
+                onAddOne={(d) => commitDrafts([d])}
+                onAddAll={() => commitDrafts(aiDrafts)}
+                onDismissAll={() => setAiDrafts(null)}
+              />
+            )}
 
             {shots === null ? (
               <div className="border border-border rounded-[3px] bg-card animate-pulse h-48" />
@@ -1184,6 +1379,245 @@ function FormField({
           {error}
         </p>
       )}
+    </div>
+  );
+}
+
+/* ============================================================
+   AI SHOTLIST REVIEW
+   ============================================================ */
+
+function AiShotlistReview({
+  drafts,
+  onUpdate,
+  onDismiss,
+  onAddOne,
+  onAddAll,
+  onDismissAll,
+}: {
+  drafts: DraftShot[];
+  onUpdate: (key: string, patch: Partial<DraftShot>) => void;
+  onDismiss: (key: string) => void;
+  onAddOne: (d: DraftShot) => void;
+  onAddAll: () => void;
+  onDismissAll: () => void;
+}) {
+  const total = drafts.reduce((sum, d) => sum + (d.duration_seconds || 0), 0);
+  const longCount = drafts.filter((d) => d.duration_seconds > 10).length;
+  return (
+    <div className="border-2 border-foreground rounded-[3px] bg-card mb-5">
+      <div className="px-5 py-4 border-b border-border flex items-start justify-between gap-4 flex-wrap">
+        <div className="flex-1 min-w-[260px]">
+          <p className="label-mono mb-1 inline-flex items-center gap-1.5">
+            <Sparkles className="h-3 w-3" /> AI draft · review
+          </p>
+          <p className="text-sm text-muted-foreground leading-snug">
+            AI shot breakdown + tool routing — adjust durations and tools, then commit. Keep shots short and stitch them.
+          </p>
+          <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mt-2">
+            {drafts.length} shot{drafts.length === 1 ? "" : "s"} · total {total}s
+            {longCount > 0 && (
+              <span className="text-[var(--color-rec)] ml-2">
+                · {longCount} over 10s
+              </span>
+            )}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={onDismissAll}>
+            Dismiss all
+          </Button>
+          <Button size="sm" onClick={onAddAll}>
+            <Plus className="h-4 w-4" />
+            Add all to storyboard
+          </Button>
+        </div>
+      </div>
+
+      <div className="divide-y divide-border">
+        {drafts.map((d, i) => (
+          <DraftShotRow
+            key={d.key}
+            draft={d}
+            index={i}
+            onUpdate={(patch) => onUpdate(d.key, patch)}
+            onAdd={() => onAddOne(d)}
+            onDismiss={() => onDismiss(d.key)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DraftShotRow({
+  draft,
+  index,
+  onUpdate,
+  onAdd,
+  onDismiss,
+}: {
+  draft: DraftShot;
+  index: number;
+  onUpdate: (patch: Partial<DraftShot>) => void;
+  onAdd: () => void;
+  onDismiss: () => void;
+}) {
+  const isLong = draft.duration_seconds > 10;
+  const needsRef = draft.generation_method === "image-to-video";
+  return (
+    <div className="p-4 flex gap-4 items-start">
+      <div className="shrink-0 w-12 h-12 border border-foreground rounded-[2px] flex flex-col items-center justify-center bg-foreground text-background">
+        <span className="font-mono text-[8px] uppercase opacity-70">Draft</span>
+        <span className="font-mono text-base font-bold leading-none">
+          {String(index + 1).padStart(2, "0")}
+        </span>
+      </div>
+
+      <div className="flex-1 min-w-0 space-y-3">
+        <Textarea
+          value={draft.visual_description}
+          onChange={(e) => onUpdate({ visual_description: e.target.value })}
+          rows={2}
+          placeholder="Visual description"
+          className="text-sm"
+        />
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <div>
+            <p className="label-mono mb-1">Camera</p>
+            <Select
+              value={draft.camera_move || undefined}
+              onValueChange={(v) => onUpdate({ camera_move: v })}
+            >
+              <SelectTrigger className="h-9"><SelectValue placeholder="Camera" /></SelectTrigger>
+              <SelectContent>
+                {CAMERA_MOVES.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <p className="label-mono mb-1">Motion</p>
+            <Select
+              value={draft.motion_intensity || undefined}
+              onValueChange={(v) => onUpdate({ motion_intensity: v })}
+            >
+              <SelectTrigger className="h-9"><SelectValue placeholder="Motion" /></SelectTrigger>
+              <SelectContent>
+                {MOTION_OPTIONS.map((m) => (
+                  <SelectItem key={m} value={m}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <p className="label-mono mb-1">Duration (s)</p>
+            <Input
+              type="number"
+              value={draft.duration_seconds}
+              onChange={(e) => onUpdate({ duration_seconds: Number(e.target.value) })}
+              className={cn("h-9", isLong && "border-[var(--color-rec)] text-[var(--color-rec)]")}
+            />
+          </div>
+          <div>
+            <p className="label-mono mb-1">Method</p>
+            <div className="flex gap-1">
+              {(["text-to-video", "image-to-video"] as GenMethod[]).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => onUpdate({ generation_method: m })}
+                  className={cn(
+                    "flex-1 px-1.5 h-9 border rounded-[3px] font-mono text-[9px] uppercase tracking-wider transition-colors",
+                    draft.generation_method === m
+                      ? "bg-foreground text-background border-foreground"
+                      : "bg-background text-foreground/70 border-border hover:border-foreground/40",
+                  )}
+                >
+                  {m === "text-to-video" ? "T→V" : "I→V"}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <div>
+            <p className="label-mono mb-1">Tool</p>
+            <Select
+              value={draft.assigned_tool || undefined}
+              onValueChange={(v) => onUpdate({ assigned_tool: v })}
+            >
+              <SelectTrigger className="h-9"><SelectValue placeholder="Tool" /></SelectTrigger>
+              <SelectContent>
+                {TOOLS.map((t) => (
+                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <p className="label-mono mb-1">Tool reason</p>
+            <Input
+              value={draft.tool_reason}
+              onChange={(e) => onUpdate({ tool_reason: e.target.value })}
+              className="h-9"
+              placeholder="Why this tool"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <div>
+            <p className="label-mono mb-1">Caption (on-screen)</p>
+            <Input
+              value={draft.caption_text}
+              onChange={(e) => onUpdate({ caption_text: e.target.value })}
+              className="h-9"
+              placeholder="Burned-in text for this shot"
+            />
+          </div>
+          <div>
+            <p className="label-mono mb-1">Audio note</p>
+            <Input
+              value={draft.audio_note}
+              onChange={(e) => onUpdate({ audio_note: e.target.value })}
+              className="h-9"
+              placeholder="VO line / SFX"
+            />
+          </div>
+        </div>
+
+        {(isLong || needsRef) && (
+          <div className="space-y-1">
+            {isLong && (
+              <p className="text-[10px] font-mono uppercase tracking-wider text-[var(--color-rec)]">
+                Over 10s — split into two shots before committing.
+              </p>
+            )}
+            {needsRef && (
+              <p className="text-[10px] font-mono uppercase tracking-wider text-foreground/70">
+                Image-to-video — attach a product reference frame after committing.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col items-end gap-1.5 shrink-0">
+        <Button size="sm" onClick={onAdd}>
+          <Plus className="h-3.5 w-3.5" />
+          Add
+        </Button>
+        <button
+          onClick={onDismiss}
+          className="label-mono text-muted-foreground hover:text-[var(--color-rec)] inline-flex items-center gap-1"
+        >
+          <X className="h-3 w-3" /> Dismiss
+        </button>
+      </div>
     </div>
   );
 }
