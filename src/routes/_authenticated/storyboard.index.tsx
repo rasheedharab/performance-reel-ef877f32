@@ -154,6 +154,22 @@ type ShotRow = {
   caption_text: string | null;
 };
 
+type DraftShot = {
+  key: string;
+  shot_number: number;
+  visual_description: string;
+  camera_move: string;
+  motion_intensity: string;
+  duration_seconds: number;
+  generation_method: GenMethod;
+  assigned_tool: string;
+  tool_reason: string;
+  caption_text: string;
+  audio_note: string;
+};
+
+const MOTION_OPTIONS = ["Subtle", "Moderate", "Dynamic"] as const;
+
 const searchSchema = z.object({
   script: z.string().optional(),
 });
