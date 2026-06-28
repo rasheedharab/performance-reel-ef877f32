@@ -254,6 +254,44 @@ function GenerationBoard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.id, briefId]);
 
+  // Poll fal for any assets currently generating.
+  useEffect(() => {
+    if (!assets) return;
+    const pending = assets.filter((a) => a.status === "generating");
+    if (pending.length === 0) return;
+    let cancelled = false;
+    const tick = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) return;
+      let anyChanged = false;
+      for (const a of pending) {
+        try {
+          const { data, error } = await supabase.functions.invoke("check-generation", {
+            body: { asset_id: a.id },
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (cancelled) return;
+          if (error) continue;
+          const newStatus = (data as { status?: string } | null)?.status;
+          if (newStatus && newStatus !== "generating") anyChanged = true;
+        } catch {
+          // ignore transient errors, retry next tick
+        }
+      }
+      if (!cancelled && anyChanged) await reloadBoard();
+    };
+    const id = setInterval(tick, 6000);
+    void tick();
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assets]);
+
   // resolve signed URLs for storage-path file_urls
   useEffect(() => {
     if (!assets) return;
