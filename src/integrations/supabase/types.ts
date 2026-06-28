@@ -224,16 +224,19 @@ export type Database = {
           offer_type: string | null
           placements: Json | null
           price: number | null
+          product_asset_urls: Json
           product_description: string | null
           product_name: string | null
           project_name: string
           psychographic: string | null
           reference_links: string | null
           regulated: boolean | null
+          regulatory_notes: string | null
           signoff_owner: string | null
           stats_claims: string | null
           status: Database["public"]["Enums"]["brief_status"]
           testimonials: string | null
+          ugc_asset_urls: Json
           updated_at: string
           user_id: string
           variants_needed: number | null
@@ -276,16 +279,19 @@ export type Database = {
           offer_type?: string | null
           placements?: Json | null
           price?: number | null
+          product_asset_urls?: Json
           product_description?: string | null
           product_name?: string | null
           project_name: string
           psychographic?: string | null
           reference_links?: string | null
           regulated?: boolean | null
+          regulatory_notes?: string | null
           signoff_owner?: string | null
           stats_claims?: string | null
           status?: Database["public"]["Enums"]["brief_status"]
           testimonials?: string | null
+          ugc_asset_urls?: Json
           updated_at?: string
           user_id: string
           variants_needed?: number | null
@@ -328,16 +334,19 @@ export type Database = {
           offer_type?: string | null
           placements?: Json | null
           price?: number | null
+          product_asset_urls?: Json
           product_description?: string | null
           product_name?: string | null
           project_name?: string
           psychographic?: string | null
           reference_links?: string | null
           regulated?: boolean | null
+          regulatory_notes?: string | null
           signoff_owner?: string | null
           stats_claims?: string | null
           status?: Database["public"]["Enums"]["brief_status"]
           testimonials?: string | null
+          ugc_asset_urls?: Json
           updated_at?: string
           user_id?: string
           variants_needed?: number | null

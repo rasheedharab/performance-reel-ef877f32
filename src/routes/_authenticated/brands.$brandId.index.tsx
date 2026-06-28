@@ -208,7 +208,7 @@ function BrandDetailPage() {
           Edit
         </Button>
         <Button asChild size="sm">
-          <Link to="/briefs">
+          <Link to="/briefs/new" search={{ brand: brand.id }}>
             <FilePlus2 className="h-4 w-4" />
             New brief for this brand
           </Link>
