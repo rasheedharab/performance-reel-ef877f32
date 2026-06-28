@@ -9,61 +9,355 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedStoryboardRouteImport } from './routes/_authenticated/storyboard'
+import { Route as AuthenticatedScriptsRouteImport } from './routes/_authenticated/scripts'
+import { Route as AuthenticatedQaRouteImport } from './routes/_authenticated/qa'
+import { Route as AuthenticatedPerformanceRouteImport } from './routes/_authenticated/performance'
+import { Route as AuthenticatedLibraryRouteImport } from './routes/_authenticated/library'
+import { Route as AuthenticatedLaunchRouteImport } from './routes/_authenticated/launch'
+import { Route as AuthenticatedGenerationRouteImport } from './routes/_authenticated/generation'
+import { Route as AuthenticatedEditRoomRouteImport } from './routes/_authenticated/edit-room'
+import { Route as AuthenticatedDeliverablesRouteImport } from './routes/_authenticated/deliverables'
+import { Route as AuthenticatedBriefsRouteImport } from './routes/_authenticated/briefs'
+import { Route as AuthenticatedBrandsRouteImport } from './routes/_authenticated/brands'
+import { Route as AuthenticatedAnglesRouteImport } from './routes/_authenticated/angles'
 
-const IndexRoute = IndexRouteImport.update({
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedStoryboardRoute = AuthenticatedStoryboardRouteImport.update({
+  id: '/storyboard',
+  path: '/storyboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedScriptsRoute = AuthenticatedScriptsRouteImport.update({
+  id: '/scripts',
+  path: '/scripts',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedQaRoute = AuthenticatedQaRouteImport.update({
+  id: '/qa',
+  path: '/qa',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPerformanceRoute =
+  AuthenticatedPerformanceRouteImport.update({
+    id: '/performance',
+    path: '/performance',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedLibraryRoute = AuthenticatedLibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedLaunchRoute = AuthenticatedLaunchRouteImport.update({
+  id: '/launch',
+  path: '/launch',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedGenerationRoute = AuthenticatedGenerationRouteImport.update({
+  id: '/generation',
+  path: '/generation',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedEditRoomRoute = AuthenticatedEditRoomRouteImport.update({
+  id: '/edit-room',
+  path: '/edit-room',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDeliverablesRoute =
+  AuthenticatedDeliverablesRouteImport.update({
+    id: '/deliverables',
+    path: '/deliverables',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedBriefsRoute = AuthenticatedBriefsRouteImport.update({
+  id: '/briefs',
+  path: '/briefs',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedBrandsRoute = AuthenticatedBrandsRouteImport.update({
+  id: '/brands',
+  path: '/brands',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAnglesRoute = AuthenticatedAnglesRouteImport.update({
+  id: '/angles',
+  path: '/angles',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof AuthenticatedIndexRoute
+  '/auth': typeof AuthRoute
+  '/angles': typeof AuthenticatedAnglesRoute
+  '/brands': typeof AuthenticatedBrandsRoute
+  '/briefs': typeof AuthenticatedBriefsRoute
+  '/deliverables': typeof AuthenticatedDeliverablesRoute
+  '/edit-room': typeof AuthenticatedEditRoomRoute
+  '/generation': typeof AuthenticatedGenerationRoute
+  '/launch': typeof AuthenticatedLaunchRoute
+  '/library': typeof AuthenticatedLibraryRoute
+  '/performance': typeof AuthenticatedPerformanceRoute
+  '/qa': typeof AuthenticatedQaRoute
+  '/scripts': typeof AuthenticatedScriptsRoute
+  '/storyboard': typeof AuthenticatedStoryboardRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/angles': typeof AuthenticatedAnglesRoute
+  '/brands': typeof AuthenticatedBrandsRoute
+  '/briefs': typeof AuthenticatedBriefsRoute
+  '/deliverables': typeof AuthenticatedDeliverablesRoute
+  '/edit-room': typeof AuthenticatedEditRoomRoute
+  '/generation': typeof AuthenticatedGenerationRoute
+  '/launch': typeof AuthenticatedLaunchRoute
+  '/library': typeof AuthenticatedLibraryRoute
+  '/performance': typeof AuthenticatedPerformanceRoute
+  '/qa': typeof AuthenticatedQaRoute
+  '/scripts': typeof AuthenticatedScriptsRoute
+  '/storyboard': typeof AuthenticatedStoryboardRoute
+  '/': typeof AuthenticatedIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/_authenticated/angles': typeof AuthenticatedAnglesRoute
+  '/_authenticated/brands': typeof AuthenticatedBrandsRoute
+  '/_authenticated/briefs': typeof AuthenticatedBriefsRoute
+  '/_authenticated/deliverables': typeof AuthenticatedDeliverablesRoute
+  '/_authenticated/edit-room': typeof AuthenticatedEditRoomRoute
+  '/_authenticated/generation': typeof AuthenticatedGenerationRoute
+  '/_authenticated/launch': typeof AuthenticatedLaunchRoute
+  '/_authenticated/library': typeof AuthenticatedLibraryRoute
+  '/_authenticated/performance': typeof AuthenticatedPerformanceRoute
+  '/_authenticated/qa': typeof AuthenticatedQaRoute
+  '/_authenticated/scripts': typeof AuthenticatedScriptsRoute
+  '/_authenticated/storyboard': typeof AuthenticatedStoryboardRoute
+  '/_authenticated/': typeof AuthenticatedIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/angles'
+    | '/brands'
+    | '/briefs'
+    | '/deliverables'
+    | '/edit-room'
+    | '/generation'
+    | '/launch'
+    | '/library'
+    | '/performance'
+    | '/qa'
+    | '/scripts'
+    | '/storyboard'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/auth'
+    | '/angles'
+    | '/brands'
+    | '/briefs'
+    | '/deliverables'
+    | '/edit-room'
+    | '/generation'
+    | '/launch'
+    | '/library'
+    | '/performance'
+    | '/qa'
+    | '/scripts'
+    | '/storyboard'
+    | '/'
+  id:
+    | '__root__'
+    | '/_authenticated'
+    | '/auth'
+    | '/_authenticated/angles'
+    | '/_authenticated/brands'
+    | '/_authenticated/briefs'
+    | '/_authenticated/deliverables'
+    | '/_authenticated/edit-room'
+    | '/_authenticated/generation'
+    | '/_authenticated/launch'
+    | '/_authenticated/library'
+    | '/_authenticated/performance'
+    | '/_authenticated/qa'
+    | '/_authenticated/scripts'
+    | '/_authenticated/storyboard'
+    | '/_authenticated/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/': {
+      id: '/_authenticated/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/storyboard': {
+      id: '/_authenticated/storyboard'
+      path: '/storyboard'
+      fullPath: '/storyboard'
+      preLoaderRoute: typeof AuthenticatedStoryboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/scripts': {
+      id: '/_authenticated/scripts'
+      path: '/scripts'
+      fullPath: '/scripts'
+      preLoaderRoute: typeof AuthenticatedScriptsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/qa': {
+      id: '/_authenticated/qa'
+      path: '/qa'
+      fullPath: '/qa'
+      preLoaderRoute: typeof AuthenticatedQaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/performance': {
+      id: '/_authenticated/performance'
+      path: '/performance'
+      fullPath: '/performance'
+      preLoaderRoute: typeof AuthenticatedPerformanceRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/library': {
+      id: '/_authenticated/library'
+      path: '/library'
+      fullPath: '/library'
+      preLoaderRoute: typeof AuthenticatedLibraryRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/launch': {
+      id: '/_authenticated/launch'
+      path: '/launch'
+      fullPath: '/launch'
+      preLoaderRoute: typeof AuthenticatedLaunchRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/generation': {
+      id: '/_authenticated/generation'
+      path: '/generation'
+      fullPath: '/generation'
+      preLoaderRoute: typeof AuthenticatedGenerationRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/edit-room': {
+      id: '/_authenticated/edit-room'
+      path: '/edit-room'
+      fullPath: '/edit-room'
+      preLoaderRoute: typeof AuthenticatedEditRoomRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/deliverables': {
+      id: '/_authenticated/deliverables'
+      path: '/deliverables'
+      fullPath: '/deliverables'
+      preLoaderRoute: typeof AuthenticatedDeliverablesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/briefs': {
+      id: '/_authenticated/briefs'
+      path: '/briefs'
+      fullPath: '/briefs'
+      preLoaderRoute: typeof AuthenticatedBriefsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/brands': {
+      id: '/_authenticated/brands'
+      path: '/brands'
+      fullPath: '/brands'
+      preLoaderRoute: typeof AuthenticatedBrandsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/angles': {
+      id: '/_authenticated/angles'
+      path: '/angles'
+      fullPath: '/angles'
+      preLoaderRoute: typeof AuthenticatedAnglesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAnglesRoute: typeof AuthenticatedAnglesRoute
+  AuthenticatedBrandsRoute: typeof AuthenticatedBrandsRoute
+  AuthenticatedBriefsRoute: typeof AuthenticatedBriefsRoute
+  AuthenticatedDeliverablesRoute: typeof AuthenticatedDeliverablesRoute
+  AuthenticatedEditRoomRoute: typeof AuthenticatedEditRoomRoute
+  AuthenticatedGenerationRoute: typeof AuthenticatedGenerationRoute
+  AuthenticatedLaunchRoute: typeof AuthenticatedLaunchRoute
+  AuthenticatedLibraryRoute: typeof AuthenticatedLibraryRoute
+  AuthenticatedPerformanceRoute: typeof AuthenticatedPerformanceRoute
+  AuthenticatedQaRoute: typeof AuthenticatedQaRoute
+  AuthenticatedScriptsRoute: typeof AuthenticatedScriptsRoute
+  AuthenticatedStoryboardRoute: typeof AuthenticatedStoryboardRoute
+  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAnglesRoute: AuthenticatedAnglesRoute,
+  AuthenticatedBrandsRoute: AuthenticatedBrandsRoute,
+  AuthenticatedBriefsRoute: AuthenticatedBriefsRoute,
+  AuthenticatedDeliverablesRoute: AuthenticatedDeliverablesRoute,
+  AuthenticatedEditRoomRoute: AuthenticatedEditRoomRoute,
+  AuthenticatedGenerationRoute: AuthenticatedGenerationRoute,
+  AuthenticatedLaunchRoute: AuthenticatedLaunchRoute,
+  AuthenticatedLibraryRoute: AuthenticatedLibraryRoute,
+  AuthenticatedPerformanceRoute: AuthenticatedPerformanceRoute,
+  AuthenticatedQaRoute: AuthenticatedQaRoute,
+  AuthenticatedScriptsRoute: AuthenticatedScriptsRoute,
+  AuthenticatedStoryboardRoute: AuthenticatedStoryboardRoute,
+  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
