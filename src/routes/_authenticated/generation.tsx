@@ -657,6 +657,7 @@ function ShotPanel({
   assets,
   signedUrls,
   onAddManual,
+  onGenerate,
   onSelectTake,
   onOpenDetail,
 }: {
@@ -664,6 +665,7 @@ function ShotPanel({
   assets: AssetRow[];
   signedUrls: Record<string, string>;
   onAddManual: () => void;
+  onGenerate: () => void;
   onSelectTake: (assetId: string) => void;
   onOpenDetail: (a: AssetRow) => void;
 }) {
@@ -705,11 +707,11 @@ function ShotPanel({
             type="button"
             size="sm"
             variant="outline"
-            disabled
-            title="Live API generation arrives next"
+            onClick={onGenerate}
+            title="Generate with fal.ai"
           >
-            <Loader2 className="h-3.5 w-3.5" />
-            Generate (wiring next)
+            <Sparkles className="h-3.5 w-3.5" />
+            Generate
           </Button>
           <Button
             type="button"
