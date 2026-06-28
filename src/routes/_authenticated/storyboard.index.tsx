@@ -437,6 +437,124 @@ function StoryboardWorkspace() {
     toast.success("Shot removed");
   };
 
+  // ---- AI: Build shot list ----
+  const canBuildShotlist = Boolean(
+    selectedScript && (selectedScript.hook?.trim() || selectedScript.body?.trim()),
+  );
+
+  const buildShotlist = async () => {
+    if (!selectedScript) return;
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const brand = selectedScript.angle?.brief?.brand;
+      const visualBits = [
+        brand?.fonts ? `Fonts: ${brand.fonts}` : null,
+        brand?.primary_color ? `Primary: ${brand.primary_color}` : null,
+        brand?.secondary_color ? `Secondary: ${brand.secondary_color}` : null,
+      ].filter(Boolean);
+      const payload = {
+        archetype: selectedScript.archetype,
+        hook: selectedScript.hook,
+        desire_beat: selectedScript.desire_beat,
+        body: selectedScript.body,
+        proof_beat: selectedScript.proof_beat,
+        cta: selectedScript.cta,
+        vo_script: selectedScript.vo_script,
+        on_screen_text: selectedScript.on_screen_text,
+        target_duration: selectedScript.target_duration,
+        estimated_duration: selectedScript.duration_seconds,
+        product_name: selectedScript.angle?.brief?.product_name ?? null,
+        product_description: selectedScript.angle?.brief?.product_description ?? null,
+        has_product_images: productAssetPaths.length > 0,
+        brand_visual_notes: visualBits.join(" · ") || null,
+        no_go_list: brand?.no_go_list ?? null,
+      };
+      const { data, error } = await supabase.functions.invoke("ai-assist", {
+        body: { task: "build_shotlist", payload },
+      });
+      if (error) throw new Error(error.message);
+      const err = (data as { error?: string } | null)?.error;
+      if (err) throw new Error(err);
+      const result = (data as { result?: { shots?: unknown[] } } | null)?.result;
+      const raw = Array.isArray(result?.shots) ? result!.shots! : [];
+      if (raw.length === 0) throw new Error("AI returned no shots. Try again.");
+      const drafts: DraftShot[] = raw.map((s, i) => {
+        const o = (s ?? {}) as Record<string, unknown>;
+        const motion = String(o.motion_intensity ?? "Moderate");
+        const camera = String(o.camera_move ?? "Static");
+        const tool = String(o.assigned_tool ?? "");
+        const gm = (o.generation_method === "image-to-video"
+          ? "image-to-video"
+          : "text-to-video") as GenMethod;
+        const dur = Number(o.duration_seconds);
+        return {
+          key: `ai-${Date.now()}-${i}`,
+          shot_number: Number(o.shot_number) || i + 1,
+          visual_description: String(o.visual_description ?? ""),
+          camera_move: (CAMERA_MOVES as readonly string[]).includes(camera) ? camera : "Static",
+          motion_intensity: (MOTION_OPTIONS as readonly string[]).includes(motion) ? motion : "Moderate",
+          duration_seconds: Number.isFinite(dur) && dur > 0 ? Math.round(dur) : 6,
+          generation_method: gm,
+          assigned_tool: (TOOLS as readonly string[]).includes(tool) ? tool : tool,
+          tool_reason: String(o.tool_reason ?? ""),
+          caption_text: String(o.caption_text ?? ""),
+          audio_note: String(o.audio_note ?? ""),
+        };
+      });
+      setAiDrafts(drafts);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "AI request failed";
+      setAiError(msg);
+      toast.error(msg);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const updateDraft = (key: string, patch: Partial<DraftShot>) => {
+    setAiDrafts((prev) => prev?.map((d) => (d.key === key ? { ...d, ...patch } : d)) ?? null);
+  };
+
+  const dismissDraft = (key: string) => {
+    setAiDrafts((prev) => {
+      const next = (prev ?? []).filter((d) => d.key !== key);
+      return next.length === 0 ? null : next;
+    });
+  };
+
+  const commitDrafts = async (drafts: DraftShot[]) => {
+    if (!selectedScript || drafts.length === 0) return;
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData.user?.id;
+    if (!userId) { toast.error("Not signed in"); return; }
+    const startAt = (shots?.length ?? 0) + 1;
+    const rows = drafts.map((d, i) => ({
+      script_id: selectedScript.id,
+      user_id: userId,
+      shot_number: startAt + i,
+      visual_description: d.visual_description.trim() || null,
+      camera_move: d.camera_move || null,
+      motion_intensity: d.motion_intensity || null,
+      duration_seconds: d.duration_seconds || null,
+      generation_method: d.generation_method,
+      reference_image_url: null,
+      assigned_tool: d.assigned_tool || null,
+      tool_reason: d.tool_reason.trim() || null,
+      caption_text: d.caption_text.trim() || null,
+      audio_note: d.audio_note.trim() || null,
+    }));
+    const { error } = await supabase.from("shots").insert(rows);
+    if (error) { toast.error(error.message); return; }
+    toast.success(drafts.length === 1 ? "Shot added" : `${drafts.length} shots added`);
+    const remainingKeys = new Set(drafts.map((d) => d.key));
+    setAiDrafts((prev) => {
+      const next = (prev ?? []).filter((d) => !remainingKeys.has(d.key));
+      return next.length === 0 ? null : next;
+    });
+    await loadShots(selectedScript.id);
+  };
+
   return (
     <div className="px-8 py-10 max-w-7xl mx-auto">
       <div className="mb-8">
