@@ -69,48 +69,88 @@ export type Database = {
       }
       assets: {
         Row: {
+          brief_id: string | null
+          cost_estimate: number | null
           created_at: string
+          duration_seconds: number | null
+          error_message: string | null
           file_url: string | null
+          generation_method: string | null
           id: string
+          is_selected: boolean
+          job_id: string | null
+          model_id: string | null
           notes: string | null
           prompt_used: string | null
-          shot_id: string
+          reference_image_url: string | null
+          shot_id: string | null
+          source_text: string | null
           status: Database["public"]["Enums"]["asset_status"]
           tool_used: string | null
           type: Database["public"]["Enums"]["asset_type"]
           updated_at: string
           user_id: string
           version: number | null
+          voice_id: string | null
         }
         Insert: {
+          brief_id?: string | null
+          cost_estimate?: number | null
           created_at?: string
+          duration_seconds?: number | null
+          error_message?: string | null
           file_url?: string | null
+          generation_method?: string | null
           id?: string
+          is_selected?: boolean
+          job_id?: string | null
+          model_id?: string | null
           notes?: string | null
           prompt_used?: string | null
-          shot_id: string
+          reference_image_url?: string | null
+          shot_id?: string | null
+          source_text?: string | null
           status?: Database["public"]["Enums"]["asset_status"]
           tool_used?: string | null
           type: Database["public"]["Enums"]["asset_type"]
           updated_at?: string
           user_id: string
           version?: number | null
+          voice_id?: string | null
         }
         Update: {
+          brief_id?: string | null
+          cost_estimate?: number | null
           created_at?: string
+          duration_seconds?: number | null
+          error_message?: string | null
           file_url?: string | null
+          generation_method?: string | null
           id?: string
+          is_selected?: boolean
+          job_id?: string | null
+          model_id?: string | null
           notes?: string | null
           prompt_used?: string | null
-          shot_id?: string
+          reference_image_url?: string | null
+          shot_id?: string | null
+          source_text?: string | null
           status?: Database["public"]["Enums"]["asset_status"]
           tool_used?: string | null
           type?: Database["public"]["Enums"]["asset_type"]
           updated_at?: string
           user_id?: string
           version?: number | null
+          voice_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "assets_brief_id_fkey"
+            columns: ["brief_id"]
+            isOneToOne: false
+            referencedRelation: "briefs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "assets_shot_id_fkey"
             columns: ["shot_id"]
