@@ -253,7 +253,7 @@ function StoryboardWorkspace() {
       const { data } = await supabase
         .from("scripts")
         .select(
-          "id, archetype, hook, status, duration_seconds, target_duration, on_screen_text, vo_script, angle:angles(id, title, brief:briefs(id, project_name, product_asset_urls, brand:brands(id, name)))",
+          "id, archetype, hook, status, duration_seconds, target_duration, on_screen_text, vo_script, desire_beat, body, proof_beat, cta, angle:angles(id, title, brief:briefs(id, project_name, product_asset_urls, product_name, product_description, brand:brands(id, name, fonts, primary_color, secondary_color, no_go_list)))",
         )
         .eq("id", scriptParam)
         .maybeSingle();
