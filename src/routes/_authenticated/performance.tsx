@@ -199,6 +199,17 @@ type AiDiagnosis = {
   confidence_note: string;
 };
 
+type DistillEntryDraft = {
+  category: LibraryCategory;
+  title: string;
+  content: string;
+  archetype: string | null;
+  tool: string | null;
+  entry_point: string | null;
+  notes: string;
+  selected: boolean;
+};
+
 const PLACEMENT_LABEL: Record<Placement, { label: string; ratio: string }> = {
   reels: { label: "Reels", ratio: "9:16" },
   feed: { label: "Feed", ratio: "4:5" },
