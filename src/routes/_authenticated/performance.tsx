@@ -189,6 +189,13 @@ const ACTIONS: { id: MetricAction; label: string }[] = [
   { id: "kill", label: "Kill" },
 ];
 
+type AiDiagnosis = {
+  weakest_stage: Stage | "none";
+  diagnosis: string;
+  recommended_action: MetricAction;
+  confidence_note: string;
+};
+
 const PLACEMENT_LABEL: Record<Placement, { label: string; ratio: string }> = {
   reels: { label: "Reels", ratio: "9:16" },
   feed: { label: "Feed", ratio: "4:5" },
