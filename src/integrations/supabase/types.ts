@@ -20,8 +20,10 @@ export type Database = {
           created_at: string
           description: string | null
           entry_point: Database["public"]["Enums"]["angle_entry_point"] | null
+          hook_seed: string | null
           id: string
-          status: string | null
+          priority: number
+          status: Database["public"]["Enums"]["angle_status"]
           target_segment: string | null
           title: string
           updated_at: string
@@ -32,8 +34,10 @@ export type Database = {
           created_at?: string
           description?: string | null
           entry_point?: Database["public"]["Enums"]["angle_entry_point"] | null
+          hook_seed?: string | null
           id?: string
-          status?: string | null
+          priority?: number
+          status?: Database["public"]["Enums"]["angle_status"]
           target_segment?: string | null
           title: string
           updated_at?: string
@@ -44,8 +48,10 @@ export type Database = {
           created_at?: string
           description?: string | null
           entry_point?: Database["public"]["Enums"]["angle_entry_point"] | null
+          hook_seed?: string | null
           id?: string
-          status?: string | null
+          priority?: number
+          status?: Database["public"]["Enums"]["angle_status"]
           target_segment?: string | null
           title?: string
           updated_at?: string
@@ -801,6 +807,7 @@ export type Database = {
         | "social_proof"
         | "identity"
         | "curiosity"
+      angle_status: "draft" | "approved" | "archived"
       asset_status: "queued" | "generating" | "review" | "approved" | "rejected"
       asset_type: "clip" | "voiceover" | "music" | "sfx"
       brief_objective:
@@ -947,6 +954,7 @@ export const Constants = {
         "identity",
         "curiosity",
       ],
+      angle_status: ["draft", "approved", "archived"],
       asset_status: ["queued", "generating", "review", "approved", "rejected"],
       asset_type: ["clip", "voiceover", "music", "sfx"],
       brief_objective: ["awareness", "traffic", "engagement", "leads", "sales"],
