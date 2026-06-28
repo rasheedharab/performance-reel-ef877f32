@@ -279,6 +279,7 @@ function LaunchPage() {
   const [deliverableCount, setDeliverableCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [qaSignedOff, setQaSignedOff] = useState<boolean | null>(null);
 
   useEffect(() => {
     void loadBriefs();
@@ -291,6 +292,7 @@ function LaunchPage() {
       setAngles([]);
       setDeliverables([]);
       setCells([]);
+      setQaSignedOff(null);
     }
   }, [selectedBriefId]);
 
@@ -311,6 +313,12 @@ function LaunchPage() {
 
   async function loadCampaignContext(briefId: string) {
     setLoading(true);
+    const { data: qaRow } = await supabase
+      .from("qa_reviews")
+      .select("signed_off")
+      .eq("brief_id", briefId)
+      .maybeSingle();
+    setQaSignedOff(!!(qaRow as { signed_off?: boolean } | null)?.signed_off);
     const [{ data: camp }, { data: ang }, { data: delv }] = await Promise.all([
       supabase.from("campaigns").select("*").eq("brief_id", briefId).maybeSingle(),
       supabase
