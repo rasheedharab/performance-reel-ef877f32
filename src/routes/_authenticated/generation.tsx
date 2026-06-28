@@ -1552,3 +1552,322 @@ function AssetDetailDialog({
     </Dialog>
   );
 }
+
+// ============== Generate clip dialog (fal.ai) ==============
+
+const CLIP_MODELS = [
+  {
+    id: "fal-ai/veo3/fast",
+    label: "Veo 3 Fast",
+    method: "text-to-video",
+    cost: 0.4,
+  },
+  {
+    id: "fal-ai/kling-video/v2.1/standard/text-to-video",
+    label: "Kling 2.1 (T2V)",
+    method: "text-to-video",
+    cost: 0.3,
+  },
+  {
+    id: "fal-ai/kling-video/v2.1/standard/image-to-video",
+    label: "Kling 2.1 (I2V)",
+    method: "image-to-video",
+    cost: 0.35,
+  },
+] as const;
+
+function GenerateClipDialog({
+  shot,
+  briefId,
+  existingVersionCount,
+  onClose,
+  onSubmitted,
+}: {
+  shot: ShotRow;
+  briefId: string | null;
+  existingVersionCount: number;
+  onClose: () => void;
+  onSubmitted: () => void;
+}) {
+  const initialMethod: "text-to-video" | "image-to-video" =
+    shot.generation_method === "image-to-video" ? "image-to-video" : "text-to-video";
+  const [method, setMethod] = useState(initialMethod);
+  const [modelId, setModelId] = useState<string>(() => {
+    const m = CLIP_MODELS.find((x) => x.method === initialMethod);
+    return m?.id ?? CLIP_MODELS[0].id;
+  });
+  const [prompt, setPrompt] = useState<string>(shot.visual_description ?? "");
+  const [referenceUrl, setReferenceUrl] = useState<string>(
+    shot.reference_image_url ?? "",
+  );
+  const [aspect, setAspect] = useState<string>("9:16");
+  const [duration] = useState<number>(shot.duration_seconds ?? 8);
+  const [busy, setBusy] = useState(false);
+
+  const availableModels = CLIP_MODELS.filter((m) => m.method === method);
+  const selectedModel =
+    availableModels.find((m) => m.id === modelId) ?? availableModels[0];
+
+  const submit = async () => {
+    if (!prompt.trim()) {
+      toast.error("Add a prompt before generating.");
+      return;
+    }
+    if (method === "image-to-video" && !referenceUrl.trim()) {
+      toast.error("Image-to-video needs a reference image URL.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        toast.error("Not signed in.");
+        return;
+      }
+      const { data, error } = await supabase.functions.invoke("generate-clip", {
+        body: {
+          shot_id: shot.id,
+          brief_id: briefId,
+          prompt,
+          generation_method: method,
+          reference_image_url:
+            method === "image-to-video" ? referenceUrl.trim() : null,
+          duration_seconds: duration,
+          aspect_ratio: aspect,
+          model_id: selectedModel?.id,
+          tool_used: selectedModel?.label,
+          version: existingVersionCount + 1,
+        },
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (error) throw error;
+      const errPayload = (data as { error?: string } | null)?.error;
+      if (errPayload) throw new Error(errPayload);
+      toast.success("Generation queued");
+      onSubmitted();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(v) => (!v ? onClose() : null)}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="font-display">
+            Generate · Shot {shot.shot_number ?? "—"}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="flex gap-2">
+          {(["text-to-video", "image-to-video"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => {
+                setMethod(m);
+                const next = CLIP_MODELS.find((x) => x.method === m);
+                if (next) setModelId(next.id);
+              }}
+              className={cn(
+                "label-mono px-2 py-1 border rounded-[2px]",
+                method === m
+                  ? "bg-foreground text-background border-foreground"
+                  : "border-border text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {m === "text-to-video" ? "Text → Video" : "Image → Video"}
+            </button>
+          ))}
+        </div>
+
+        <div>
+          <p className="label-mono mb-1">Model</p>
+          <Select value={modelId} onValueChange={setModelId}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {availableModels.map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {m.label} · ~${m.cost.toFixed(2)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <p className="label-mono mb-1">Prompt</p>
+          <Textarea
+            rows={4}
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="Describe the shot in cinematic detail…"
+          />
+        </div>
+
+        {method === "image-to-video" && (
+          <div>
+            <p className="label-mono mb-1">Reference image URL</p>
+            <Input
+              value={referenceUrl}
+              onChange={(e) => setReferenceUrl(e.target.value)}
+              placeholder="https://…"
+            />
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <p className="label-mono mb-1">Aspect ratio</p>
+            <Select value={aspect} onValueChange={setAspect}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {["9:16", "16:9", "1:1", "4:5"].map((a) => (
+                  <SelectItem key={a} value={a}>{a}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <p className="label-mono mb-1">Duration (target)</p>
+            <Input value={`${duration}s`} disabled />
+          </div>
+        </div>
+
+        <div className="border border-border rounded-[2px] bg-background p-3 text-xs text-muted-foreground">
+          About <span className="font-mono text-foreground">~${selectedModel?.cost.toFixed(2) ?? "—"}</span> in API credits. You'll be charged by fal.ai when the job runs.
+        </div>
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={submit} disabled={busy}>
+            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+            Generate
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ============== Generate voiceover dialog (ElevenLabs) ==============
+
+const ELEVEN_VOICES = [
+  { id: "21m00Tcm4TlvDq8ikWAM", label: "Rachel · narrator" },
+  { id: "JBFqnCBsd6RMkjVDRZzb", label: "George · warm male" },
+  { id: "EXAVITQu4vr4xnSDxMaL", label: "Sarah · friendly" },
+  { id: "ErXwobaYiN019PkySvjV", label: "Antoni · upbeat" },
+  { id: "MF3mGyEYCl7XYWbV9V6O", label: "Elli · young female" },
+  { id: "TxGEqnHWrfWFTfGW9XjX", label: "Josh · deep male" },
+] as const;
+
+function GenerateVoiceoverDialog({
+  briefId,
+  defaultSourceText,
+  onClose,
+  onSaved,
+}: {
+  briefId: string;
+  defaultSourceText: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [voice, setVoice] = useState(ELEVEN_VOICES[0].id);
+  const [text, setText] = useState(defaultSourceText);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    if (!text.trim()) {
+      toast.error("Add text to read.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        toast.error("Not signed in.");
+        return;
+      }
+      const voiceMeta = ELEVEN_VOICES.find((v) => v.id === voice);
+      const { data, error } = await supabase.functions.invoke("generate-voiceover", {
+        body: {
+          brief_id: briefId,
+          source_text: text,
+          voice_id: voice,
+          voice_label: voiceMeta
+            ? `ElevenLabs · ${voiceMeta.label.split(" · ")[0]}`
+            : "ElevenLabs",
+        },
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (error) throw error;
+      const errPayload = (data as { error?: string } | null)?.error;
+      if (errPayload) throw new Error(errPayload);
+      toast.success("Voiceover generated");
+      onSaved();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      toast.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const approxCost = Math.round(text.length * 0.0003 * 100) / 100;
+
+  return (
+    <Dialog open onOpenChange={(v) => (!v ? onClose() : null)}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="font-display">Generate voiceover</DialogTitle>
+        </DialogHeader>
+
+        <div>
+          <p className="label-mono mb-1">Voice</p>
+          <Select value={voice} onValueChange={setVoice}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {ELEVEN_VOICES.map((v) => (
+                <SelectItem key={v.id} value={v.id}>{v.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <p className="label-mono mb-1">Script</p>
+          <Textarea
+            rows={6}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Paste or edit the line you want spoken…"
+          />
+          <p className="font-mono text-[10px] text-muted-foreground mt-1">
+            {text.length} chars · ~${approxCost.toFixed(2)}
+          </p>
+        </div>
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={submit} disabled={busy}>
+            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+            Generate
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
