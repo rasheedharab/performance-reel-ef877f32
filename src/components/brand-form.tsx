@@ -1,4 +1,4 @@
-import { useState, useRef, type ReactNode } from "react";
+import { useState, useRef, useEffect, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Upload, X, Loader2, FileText } from "lucide-react";
@@ -12,6 +12,7 @@ import {
   uploadBrandFile,
   fileNameFromPath,
   removeBrandFiles,
+  getSignedUrl,
 } from "@/lib/brand-assets";
 import { cn } from "@/lib/utils";
 
@@ -599,12 +600,15 @@ export function BrandForm({
 
 function LogoPreview({ path }: { path: string }) {
   const [url, setUrl] = useState<string | null>(null);
-  // Lazy import to avoid circular reference
-  if (url === null) {
-    import("@/lib/brand-assets").then(({ getSignedUrl }) => {
-      getSignedUrl(path).then((u) => setUrl(u ?? ""));
+  useEffect(() => {
+    let cancelled = false;
+    getSignedUrl(path).then((u) => {
+      if (!cancelled) setUrl(u ?? "");
     });
-  }
+    return () => {
+      cancelled = true;
+    };
+  }, [path]);
   if (!url) return <span className="label-mono text-[9px]">…</span>;
   return <img src={url} alt="Logo" className="h-full w-full object-contain" />;
 }
