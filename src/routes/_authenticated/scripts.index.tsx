@@ -761,6 +761,7 @@ function ScriptFormDialog({
   angleId,
   briefArchetypes,
   existing,
+  aiDraft,
   onSaved,
 }: {
   open: boolean;
@@ -768,6 +769,7 @@ function ScriptFormDialog({
   angleId: string;
   briefArchetypes: string[];
   existing: ScriptRow | null;
+  aiDraft?: AiDraft | null;
   onSaved: () => Promise<void>;
 }) {
   const [archetype, setArchetype] = useState<string>("");
@@ -783,6 +785,7 @@ function ScriptFormDialog({
   const [worksSoundOff, setWorksSoundOff] = useState(false);
   const [status, setStatus] = useState<ScriptStatus>("draft");
   const [saving, setSaving] = useState(false);
+  const [durationNote, setDurationNote] = useState<string>("");
 
   useEffect(() => {
     if (!open) return;
@@ -799,6 +802,22 @@ function ScriptFormDialog({
       setDuration(existing.duration_seconds ?? 20);
       setWorksSoundOff(existing.works_sound_off);
       setStatus(existing.status);
+      setDurationNote("");
+    } else if (aiDraft) {
+      setArchetype(aiDraft.archetype ?? "");
+      setHook(aiDraft.hook ?? "");
+      setDesire(aiDraft.desire_beat ?? "");
+      setBody(aiDraft.body ?? "");
+      setProof(aiDraft.proof_beat ?? "");
+      setCta(aiDraft.cta ?? "");
+      setVoScript(aiDraft.vo_script ?? "");
+      setOnScreenText(aiDraft.on_screen_text ?? "");
+      const est = Number(aiDraft.estimated_duration) || 20;
+      setTargetDuration(est);
+      setDuration(est);
+      setWorksSoundOff(!!aiDraft.sound_off_ok);
+      setStatus("draft");
+      setDurationNote(aiDraft.duration_note ?? "");
     } else {
       // Default archetype to one of the brief's selected archetypes if any match the canonical list
       const defaultArchetype =
@@ -815,8 +834,9 @@ function ScriptFormDialog({
       setDuration(20);
       setWorksSoundOff(false);
       setStatus("draft");
+      setDurationNote("");
     }
-  }, [open, existing, briefArchetypes]);
+  }, [open, existing, briefArchetypes, aiDraft]);
 
   const save = async () => {
     setSaving(true);
@@ -867,6 +887,20 @@ function ScriptFormDialog({
         </DialogHeader>
 
         <div className="space-y-6 py-2">
+          {!existing && aiDraft && (
+            <div className="border border-[var(--color-rec)]/40 bg-[var(--color-rec)]/5 rounded-[3px] p-3">
+              <p className="label-mono text-[var(--color-rec)] mb-1 flex items-center gap-1.5">
+                <Sparkles className="h-3 w-3" /> AI draft
+              </p>
+              <p className="text-sm text-foreground">
+                Your edit makes it shootable. Tighten the hook first.
+              </p>
+              {durationNote && (
+                <p className="text-xs text-muted-foreground mt-1.5 italic">{durationNote}</p>
+              )}
+            </div>
+          )}
+
           <FormField label="Archetype">
             <Select value={archetype || undefined} onValueChange={(v) => setArchetype(v)}>
               <SelectTrigger>
