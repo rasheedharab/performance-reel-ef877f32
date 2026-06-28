@@ -1232,6 +1232,7 @@ function CellRow({
               value={pct(agg.hook_rate)}
               question="Stopping the scroll?"
               tier={diag.tiers.hook}
+              weakest={ai?.weakest_stage === "hook"}
             />
             <FunnelStage
               label="HOLD"
@@ -1239,6 +1240,7 @@ function CellRow({
               value={pct(agg.hold_rate)}
               question="Body holding them?"
               tier={diag.tiers.hold}
+              weakest={ai?.weakest_stage === "hold"}
             />
             <FunnelStage
               label="CLICK"
@@ -1246,6 +1248,7 @@ function CellRow({
               value={pct(agg.ctr)}
               question="Message + CTA?"
               tier={diag.tiers.click}
+              weakest={ai?.weakest_stage === "click"}
             />
             <FunnelStage
               label="CONVERT"
@@ -1259,15 +1262,43 @@ function CellRow({
               }
               question="Does it pay?"
               tier={diag.tiers.convert}
+              weakest={ai?.weakest_stage === "convert"}
             />
           </div>
 
           <div className="mt-4 border border-foreground rounded-[2px] p-3 bg-background">
-            <div className="flex items-center gap-2 mb-1">
-              <Sparkles className="h-3.5 w-3.5 text-[var(--color-rec)]" />
-              <p className="label-mono">DIAGNOSIS</p>
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-3.5 w-3.5 text-[var(--color-rec)]" />
+                <p className="label-mono">DIAGNOSIS</p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 border-[var(--color-rec)] text-[var(--color-rec)] hover:bg-[var(--color-rec)]/5"
+                onClick={() => void onDiagnose()}
+                disabled={aiLoading || agg.rows === 0}
+              >
+                {aiLoading ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Reading the funnel…
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3 w-3" />
+                    {ai ? "Re-diagnose" : "Diagnose"}
+                  </>
+                )}
+              </Button>
             </div>
-            <p className="text-sm">{diag.suggestion}</p>
+            <p className="text-sm">{ai?.diagnosis ?? diag.suggestion}</p>
+            {ai?.confidence_note ? (
+              <div className="mt-2 flex items-start gap-2 border border-amber-600 bg-amber-50 text-amber-900 rounded-[2px] px-2 py-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <p className="text-xs leading-snug">{ai.confidence_note}</p>
+              </div>
+            ) : null}
             <Textarea
               value={diagnosisText}
               onChange={(e) => setDiagnosisText(e.target.value)}
@@ -1279,6 +1310,9 @@ function CellRow({
               rows={2}
               className="mt-2 text-sm"
             />
+            <p className="label-mono text-muted-foreground mt-2">
+              ✨ AI diagnosis — a read, not a verdict. You make the call.
+            </p>
           </div>
         </div>
       </div>
