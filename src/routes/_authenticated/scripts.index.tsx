@@ -463,16 +463,33 @@ function ScriptsWorkspace() {
           <section>
             <div className="flex items-center justify-between mb-3">
               <p className="label-mono">Scripts</p>
-              <Button
-                size="sm"
-                onClick={() => {
-                  setEditing(null);
-                  setFormOpen(true);
-                }}
-              >
-                <Plus className="h-4 w-4" />
-                New script
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setAiPickerOpen(true)}
+                  disabled={!selectedAngle.brief?.core_driver}
+                  title={
+                    !selectedAngle.brief?.core_driver
+                      ? "Add a core driver to the brief first — AI needs audience context."
+                      : "Let AI draft a script from this angle."
+                  }
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Draft script
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setEditing(null);
+                    setAiCurrent(null);
+                    setFormOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                  New script
+                </Button>
+              </div>
             </div>
 
             {scripts === null ? (
