@@ -1331,11 +1331,12 @@ function SwapTakeDialog({
       setTakes([]);
       return;
     }
+    const shotId = row.shot_id;
     void (async () => {
       const { data } = await supabase
         .from("assets")
         .select("id, shot_id, brief_id, type, status, version, file_url, duration_seconds, voice_id, tool_used, is_selected")
-        .eq("shot_id", row.shot_id)
+        .eq("shot_id", shotId)
         .order("version", { ascending: true });
       setTakes((data as unknown as AssetLite[]) ?? []);
     })();
