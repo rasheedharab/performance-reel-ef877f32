@@ -322,14 +322,9 @@ function diagnose(
     suggestion =
       "Eyeballs without economics — test offer/price/landing page, not the creative.";
   } else if (
-    hookT !== "na" &&
-    holdT !== "na" &&
-    clickT !== "na" &&
-    convertT !== "na" &&
-    hookT !== "red" &&
-    holdT !== "red" &&
-    clickT !== "red" &&
-    convertT !== "red"
+    [hookT, holdT, clickT, convertT].every(
+      (t) => t === "green" || t === "amber",
+    )
   ) {
     suggestion =
       "Winner — scale this variant and spin new hooks on the same body.";
@@ -560,7 +555,7 @@ function PerformancePage() {
     if (existing) {
       const { data, error } = await supabase
         .from("metrics")
-        .update(patch)
+        .update(patch as never)
         .eq("id", existing.id)
         .select()
         .single();
@@ -577,10 +572,10 @@ function PerformancePage() {
         .insert({
           user_id: uid,
           test_cell_id: cell.id,
-          deliverable_id: cell.deliverable_id,
+          deliverable_id: cell.deliverable_id ?? undefined,
           date,
           ...patch,
-        })
+        } as never)
         .select()
         .single();
       if (error) {
