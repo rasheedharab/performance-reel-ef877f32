@@ -1382,3 +1382,243 @@ function FormField({
     </div>
   );
 }
+
+/* ============================================================
+   AI SHOTLIST REVIEW
+   ============================================================ */
+
+function AiShotlistReview({
+  drafts,
+  onUpdate,
+  onDismiss,
+  onAddOne,
+  onAddAll,
+  onDismissAll,
+}: {
+  drafts: DraftShot[];
+  onUpdate: (key: string, patch: Partial<DraftShot>) => void;
+  onDismiss: (key: string) => void;
+  onAddOne: (d: DraftShot) => void;
+  onAddAll: () => void;
+  onDismissAll: () => void;
+}) {
+  const total = drafts.reduce((sum, d) => sum + (d.duration_seconds || 0), 0);
+  const longCount = drafts.filter((d) => d.duration_seconds > 10).length;
+  return (
+    <div className="border-2 border-foreground rounded-[3px] bg-card mb-5">
+      <div className="px-5 py-4 border-b border-border flex items-start justify-between gap-4 flex-wrap">
+        <div className="flex-1 min-w-[260px]">
+          <p className="label-mono mb-1 inline-flex items-center gap-1.5">
+            <Sparkles className="h-3 w-3" /> AI draft · review
+          </p>
+          <p className="text-sm text-muted-foreground leading-snug">
+            AI shot breakdown + tool routing — adjust durations and tools, then commit. Keep shots short and stitch them.
+          </p>
+          <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground mt-2">
+            {drafts.length} shot{drafts.length === 1 ? "" : "s"} · total {total}s
+            {longCount > 0 && (
+              <span className="text-[var(--color-rec)] ml-2">
+                · {longCount} over 10s
+              </span>
+            )}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={onDismissAll}>
+            Dismiss all
+          </Button>
+          <Button size="sm" onClick={onAddAll}>
+            <Plus className="h-4 w-4" />
+            Add all to storyboard
+          </Button>
+        </div>
+      </div>
+
+      <div className="divide-y divide-border">
+        {drafts.map((d, i) => (
+          <DraftShotRow
+            key={d.key}
+            draft={d}
+            index={i}
+            onUpdate={(patch) => onUpdate(d.key, patch)}
+            onAdd={() => onAddOne(d)}
+            onDismiss={() => onDismiss(d.key)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DraftShotRow({
+  draft,
+  index,
+  onUpdate,
+  onAdd,
+  onDismiss,
+}: {
+  draft: DraftShot;
+  index: number;
+  onUpdate: (patch: Partial<DraftShot>) => void;
+  onAdd: () => void;
+  onDismiss: () => void;
+}) {
+  const isLong = draft.duration_seconds > 10;
+  const needsRef = draft.generation_method === "image-to-video";
+  return (
+    <div className="p-4 flex gap-4 items-start">
+      <div className="shrink-0 w-12 h-12 border border-foreground rounded-[2px] flex flex-col items-center justify-center bg-foreground text-background">
+        <span className="font-mono text-[8px] uppercase opacity-70">Draft</span>
+        <span className="font-mono text-base font-bold leading-none">
+          {String(index + 1).padStart(2, "0")}
+        </span>
+      </div>
+
+      <div className="flex-1 min-w-0 space-y-3">
+        <Textarea
+          value={draft.visual_description}
+          onChange={(e) => onUpdate({ visual_description: e.target.value })}
+          rows={2}
+          placeholder="Visual description"
+          className="text-sm"
+        />
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <div>
+            <p className="label-mono mb-1">Camera</p>
+            <Select
+              value={draft.camera_move || undefined}
+              onValueChange={(v) => onUpdate({ camera_move: v })}
+            >
+              <SelectTrigger className="h-9"><SelectValue placeholder="Camera" /></SelectTrigger>
+              <SelectContent>
+                {CAMERA_MOVES.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <p className="label-mono mb-1">Motion</p>
+            <Select
+              value={draft.motion_intensity || undefined}
+              onValueChange={(v) => onUpdate({ motion_intensity: v })}
+            >
+              <SelectTrigger className="h-9"><SelectValue placeholder="Motion" /></SelectTrigger>
+              <SelectContent>
+                {MOTION_OPTIONS.map((m) => (
+                  <SelectItem key={m} value={m}>{m}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <p className="label-mono mb-1">Duration (s)</p>
+            <Input
+              type="number"
+              value={draft.duration_seconds}
+              onChange={(e) => onUpdate({ duration_seconds: Number(e.target.value) })}
+              className={cn("h-9", isLong && "border-[var(--color-rec)] text-[var(--color-rec)]")}
+            />
+          </div>
+          <div>
+            <p className="label-mono mb-1">Method</p>
+            <div className="flex gap-1">
+              {(["text-to-video", "image-to-video"] as GenMethod[]).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => onUpdate({ generation_method: m })}
+                  className={cn(
+                    "flex-1 px-1.5 h-9 border rounded-[3px] font-mono text-[9px] uppercase tracking-wider transition-colors",
+                    draft.generation_method === m
+                      ? "bg-foreground text-background border-foreground"
+                      : "bg-background text-foreground/70 border-border hover:border-foreground/40",
+                  )}
+                >
+                  {m === "text-to-video" ? "T→V" : "I→V"}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <div>
+            <p className="label-mono mb-1">Tool</p>
+            <Select
+              value={draft.assigned_tool || undefined}
+              onValueChange={(v) => onUpdate({ assigned_tool: v })}
+            >
+              <SelectTrigger className="h-9"><SelectValue placeholder="Tool" /></SelectTrigger>
+              <SelectContent>
+                {TOOLS.map((t) => (
+                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <p className="label-mono mb-1">Tool reason</p>
+            <Input
+              value={draft.tool_reason}
+              onChange={(e) => onUpdate({ tool_reason: e.target.value })}
+              className="h-9"
+              placeholder="Why this tool"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <div>
+            <p className="label-mono mb-1">Caption (on-screen)</p>
+            <Input
+              value={draft.caption_text}
+              onChange={(e) => onUpdate({ caption_text: e.target.value })}
+              className="h-9"
+              placeholder="Burned-in text for this shot"
+            />
+          </div>
+          <div>
+            <p className="label-mono mb-1">Audio note</p>
+            <Input
+              value={draft.audio_note}
+              onChange={(e) => onUpdate({ audio_note: e.target.value })}
+              className="h-9"
+              placeholder="VO line / SFX"
+            />
+          </div>
+        </div>
+
+        {(isLong || needsRef) && (
+          <div className="space-y-1">
+            {isLong && (
+              <p className="text-[10px] font-mono uppercase tracking-wider text-[var(--color-rec)]">
+                Over 10s — split into two shots before committing.
+              </p>
+            )}
+            {needsRef && (
+              <p className="text-[10px] font-mono uppercase tracking-wider text-foreground/70">
+                Image-to-video — attach a product reference frame after committing.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col items-end gap-1.5 shrink-0">
+        <Button size="sm" onClick={onAdd}>
+          <Plus className="h-3.5 w-3.5" />
+          Add
+        </Button>
+        <button
+          onClick={onDismiss}
+          className="label-mono text-muted-foreground hover:text-[var(--color-rec)] inline-flex items-center gap-1"
+        >
+          <X className="h-3 w-3" /> Dismiss
+        </button>
+      </div>
+    </div>
+  );
+}
+}
