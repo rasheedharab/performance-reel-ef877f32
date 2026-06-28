@@ -1064,6 +1064,8 @@ function PerformancePage() {
                 ai={aiResults[cell.id] ?? null}
                 aiLoading={!!aiLoading[cell.id]}
                 onDiagnose={() => diagnoseVariant(cell)}
+                onDistill={() => distillWinner(cell)}
+                distillLoading={!!distillLoading[cell.id]}
                 onSave={(patch, date) => saveMetric(cell, patch, date)}
                 onSaveDiagnosis={(text) => {
                   const date =
