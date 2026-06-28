@@ -964,7 +964,7 @@ function AngleDetailDialog({
                 Edit
               </Button>
               <Button asChild>
-                <Link to="/scripts">
+                <Link to="/scripts" search={{ angle: angle.id }}>
                   Write scripts
                   <ArrowRight className="h-4 w-4" />
                 </Link>
