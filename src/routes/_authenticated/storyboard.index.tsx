@@ -1621,4 +1621,3 @@ function DraftShotRow({
     </div>
   );
 }
-}
