@@ -8,6 +8,7 @@ import {
   Pencil,
   Plus,
   Search,
+  Sparkles,
   VolumeX,
   Volume2,
 } from "lucide-react";
@@ -166,6 +167,20 @@ type ScriptRow = {
   status: ScriptStatus;
 };
 
+type AiDraft = {
+  hook: string;
+  desire_beat: string;
+  body: string;
+  proof_beat: string;
+  cta: string;
+  vo_script: string;
+  on_screen_text: string;
+  estimated_duration: number;
+  sound_off_ok: boolean;
+  duration_note: string;
+  archetype: string;
+};
+
 const searchSchema = z.object({
   angle: z.string().optional(),
 });
@@ -189,6 +204,10 @@ function ScriptsWorkspace() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<ScriptRow | null>(null);
   const [detail, setDetail] = useState<ScriptRow | null>(null);
+
+  const [aiPickerOpen, setAiPickerOpen] = useState(false);
+  const [aiQueue, setAiQueue] = useState<AiDraft[]>([]);
+  const [aiCurrent, setAiCurrent] = useState<AiDraft | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -444,16 +463,33 @@ function ScriptsWorkspace() {
           <section>
             <div className="flex items-center justify-between mb-3">
               <p className="label-mono">Scripts</p>
-              <Button
-                size="sm"
-                onClick={() => {
-                  setEditing(null);
-                  setFormOpen(true);
-                }}
-              >
-                <Plus className="h-4 w-4" />
-                New script
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setAiPickerOpen(true)}
+                  disabled={!selectedAngle.brief?.core_driver}
+                  title={
+                    !selectedAngle.brief?.core_driver
+                      ? "Add a core driver to the brief first — AI needs audience context."
+                      : "Let AI draft a script from this angle."
+                  }
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Draft script
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setEditing(null);
+                    setAiCurrent(null);
+                    setFormOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                  New script
+                </Button>
+              </div>
             </div>
 
             {scripts === null ? (
@@ -499,13 +535,42 @@ function ScriptsWorkspace() {
           open={formOpen}
           onOpenChange={(o) => {
             setFormOpen(o);
-            if (!o) setEditing(null);
+            if (!o) {
+              setEditing(null);
+              setAiCurrent(null);
+              // Pop next AI draft from the queue, if any
+              setAiQueue((q) => {
+                if (q.length === 0) return q;
+                const [next, ...rest] = q;
+                setAiCurrent(next);
+                setTimeout(() => setFormOpen(true), 50);
+                return rest;
+              });
+            }
           }}
           angleId={selectedAngle.id}
           briefArchetypes={briefArchetypes}
           existing={editing}
+          aiDraft={aiCurrent}
           onSaved={async () => {
             await loadScripts(selectedAngle.id);
+          }}
+        />
+      )}
+
+      {selectedAngle && (
+        <AiDraftPickerDialog
+          open={aiPickerOpen}
+          onOpenChange={setAiPickerOpen}
+          briefArchetypes={briefArchetypes}
+          angle={selectedAngle}
+          onDrafts={(drafts) => {
+            if (drafts.length === 0) return;
+            const [first, ...rest] = drafts;
+            setEditing(null);
+            setAiCurrent(first);
+            setAiQueue(rest);
+            setFormOpen(true);
           }}
         />
       )}
@@ -696,6 +761,7 @@ function ScriptFormDialog({
   angleId,
   briefArchetypes,
   existing,
+  aiDraft,
   onSaved,
 }: {
   open: boolean;
@@ -703,6 +769,7 @@ function ScriptFormDialog({
   angleId: string;
   briefArchetypes: string[];
   existing: ScriptRow | null;
+  aiDraft?: AiDraft | null;
   onSaved: () => Promise<void>;
 }) {
   const [archetype, setArchetype] = useState<string>("");
@@ -718,6 +785,7 @@ function ScriptFormDialog({
   const [worksSoundOff, setWorksSoundOff] = useState(false);
   const [status, setStatus] = useState<ScriptStatus>("draft");
   const [saving, setSaving] = useState(false);
+  const [durationNote, setDurationNote] = useState<string>("");
 
   useEffect(() => {
     if (!open) return;
@@ -734,6 +802,22 @@ function ScriptFormDialog({
       setDuration(existing.duration_seconds ?? 20);
       setWorksSoundOff(existing.works_sound_off);
       setStatus(existing.status);
+      setDurationNote("");
+    } else if (aiDraft) {
+      setArchetype(aiDraft.archetype ?? "");
+      setHook(aiDraft.hook ?? "");
+      setDesire(aiDraft.desire_beat ?? "");
+      setBody(aiDraft.body ?? "");
+      setProof(aiDraft.proof_beat ?? "");
+      setCta(aiDraft.cta ?? "");
+      setVoScript(aiDraft.vo_script ?? "");
+      setOnScreenText(aiDraft.on_screen_text ?? "");
+      const est = Number(aiDraft.estimated_duration) || 20;
+      setTargetDuration(est);
+      setDuration(est);
+      setWorksSoundOff(!!aiDraft.sound_off_ok);
+      setStatus("draft");
+      setDurationNote(aiDraft.duration_note ?? "");
     } else {
       // Default archetype to one of the brief's selected archetypes if any match the canonical list
       const defaultArchetype =
@@ -750,8 +834,9 @@ function ScriptFormDialog({
       setDuration(20);
       setWorksSoundOff(false);
       setStatus("draft");
+      setDurationNote("");
     }
-  }, [open, existing, briefArchetypes]);
+  }, [open, existing, briefArchetypes, aiDraft]);
 
   const save = async () => {
     setSaving(true);
@@ -802,6 +887,20 @@ function ScriptFormDialog({
         </DialogHeader>
 
         <div className="space-y-6 py-2">
+          {!existing && aiDraft && (
+            <div className="border border-[var(--color-rec)]/40 bg-[var(--color-rec)]/5 rounded-[3px] p-3">
+              <p className="label-mono text-[var(--color-rec)] mb-1 flex items-center gap-1.5">
+                <Sparkles className="h-3 w-3" /> AI draft
+              </p>
+              <p className="text-sm text-foreground">
+                Your edit makes it shootable. Tighten the hook first.
+              </p>
+              {durationNote && (
+                <p className="text-xs text-muted-foreground mt-1.5 italic">{durationNote}</p>
+              )}
+            </div>
+          )}
+
           <FormField label="Archetype">
             <Select value={archetype || undefined} onValueChange={(v) => setArchetype(v)}>
               <SelectTrigger>
@@ -1106,5 +1205,198 @@ function BeatBlock({ label, value }: { label: string; value: string | null }) {
         {value || <span className="text-muted-foreground italic">—</span>}
       </p>
     </div>
+  );
+}
+
+/* ============================================================
+   AI DRAFT PICKER DIALOG
+   ============================================================ */
+
+function AiDraftPickerDialog({
+  open,
+  onOpenChange,
+  briefArchetypes,
+  angle,
+  onDrafts,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  briefArchetypes: string[];
+  angle: AngleFull;
+  onDrafts: (drafts: AiDraft[]) => void;
+}) {
+  const defaultArch =
+    briefArchetypes.find((a) => (ARCHETYPES as readonly string[]).includes(a)) ??
+    ARCHETYPES[0];
+  const [archetype, setArchetype] = useState<string>(defaultArch);
+  const [variations, setVariations] = useState<1 | 3>(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setArchetype(defaultArch);
+      setVariations(1);
+      setError(null);
+      setLoading(false);
+    }
+  }, [open, defaultArch]);
+
+  const fetchBrand = async () => {
+    if (!angle.brief?.brand?.id) return { brand_voice: null, no_go_list: null };
+    const { data } = await supabase
+      .from("brands")
+      .select("voice, no_go_list")
+      .eq("id", angle.brief.brand.id)
+      .maybeSingle();
+    return {
+      brand_voice: (data as { voice?: string | null } | null)?.voice ?? null,
+      no_go_list: (data as { no_go_list?: unknown } | null)?.no_go_list ?? null,
+    };
+  };
+
+  const run = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const brand = await fetchBrand();
+      const payload = {
+        archetype,
+        angle_title: angle.title,
+        entry_point: angle.entry_point,
+        hook_seed: angle.hook_seed,
+        angle_description: angle.description,
+        core_driver: angle.brief?.core_driver ?? null,
+        objection: angle.brief?.objection ?? null,
+        customer_language: angle.brief?.customer_language ?? null,
+        benefits: angle.brief?.benefits ?? [],
+        offer_type: angle.brief?.offer_type ?? null,
+        offer_detail: angle.brief?.offer_detail ?? null,
+        brand_voice: brand.brand_voice,
+        no_go_list: brand.no_go_list,
+      };
+
+      const calls = Array.from({ length: variations }, () =>
+        supabase.functions.invoke("ai-assist", {
+          body: { task: "draft_script", payload },
+        }),
+      );
+      const results = await Promise.all(calls);
+      const drafts: AiDraft[] = [];
+      for (const r of results) {
+        if (r.error) {
+          throw new Error(r.error.message || "AI assist failed.");
+        }
+        const body = r.data as { result?: unknown; error?: string } | null;
+        if (body?.error) throw new Error(body.error);
+        const result = body?.result as Partial<AiDraft> | undefined;
+        if (!result || typeof result !== "object") {
+          throw new Error("AI returned an unexpected response.");
+        }
+        drafts.push({
+          hook: String(result.hook ?? ""),
+          desire_beat: String(result.desire_beat ?? ""),
+          body: String(result.body ?? ""),
+          proof_beat: String(result.proof_beat ?? ""),
+          cta: String(result.cta ?? ""),
+          vo_script: String(result.vo_script ?? ""),
+          on_screen_text: String(result.on_screen_text ?? ""),
+          estimated_duration: Number(result.estimated_duration) || 20,
+          sound_off_ok: !!result.sound_off_ok,
+          duration_note: String(result.duration_note ?? ""),
+          archetype,
+        });
+      }
+      onOpenChange(false);
+      onDrafts(drafts);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Something went wrong.";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <p className="label-mono text-[var(--color-rec)] flex items-center gap-1.5">
+            <Sparkles className="h-3 w-3" /> AI draft
+          </p>
+          <DialogTitle className="font-display text-2xl">Draft a script</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-5 py-2">
+          <p className="text-sm text-muted-foreground">
+            AI writes one full script for this angle. You edit it before saving — nothing
+            is saved until you click Save.
+          </p>
+
+          <FormField label="Archetype">
+            <Select value={archetype} onValueChange={(v) => setArchetype(v)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ARCHETYPES.map((a) => (
+                  <SelectItem key={a} value={a}>
+                    {a}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FormField>
+
+          <FormField
+            label="How many variations?"
+            helper="Three opens three independent drafts you can compare and edit."
+          >
+            <div className="flex gap-2">
+              {[1, 3].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setVariations(n as 1 | 3)}
+                  className={cn(
+                    "flex-1 border rounded-[3px] px-3 py-2 text-sm font-mono uppercase tracking-wider",
+                    variations === n
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border bg-background hover:border-foreground/40",
+                  )}
+                >
+                  {n} {n === 1 ? "draft" : "drafts"}
+                </button>
+              ))}
+            </div>
+          </FormField>
+
+          {error && (
+            <div className="border border-[var(--color-rec)]/40 bg-[var(--color-rec)]/5 rounded-[3px] p-3">
+              <p className="text-sm text-[var(--color-rec)]">{error}</p>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+            Cancel
+          </Button>
+          <Button onClick={run} disabled={loading || !archetype}>
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Writing the script…
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                Draft {variations === 1 ? "script" : "3 variations"}
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
