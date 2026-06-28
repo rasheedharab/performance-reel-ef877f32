@@ -674,14 +674,53 @@ function StoryboardWorkspace() {
             {/* Shot list */}
             <div className="flex items-center justify-between mt-6 mb-3">
               <p className="label-mono">Shots</p>
-              <Button
-                size="sm"
-                onClick={() => { setEditing(null); setFormOpen(true); }}
-              >
-                <Plus className="h-4 w-4" />
-                New shot
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={buildShotlist}
+                  disabled={!canBuildShotlist || aiLoading}
+                  title={!canBuildShotlist ? "Script needs a hook or body first" : "Have AI break this into a shot list"}
+                >
+                  {aiLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )}
+                  {aiLoading ? "Breaking it into shots…" : "Build shot list"}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => { setEditing(null); setFormOpen(true); }}
+                >
+                  <Plus className="h-4 w-4" />
+                  New shot
+                </Button>
+              </div>
             </div>
+
+            {aiError && !aiLoading && (
+              <div className="border border-[var(--color-rec)]/40 bg-[var(--color-rec)]/5 rounded-[3px] px-4 py-3 mb-3 flex items-center justify-between gap-3">
+                <p className="text-sm text-[var(--color-rec)]">{aiError}</p>
+                <button
+                  onClick={() => setAiError(null)}
+                  className="label-mono text-muted-foreground hover:text-foreground"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+
+            {aiDrafts && aiDrafts.length > 0 && (
+              <AiShotlistReview
+                drafts={aiDrafts}
+                onUpdate={updateDraft}
+                onDismiss={dismissDraft}
+                onAddOne={(d) => commitDrafts([d])}
+                onAddAll={() => commitDrafts(aiDrafts)}
+                onDismissAll={() => setAiDrafts(null)}
+              />
+            )}
 
             {shots === null ? (
               <div className="border border-border rounded-[3px] bg-card animate-pulse h-48" />
