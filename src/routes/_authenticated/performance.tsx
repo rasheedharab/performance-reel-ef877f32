@@ -3,6 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
 import {
   ArrowLeft,
+  BookmarkPlus,
   ChevronRight,
   Copy,
   Download,
@@ -16,6 +17,7 @@ import {
   Trophy,
   X,
 } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
