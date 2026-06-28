@@ -677,6 +677,25 @@ function LaunchPage() {
         </div>
       </div>
 
+      {qaSignedOff === false && (
+        <div className="border border-[var(--color-rec)] bg-[var(--color-rec)]/5 text-[var(--color-rec)] p-4 rounded-[2px] mb-6 flex items-start gap-3">
+          <ShieldAlert className="h-5 w-5 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <p className="font-medium text-sm">QA not signed off — clear compliance before launching</p>
+            <p className="text-xs mt-1 text-[var(--color-rec)]/80">
+              The launch plan export and live actions are disabled until this brief passes QA.
+            </p>
+          </div>
+          <Link
+            to="/qa"
+            search={{ brief: selectedBrief.id }}
+            className="font-mono text-[11px] uppercase tracking-wider underline shrink-0"
+          >
+            Open QA →
+          </Link>
+        </div>
+      )}
+
       {!campaign ? (
         <div className="border border-foreground p-10 rounded-[2px] text-center">
           <Rocket className="h-8 w-8 mx-auto mb-3" />
