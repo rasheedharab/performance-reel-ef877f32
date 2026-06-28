@@ -627,6 +627,112 @@ function PerformancePage() {
     }
   }
 
+  async function diagnoseVariant(cell: TestCellRow): Promise<boolean> {
+    const cellMetrics = metrics.filter((m) => m.test_cell_id === cell.id);
+    const agg = aggregate(cellMetrics);
+    const angle = angles.find((a) => a.id === cell.angle_id);
+    const camp = selected;
+    const briefRow = camp?.brief;
+    setAiLoading((prev) => ({ ...prev, [cell.id]: true }));
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-assist", {
+        body: {
+          task: "diagnose_variant",
+          payload: {
+            angle_title: angle?.title ?? null,
+            entry_point: angle?.entry_point ?? null,
+            archetype: cell.format_label ?? null,
+            hook_label: cell.hook_label ?? null,
+            hook_text: cell.hook_label ?? null,
+            format: cell.format_label ?? null,
+            primary_metric: camp?.primary_metric ?? null,
+            kpi_type: briefRow?.kpi_type ?? null,
+            kpi_target: briefRow?.kpi_target ?? null,
+            spend: agg.spend,
+            impressions: agg.impressions,
+            conversions: agg.conversions,
+            hook_rate: agg.hook_rate,
+            hold_rate: agg.hold_rate,
+            ctr: agg.ctr,
+            cpa: agg.cpa,
+            roas: agg.roas,
+          },
+        },
+      });
+      if (error) throw new Error(error.message);
+      const payload = data as { result?: unknown; error?: string };
+      if (payload?.error) {
+        toast.error(payload.error);
+        return false;
+      }
+      const r = payload?.result as Partial<AiDiagnosis> | undefined;
+      if (!r || typeof r !== "object" || typeof r.diagnosis !== "string") {
+        toast.error("AI returned an unexpected response. Try again.");
+        return false;
+      }
+      const validStages: Array<Stage | "none"> = [
+        "hook",
+        "hold",
+        "click",
+        "convert",
+        "none",
+      ];
+      const validActions: MetricAction[] = [
+        "none",
+        "scale",
+        "iterate_hook",
+        "iterate_body",
+        "iterate_offer",
+        "kill",
+      ];
+      const clean: AiDiagnosis = {
+        weakest_stage: validStages.includes(r.weakest_stage as Stage)
+          ? (r.weakest_stage as Stage | "none")
+          : "none",
+        diagnosis: r.diagnosis,
+        recommended_action: validActions.includes(
+          r.recommended_action as MetricAction,
+        )
+          ? (r.recommended_action as MetricAction)
+          : "none",
+        confidence_note:
+          typeof r.confidence_note === "string" ? r.confidence_note : "",
+      };
+      setAiResults((prev) => ({ ...prev, [cell.id]: clean }));
+      // Persist the diagnosis text to the latest metric row
+      const date =
+        agg.latest?.date ?? new Date().toISOString().slice(0, 10);
+      await saveMetric(cell, { diagnosis: clean.diagnosis }, date);
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "AI diagnose failed");
+      return false;
+    } finally {
+      setAiLoading((prev) => {
+        const next = { ...prev };
+        delete next[cell.id];
+        return next;
+      });
+    }
+  }
+
+  async function diagnoseAllLogged() {
+    const eligible = cells.filter((c) =>
+      metrics.some((m) => m.test_cell_id === c.id),
+    );
+    if (eligible.length === 0) {
+      toast.info("No variants have metrics logged yet.");
+      return;
+    }
+    setAiBatch({ done: 0, total: eligible.length });
+    for (let i = 0; i < eligible.length; i++) {
+      await diagnoseVariant(eligible[i]);
+      setAiBatch({ done: i + 1, total: eligible.length });
+    }
+    setAiBatch(null);
+    toast.success(`Diagnosed ${eligible.length} variant(s)`);
+  }
+
   return (
     <div className="container max-w-7xl mx-auto px-6 py-10">
       <div className="mb-6">
