@@ -981,6 +981,17 @@ function CellRow({
   });
   const [diagnosisText, setDiagnosisText] = useState(agg.diagnosis ?? "");
 
+  useEffect(() => {
+    if (ai?.diagnosis) setDiagnosisText(ai.diagnosis);
+  }, [ai?.diagnosis]);
+
+  const displayAction: MetricAction =
+    ai?.recommended_action && agg.action_taken === "none"
+      ? ai.recommended_action
+      : agg.action_taken;
+  const actionIsPending =
+    ai != null && displayAction !== agg.action_taken;
+
   function n(v: string | number | null | undefined): number | null {
     if (v === "" || v == null) return null;
     const x = Number(v);
