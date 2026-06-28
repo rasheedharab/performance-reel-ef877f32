@@ -702,50 +702,74 @@ export type Database = {
       }
       metrics: {
         Row: {
+          action_taken: Database["public"]["Enums"]["metric_action"]
+          clicks: number | null
+          conversions: number | null
           cpa: number | null
           created_at: string
           ctr: number | null
           date: string
           deliverable_id: string
+          diagnosis: string | null
           hold_rate: number | null
           hook_rate: number | null
           id: string
           impressions: number | null
           notes: string | null
+          reach: number | null
           roas: number | null
           spend: number | null
+          test_cell_id: string | null
+          three_sec_views: number | null
+          thumbstop_rate: number | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          action_taken?: Database["public"]["Enums"]["metric_action"]
+          clicks?: number | null
+          conversions?: number | null
           cpa?: number | null
           created_at?: string
           ctr?: number | null
           date: string
           deliverable_id: string
+          diagnosis?: string | null
           hold_rate?: number | null
           hook_rate?: number | null
           id?: string
           impressions?: number | null
           notes?: string | null
+          reach?: number | null
           roas?: number | null
           spend?: number | null
+          test_cell_id?: string | null
+          three_sec_views?: number | null
+          thumbstop_rate?: number | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          action_taken?: Database["public"]["Enums"]["metric_action"]
+          clicks?: number | null
+          conversions?: number | null
           cpa?: number | null
           created_at?: string
           ctr?: number | null
           date?: string
           deliverable_id?: string
+          diagnosis?: string | null
           hold_rate?: number | null
           hook_rate?: number | null
           id?: string
           impressions?: number | null
           notes?: string | null
+          reach?: number | null
           roas?: number | null
           spend?: number | null
+          test_cell_id?: string | null
+          three_sec_views?: number | null
+          thumbstop_rate?: number | null
           updated_at?: string
           user_id?: string
         }
@@ -755,6 +779,13 @@ export type Database = {
             columns: ["deliverable_id"]
             isOneToOne: false
             referencedRelation: "deliverables"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "metrics_test_cell_id_fkey"
+            columns: ["test_cell_id"]
+            isOneToOne: false
+            referencedRelation: "test_cells"
             referencedColumns: ["id"]
           },
         ]
@@ -1094,6 +1125,13 @@ export type Database = {
       campaign_type: "advantage_plus" | "manual_abo" | "manual_cbo"
       deliverable_aspect: "9:16" | "4:5" | "1:1"
       deliverable_placement: "reels" | "feed" | "stories"
+      metric_action:
+        | "none"
+        | "scale"
+        | "iterate_hook"
+        | "iterate_body"
+        | "iterate_offer"
+        | "kill"
       script_status: "draft" | "approved" | "archived"
       shot_generation_method: "text-to-video" | "image-to-video"
       test_cell_status: "planned" | "live" | "paused" | "winner" | "killed"
@@ -1240,6 +1278,14 @@ export const Constants = {
       campaign_type: ["advantage_plus", "manual_abo", "manual_cbo"],
       deliverable_aspect: ["9:16", "4:5", "1:1"],
       deliverable_placement: ["reels", "feed", "stories"],
+      metric_action: [
+        "none",
+        "scale",
+        "iterate_hook",
+        "iterate_body",
+        "iterate_offer",
+        "kill",
+      ],
       script_status: ["draft", "approved", "archived"],
       shot_generation_method: ["text-to-video", "image-to-video"],
       test_cell_status: ["planned", "live", "paused", "winner", "killed"],
