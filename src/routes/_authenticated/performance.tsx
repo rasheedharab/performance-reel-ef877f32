@@ -2093,3 +2093,190 @@ function EmptyHint({ title, body }: { title: string; body: string }) {
     </div>
   );
 }
+
+// ---------------- Distill review dialog ----------------
+const LIB_CATEGORIES: LibraryCategory[] = [
+  "generation_prompt",
+  "script_template",
+  "hook_formula",
+  "shot_recipe",
+  "vo_style",
+];
+
+function DistillReviewDialog({
+  review,
+  onChange,
+  onClose,
+  onSave,
+}: {
+  review: {
+    entries: DistillEntryDraft[];
+    cellAdName: string;
+    sourceMetric: string | null;
+    sourceBrandId: string | null;
+  };
+  onChange: (entries: DistillEntryDraft[]) => void;
+  onClose: () => void;
+  onSave: (entries: DistillEntryDraft[]) => Promise<void>;
+}) {
+  const [saving, setSaving] = useState(false);
+
+  function update(i: number, patch: Partial<DistillEntryDraft>) {
+    const next = review.entries.map((e, idx) =>
+      idx === i ? { ...e, ...patch } : e,
+    );
+    onChange(next);
+  }
+
+  const selectedCount = review.entries.filter((e) => e.selected).length;
+
+  return (
+    <Dialog open onOpenChange={(v) => !v && !saving && onClose()}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <div className="flex items-center gap-2 mb-1">
+            <Sparkles className="h-4 w-4 text-[var(--color-rec)]" />
+            <p className="label-mono">DISTILL WINNER</p>
+          </div>
+          <DialogTitle className="font-display">
+            Reusable patterns from {review.cellAdName}
+          </DialogTitle>
+          <p className="text-xs text-muted-foreground mt-1">
+            AI distilled the pattern behind this winner — refine and save what's
+            worth reusing.
+          </p>
+          {review.sourceMetric && (
+            <div className="mt-2">
+              <span className="label-mono text-[10px] px-1.5 py-0.5 rounded-[2px] bg-emerald-500/10 text-emerald-700 border border-emerald-600/30">
+                {review.sourceMetric}
+              </span>
+            </div>
+          )}
+        </DialogHeader>
+
+        <div className="space-y-3 mt-2">
+          {review.entries.map((entry, i) => (
+            <div
+              key={i}
+              className={cn(
+                "border rounded-[3px] p-3 transition-colors",
+                entry.selected
+                  ? "border-foreground/40 bg-card"
+                  : "border-dashed border-border bg-muted/20 opacity-60",
+              )}
+            >
+              <div className="flex items-start gap-2 mb-2">
+                <input
+                  type="checkbox"
+                  checked={entry.selected}
+                  onChange={(e) => update(i, { selected: e.target.checked })}
+                  className="mt-1.5 h-4 w-4 accent-[var(--color-rec)]"
+                />
+                <div className="flex-1 grid grid-cols-3 gap-2">
+                  <div className="col-span-1">
+                    <Label className="label-mono mb-1 block">Category</Label>
+                    <Select
+                      value={entry.category}
+                      onValueChange={(v) =>
+                        update(i, { category: v as LibraryCategory })
+                      }
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LIB_CATEGORIES.map((c) => (
+                          <SelectItem key={c} value={c}>
+                            {CATEGORY_LABEL[c]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="label-mono mb-1 block">Title</Label>
+                    <Input
+                      value={entry.title}
+                      onChange={(e) => update(i, { title: e.target.value })}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="ml-6 space-y-2">
+                <div>
+                  <Label className="label-mono mb-1 block">Content</Label>
+                  <Textarea
+                    value={entry.content}
+                    onChange={(e) => update(i, { content: e.target.value })}
+                    rows={4}
+                    className="font-mono text-xs"
+                  />
+                </div>
+                <div>
+                  <Label className="label-mono mb-1 block">
+                    Notes — why it worked
+                  </Label>
+                  <Textarea
+                    value={entry.notes}
+                    onChange={(e) => update(i, { notes: e.target.value })}
+                    rows={2}
+                    className="text-xs"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  {entry.archetype && (
+                    <span className="label-mono text-[10px] px-1.5 py-0.5 border border-border rounded-[2px]">
+                      {entry.archetype}
+                    </span>
+                  )}
+                  {entry.tool && (
+                    <span className="label-mono text-[10px] px-1.5 py-0.5 border border-border rounded-[2px]">
+                      {entry.tool}
+                    </span>
+                  )}
+                  {entry.entry_point && (
+                    <span className="label-mono text-[10px] px-1.5 py-0.5 border border-border rounded-[2px]">
+                      {entry.entry_point.replace("_", " ")}
+                    </span>
+                  )}
+                  {review.sourceMetric && (
+                    <span className="label-mono text-[10px] px-1.5 py-0.5 rounded-[2px] bg-emerald-500/10 text-emerald-700 border border-emerald-600/30">
+                      {review.sourceMetric}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-2 mt-4">
+          <Button variant="outline" onClick={onClose} disabled={saving}>
+            Dismiss
+          </Button>
+          <Button
+            onClick={async () => {
+              setSaving(true);
+              await onSave(review.entries);
+              setSaving(false);
+            }}
+            disabled={saving || selectedCount === 0}
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Saving…
+              </>
+            ) : (
+              <>
+                <BookmarkPlus className="h-4 w-4" />
+                Save {selectedCount} to library
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
