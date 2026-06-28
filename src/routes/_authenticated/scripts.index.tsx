@@ -1207,3 +1207,196 @@ function BeatBlock({ label, value }: { label: string; value: string | null }) {
     </div>
   );
 }
+
+/* ============================================================
+   AI DRAFT PICKER DIALOG
+   ============================================================ */
+
+function AiDraftPickerDialog({
+  open,
+  onOpenChange,
+  briefArchetypes,
+  angle,
+  onDrafts,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  briefArchetypes: string[];
+  angle: AngleFull;
+  onDrafts: (drafts: AiDraft[]) => void;
+}) {
+  const defaultArch =
+    briefArchetypes.find((a) => (ARCHETYPES as readonly string[]).includes(a)) ??
+    ARCHETYPES[0];
+  const [archetype, setArchetype] = useState<string>(defaultArch);
+  const [variations, setVariations] = useState<1 | 3>(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setArchetype(defaultArch);
+      setVariations(1);
+      setError(null);
+      setLoading(false);
+    }
+  }, [open, defaultArch]);
+
+  const fetchBrand = async () => {
+    if (!angle.brief?.brand?.id) return { brand_voice: null, no_go_list: null };
+    const { data } = await supabase
+      .from("brands")
+      .select("voice, no_go_list")
+      .eq("id", angle.brief.brand.id)
+      .maybeSingle();
+    return {
+      brand_voice: (data as { voice?: string | null } | null)?.voice ?? null,
+      no_go_list: (data as { no_go_list?: unknown } | null)?.no_go_list ?? null,
+    };
+  };
+
+  const run = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const brand = await fetchBrand();
+      const payload = {
+        archetype,
+        angle_title: angle.title,
+        entry_point: angle.entry_point,
+        hook_seed: angle.hook_seed,
+        angle_description: angle.description,
+        core_driver: angle.brief?.core_driver ?? null,
+        objection: angle.brief?.objection ?? null,
+        customer_language: angle.brief?.customer_language ?? null,
+        benefits: angle.brief?.benefits ?? [],
+        offer_type: angle.brief?.offer_type ?? null,
+        offer_detail: angle.brief?.offer_detail ?? null,
+        brand_voice: brand.brand_voice,
+        no_go_list: brand.no_go_list,
+      };
+
+      const calls = Array.from({ length: variations }, () =>
+        supabase.functions.invoke("ai-assist", {
+          body: { task: "draft_script", payload },
+        }),
+      );
+      const results = await Promise.all(calls);
+      const drafts: AiDraft[] = [];
+      for (const r of results) {
+        if (r.error) {
+          throw new Error(r.error.message || "AI assist failed.");
+        }
+        const body = r.data as { result?: unknown; error?: string } | null;
+        if (body?.error) throw new Error(body.error);
+        const result = body?.result as Partial<AiDraft> | undefined;
+        if (!result || typeof result !== "object") {
+          throw new Error("AI returned an unexpected response.");
+        }
+        drafts.push({
+          hook: String(result.hook ?? ""),
+          desire_beat: String(result.desire_beat ?? ""),
+          body: String(result.body ?? ""),
+          proof_beat: String(result.proof_beat ?? ""),
+          cta: String(result.cta ?? ""),
+          vo_script: String(result.vo_script ?? ""),
+          on_screen_text: String(result.on_screen_text ?? ""),
+          estimated_duration: Number(result.estimated_duration) || 20,
+          sound_off_ok: !!result.sound_off_ok,
+          duration_note: String(result.duration_note ?? ""),
+          archetype,
+        });
+      }
+      onOpenChange(false);
+      onDrafts(drafts);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Something went wrong.";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <p className="label-mono text-[var(--color-rec)] flex items-center gap-1.5">
+            <Sparkles className="h-3 w-3" /> AI draft
+          </p>
+          <DialogTitle className="font-display text-2xl">Draft a script</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-5 py-2">
+          <p className="text-sm text-muted-foreground">
+            AI writes one full script for this angle. You edit it before saving — nothing
+            is saved until you click Save.
+          </p>
+
+          <FormField label="Archetype">
+            <Select value={archetype} onValueChange={(v) => setArchetype(v)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ARCHETYPES.map((a) => (
+                  <SelectItem key={a} value={a}>
+                    {a}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FormField>
+
+          <FormField
+            label="How many variations?"
+            helper="Three opens three independent drafts you can compare and edit."
+          >
+            <div className="flex gap-2">
+              {[1, 3].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setVariations(n as 1 | 3)}
+                  className={cn(
+                    "flex-1 border rounded-[3px] px-3 py-2 text-sm font-mono uppercase tracking-wider",
+                    variations === n
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border bg-background hover:border-foreground/40",
+                  )}
+                >
+                  {n} {n === 1 ? "draft" : "drafts"}
+                </button>
+              ))}
+            </div>
+          </FormField>
+
+          {error && (
+            <div className="border border-[var(--color-rec)]/40 bg-[var(--color-rec)]/5 rounded-[3px] p-3">
+              <p className="text-sm text-[var(--color-rec)]">{error}</p>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+            Cancel
+          </Button>
+          <Button onClick={run} disabled={loading || !archetype}>
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Writing the script…
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                Draft {variations === 1 ? "script" : "3 variations"}
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
