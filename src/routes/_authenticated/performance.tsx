@@ -789,6 +789,9 @@ function CellRow({
   metrics,
   diag,
   cpaTarget,
+  brandId,
+  brandName,
+  projectName,
   onSave,
   onSaveDiagnosis,
   onAction,
@@ -800,6 +803,9 @@ function CellRow({
   metrics: MetricRow[];
   diag: { tiers: Record<Stage, Tier>; suggestion: string };
   cpaTarget: number | null;
+  brandId: string | null;
+  brandName: string | null;
+  projectName: string | null;
   onSave: (patch: Partial<MetricRow>, date: string) => Promise<void>;
   onSaveDiagnosis: (text: string) => Promise<void>;
   onAction: (a: MetricAction) => Promise<void>;
