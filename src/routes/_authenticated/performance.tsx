@@ -941,6 +941,8 @@ function CellRow({
   ai,
   aiLoading,
   onDiagnose,
+  onDistill,
+  distillLoading,
   onSave,
   onSaveDiagnosis,
   onAction,
@@ -958,6 +960,8 @@ function CellRow({
   ai: AiDiagnosis | null;
   aiLoading: boolean;
   onDiagnose: () => Promise<boolean>;
+  onDistill: () => Promise<void>;
+  distillLoading: boolean;
   onSave: (patch: Partial<MetricRow>, date: string) => Promise<void>;
   onSaveDiagnosis: (text: string) => Promise<void>;
   onAction: (a: MetricAction) => Promise<void>;
