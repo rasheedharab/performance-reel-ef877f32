@@ -566,7 +566,10 @@ function StoryboardWorkspace() {
             {shots && shots.length > 0 && (
               <div className="mt-8 flex justify-end">
                 <Button asChild>
-                  <Link to="/generation">
+                  <Link
+                    to="/generation"
+                    search={{ script: selectedScript.id }}
+                  >
                     <Send className="h-4 w-4" />
                     Send to generation
                     <ArrowRight className="h-4 w-4" />
