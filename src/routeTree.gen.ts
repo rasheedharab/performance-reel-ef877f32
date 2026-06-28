@@ -22,7 +22,6 @@ import { Route as AuthenticatedGenerationRouteImport } from './routes/_authentic
 import { Route as AuthenticatedEditRoomRouteImport } from './routes/_authenticated/edit-room'
 import { Route as AuthenticatedDeliverablesRouteImport } from './routes/_authenticated/deliverables'
 import { Route as AuthenticatedBriefsRouteImport } from './routes/_authenticated/briefs'
-import { Route as AuthenticatedBrandsRouteImport } from './routes/_authenticated/brands'
 import { Route as AuthenticatedAnglesRouteImport } from './routes/_authenticated/angles'
 
 const AuthRoute = AuthRouteImport.update({
@@ -91,11 +90,6 @@ const AuthenticatedBriefsRoute = AuthenticatedBriefsRouteImport.update({
   path: '/briefs',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedBrandsRoute = AuthenticatedBrandsRouteImport.update({
-  id: '/brands',
-  path: '/brands',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedAnglesRoute = AuthenticatedAnglesRouteImport.update({
   id: '/angles',
   path: '/angles',
@@ -106,7 +100,6 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/auth': typeof AuthRoute
   '/angles': typeof AuthenticatedAnglesRoute
-  '/brands': typeof AuthenticatedBrandsRoute
   '/briefs': typeof AuthenticatedBriefsRoute
   '/deliverables': typeof AuthenticatedDeliverablesRoute
   '/edit-room': typeof AuthenticatedEditRoomRoute
@@ -121,7 +114,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/angles': typeof AuthenticatedAnglesRoute
-  '/brands': typeof AuthenticatedBrandsRoute
   '/briefs': typeof AuthenticatedBriefsRoute
   '/deliverables': typeof AuthenticatedDeliverablesRoute
   '/edit-room': typeof AuthenticatedEditRoomRoute
@@ -139,7 +131,6 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/angles': typeof AuthenticatedAnglesRoute
-  '/_authenticated/brands': typeof AuthenticatedBrandsRoute
   '/_authenticated/briefs': typeof AuthenticatedBriefsRoute
   '/_authenticated/deliverables': typeof AuthenticatedDeliverablesRoute
   '/_authenticated/edit-room': typeof AuthenticatedEditRoomRoute
@@ -158,7 +149,6 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/angles'
-    | '/brands'
     | '/briefs'
     | '/deliverables'
     | '/edit-room'
@@ -173,7 +163,6 @@ export interface FileRouteTypes {
   to:
     | '/auth'
     | '/angles'
-    | '/brands'
     | '/briefs'
     | '/deliverables'
     | '/edit-room'
@@ -190,7 +179,6 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/angles'
-    | '/_authenticated/brands'
     | '/_authenticated/briefs'
     | '/_authenticated/deliverables'
     | '/_authenticated/edit-room'
@@ -302,13 +290,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBriefsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/brands': {
-      id: '/_authenticated/brands'
-      path: '/brands'
-      fullPath: '/brands'
-      preLoaderRoute: typeof AuthenticatedBrandsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/angles': {
       id: '/_authenticated/angles'
       path: '/angles'
@@ -321,7 +302,6 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAnglesRoute: typeof AuthenticatedAnglesRoute
-  AuthenticatedBrandsRoute: typeof AuthenticatedBrandsRoute
   AuthenticatedBriefsRoute: typeof AuthenticatedBriefsRoute
   AuthenticatedDeliverablesRoute: typeof AuthenticatedDeliverablesRoute
   AuthenticatedEditRoomRoute: typeof AuthenticatedEditRoomRoute
@@ -337,7 +317,6 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAnglesRoute: AuthenticatedAnglesRoute,
-  AuthenticatedBrandsRoute: AuthenticatedBrandsRoute,
   AuthenticatedBriefsRoute: AuthenticatedBriefsRoute,
   AuthenticatedDeliverablesRoute: AuthenticatedDeliverablesRoute,
   AuthenticatedEditRoomRoute: AuthenticatedEditRoomRoute,
