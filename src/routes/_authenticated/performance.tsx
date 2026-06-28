@@ -756,6 +756,198 @@ function PerformancePage() {
     toast.success(`Diagnosed ${eligible.length} variant(s)`);
   }
 
+  async function distillWinner(cell: TestCellRow) {
+    const cellMetrics = metrics.filter((m) => m.test_cell_id === cell.id);
+    const agg = aggregate(cellMetrics);
+    const angle = angles.find((a) => a.id === cell.angle_id);
+
+    // Build the source_metric string from the strongest available number.
+    const sourceMetric =
+      agg.roas != null
+        ? `${agg.roas.toFixed(2)}× ROAS`
+        : agg.cpa != null
+          ? `$${agg.cpa.toFixed(2)} CPA`
+          : agg.ctr != null
+            ? `${(agg.ctr * 100).toFixed(2)}% CTR`
+            : "winner";
+
+    setDistillLoading((p) => ({ ...p, [cell.id]: true }));
+    try {
+      // Pull script + shot lineage via the deliverable's cut.
+      let script: {
+        archetype: string | null;
+        hook: string | null;
+        body: string | null;
+        cta: string | null;
+      } | null = null;
+      const tools: string[] = [];
+      const shotPattern: string[] = [];
+      if (cell.deliverable_id) {
+        const { data: delv } = await supabase
+          .from("deliverables")
+          .select("cut_id")
+          .eq("id", cell.deliverable_id)
+          .maybeSingle();
+        const cutId = (delv as { cut_id?: string } | null)?.cut_id;
+        if (cutId) {
+          const { data: cut } = await supabase
+            .from("cuts")
+            .select("script_id")
+            .eq("id", cutId)
+            .maybeSingle();
+          const scriptId = (cut as { script_id?: string } | null)?.script_id;
+          if (scriptId) {
+            const { data: scr } = await supabase
+              .from("scripts")
+              .select("archetype, hook, body, cta")
+              .eq("id", scriptId)
+              .maybeSingle();
+            if (scr) script = scr as typeof script;
+            const { data: shots } = await supabase
+              .from("shots")
+              .select("shot_number, assigned_tool, generation_method")
+              .eq("script_id", scriptId)
+              .order("shot_number");
+            for (const s of (shots ?? []) as Array<{
+              shot_number: number | null;
+              assigned_tool: string | null;
+              generation_method: string | null;
+            }>) {
+              if (s.assigned_tool && !tools.includes(s.assigned_tool))
+                tools.push(s.assigned_tool);
+              if (s.assigned_tool)
+                shotPattern.push(
+                  `#${s.shot_number ?? "?"} ${s.assigned_tool}${s.generation_method ? ` (${s.generation_method})` : ""}`,
+                );
+            }
+          }
+        }
+      }
+
+      const { data, error } = await supabase.functions.invoke("ai-assist", {
+        body: {
+          task: "distill_winner",
+          payload: {
+            angle_title: angle?.title ?? null,
+            entry_point: angle?.entry_point ?? null,
+            angle_description: null,
+            archetype: script?.archetype ?? null,
+            hook: script?.hook ?? cell.hook_label ?? null,
+            body: script?.body ?? null,
+            cta: script?.cta ?? null,
+            tools,
+            shot_pattern: shotPattern,
+            source_metric: sourceMetric,
+            hook_rate: agg.hook_rate,
+            hold_rate: agg.hold_rate,
+            ctr: agg.ctr,
+          },
+        },
+      });
+      if (error) throw new Error(error.message);
+      const payload = data as { result?: unknown; error?: string };
+      if (payload?.error) {
+        toast.error(payload.error);
+        return;
+      }
+      const r = payload?.result as { entries?: unknown[] } | undefined;
+      if (!r || !Array.isArray(r.entries) || r.entries.length === 0) {
+        toast.error("AI didn't return any entries. Try again.");
+        return;
+      }
+      const validCats: LibraryCategory[] = [
+        "generation_prompt",
+        "script_template",
+        "hook_formula",
+        "shot_recipe",
+        "vo_style",
+      ];
+      const drafts: DistillEntryDraft[] = (r.entries as Array<Record<string, unknown>>)
+        .map((e) => {
+          const cat = validCats.includes(e.category as LibraryCategory)
+            ? (e.category as LibraryCategory)
+            : "hook_formula";
+          const title = typeof e.title === "string" ? e.title : "";
+          const content = typeof e.content === "string" ? e.content : "";
+          if (!title || !content) return null;
+          return {
+            category: cat,
+            title,
+            content,
+            archetype:
+              typeof e.archetype === "string" && e.archetype ? e.archetype : null,
+            tool: typeof e.tool === "string" && e.tool ? e.tool : null,
+            entry_point:
+              typeof e.entry_point === "string" && e.entry_point
+                ? e.entry_point
+                : (angle?.entry_point ?? null),
+            notes: typeof e.notes === "string" ? e.notes : "",
+            selected: true,
+          } satisfies DistillEntryDraft;
+        })
+        .filter((x): x is DistillEntryDraft => x !== null);
+
+      if (drafts.length === 0) {
+        toast.error("AI returned no usable entries.");
+        return;
+      }
+
+      setDistillReview({
+        entries: drafts,
+        cellAdName: cell.ad_name ?? cell.hook_label ?? "Winning variant",
+        sourceMetric,
+        sourceBrandId: brief?.brand?.id ?? null,
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "AI distill failed");
+    } finally {
+      setDistillLoading((p) => {
+        const next = { ...p };
+        delete next[cell.id];
+        return next;
+      });
+    }
+  }
+
+  async function saveDistilledEntries(entries: DistillEntryDraft[]) {
+    if (!distillReview) return;
+    const chosen = entries.filter((e) => e.selected);
+    if (chosen.length === 0) {
+      toast.info("Nothing selected.");
+      return;
+    }
+    const { data: u } = await supabase.auth.getUser();
+    const uid = u.user?.id;
+    if (!uid) {
+      toast.error("Not signed in");
+      return;
+    }
+    const rows = chosen.map((e) => ({
+      user_id: uid,
+      title: e.title.trim(),
+      category: e.category,
+      prompt_text: e.content.trim(),
+      notes: e.notes.trim() || null,
+      archetype: e.archetype,
+      tool: e.tool,
+      entry_point: e.entry_point,
+      performance_tag: "winner",
+      source_metric: distillReview.sourceMetric,
+      source_brand_id: distillReview.sourceBrandId,
+    }));
+    const { error } = await supabase
+      .from("prompt_library")
+      .insert(rows as never);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success(
+      `Saved ${chosen.length} entr${chosen.length === 1 ? "y" : "ies"} to library`,
+    );
+    setDistillReview(null);
+  }
+
   return (
     <div className="container max-w-7xl mx-auto px-6 py-10">
       <div className="mb-6">
