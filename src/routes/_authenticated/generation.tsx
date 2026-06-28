@@ -1664,6 +1664,9 @@ function GenerateClipDialog({
           <DialogTitle className="font-display">
             Generate · Shot {shot.shot_number ?? "—"}
           </DialogTitle>
+          <DialogDescription>
+            Submit a video job to fal.ai. The take will appear here as soon as the job finishes.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex gap-2">
@@ -1832,6 +1835,9 @@ function GenerateVoiceoverDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="font-display">Generate voiceover</DialogTitle>
+          <DialogDescription>
+            Generate spoken audio with ElevenLabs and attach it to this brief.
+          </DialogDescription>
         </DialogHeader>
 
         <div>
