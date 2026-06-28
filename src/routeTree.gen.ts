@@ -25,6 +25,7 @@ import { Route as AuthenticatedBriefsRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedAnglesRouteImport } from './routes/_authenticated/angles'
 import { Route as AuthenticatedBrandsIndexRouteImport } from './routes/_authenticated/brands.index'
 import { Route as AuthenticatedBrandsNewRouteImport } from './routes/_authenticated/brands.new'
+import { Route as AuthenticatedBrandsBrandIdIndexRouteImport } from './routes/_authenticated/brands.$brandId.index'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -108,6 +109,12 @@ const AuthenticatedBrandsNewRoute = AuthenticatedBrandsNewRouteImport.update({
   path: '/brands/new',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedBrandsBrandIdIndexRoute =
+  AuthenticatedBrandsBrandIdIndexRouteImport.update({
+    id: '/brands/$brandId/',
+    path: '/brands/$brandId/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -125,6 +132,7 @@ export interface FileRoutesByFullPath {
   '/storyboard': typeof AuthenticatedStoryboardRoute
   '/brands/new': typeof AuthenticatedBrandsNewRoute
   '/brands/': typeof AuthenticatedBrandsIndexRoute
+  '/brands/$brandId/': typeof AuthenticatedBrandsBrandIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
@@ -142,6 +150,7 @@ export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/brands/new': typeof AuthenticatedBrandsNewRoute
   '/brands': typeof AuthenticatedBrandsIndexRoute
+  '/brands/$brandId': typeof AuthenticatedBrandsBrandIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -161,6 +170,7 @@ export interface FileRoutesById {
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/brands/new': typeof AuthenticatedBrandsNewRoute
   '/_authenticated/brands/': typeof AuthenticatedBrandsIndexRoute
+  '/_authenticated/brands/$brandId/': typeof AuthenticatedBrandsBrandIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -180,6 +190,7 @@ export interface FileRouteTypes {
     | '/storyboard'
     | '/brands/new'
     | '/brands/'
+    | '/brands/$brandId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -197,6 +208,7 @@ export interface FileRouteTypes {
     | '/'
     | '/brands/new'
     | '/brands'
+    | '/brands/$brandId'
   id:
     | '__root__'
     | '/_authenticated'
@@ -215,6 +227,7 @@ export interface FileRouteTypes {
     | '/_authenticated/'
     | '/_authenticated/brands/new'
     | '/_authenticated/brands/'
+    | '/_authenticated/brands/$brandId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -336,6 +349,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBrandsNewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/brands/$brandId/': {
+      id: '/_authenticated/brands/$brandId/'
+      path: '/brands/$brandId'
+      fullPath: '/brands/$brandId/'
+      preLoaderRoute: typeof AuthenticatedBrandsBrandIdIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -354,6 +374,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedBrandsNewRoute: typeof AuthenticatedBrandsNewRoute
   AuthenticatedBrandsIndexRoute: typeof AuthenticatedBrandsIndexRoute
+  AuthenticatedBrandsBrandIdIndexRoute: typeof AuthenticatedBrandsBrandIdIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -371,6 +392,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedBrandsNewRoute: AuthenticatedBrandsNewRoute,
   AuthenticatedBrandsIndexRoute: AuthenticatedBrandsIndexRoute,
+  AuthenticatedBrandsBrandIdIndexRoute: AuthenticatedBrandsBrandIdIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
