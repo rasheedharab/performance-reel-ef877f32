@@ -13,11 +13,13 @@ import {
   Plus,
   Rocket,
   Search,
+  ShieldAlert,
   Trash2,
   X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Link } from "@tanstack/react-router";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -277,6 +279,7 @@ function LaunchPage() {
   const [deliverableCount, setDeliverableCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [qaSignedOff, setQaSignedOff] = useState<boolean | null>(null);
 
   useEffect(() => {
     void loadBriefs();
@@ -289,6 +292,7 @@ function LaunchPage() {
       setAngles([]);
       setDeliverables([]);
       setCells([]);
+      setQaSignedOff(null);
     }
   }, [selectedBriefId]);
 
@@ -309,6 +313,12 @@ function LaunchPage() {
 
   async function loadCampaignContext(briefId: string) {
     setLoading(true);
+    const { data: qaRow } = await supabase
+      .from("qa_reviews")
+      .select("signed_off")
+      .eq("brief_id", briefId)
+      .maybeSingle();
+    setQaSignedOff(!!(qaRow as { signed_off?: boolean } | null)?.signed_off);
     const [{ data: camp }, { data: ang }, { data: delv }] = await Promise.all([
       supabase.from("campaigns").select("*").eq("brief_id", briefId).maybeSingle(),
       supabase
@@ -524,6 +534,10 @@ function LaunchPage() {
   }
 
   async function updateCell(id: string, patch: Partial<TestCellRow>) {
+    if (patch.status === "live" && qaSignedOff === false) {
+      toast.error("QA not signed off — clear compliance before going live");
+      return;
+    }
     setCells((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
     const { error } = await supabase
       .from("test_cells")
@@ -646,7 +660,7 @@ function LaunchPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => setExportOpen(true)}
-                  disabled={cells.length === 0}
+                  disabled={cells.length === 0 || qaSignedOff === false}
                 >
                   <FileText className="h-3.5 w-3.5" /> Export launch plan
                 </Button>
@@ -666,6 +680,25 @@ function LaunchPage() {
           </div>
         </div>
       </div>
+
+      {qaSignedOff === false && (
+        <div className="border border-[var(--color-rec)] bg-[var(--color-rec)]/5 text-[var(--color-rec)] p-4 rounded-[2px] mb-6 flex items-start gap-3">
+          <ShieldAlert className="h-5 w-5 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <p className="font-medium text-sm">QA not signed off — clear compliance before launching</p>
+            <p className="text-xs mt-1 text-[var(--color-rec)]/80">
+              The launch plan export and live actions are disabled until this brief passes QA.
+            </p>
+          </div>
+          <Link
+            to="/qa"
+            search={{ brief: selectedBrief.id }}
+            className="font-mono text-[11px] uppercase tracking-wider underline shrink-0"
+          >
+            Open QA →
+          </Link>
+        </div>
+      )}
 
       {!campaign ? (
         <div className="border border-foreground p-10 rounded-[2px] text-center">
