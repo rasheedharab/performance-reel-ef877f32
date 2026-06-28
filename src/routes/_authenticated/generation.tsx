@@ -1780,7 +1780,7 @@ function GenerateVoiceoverDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [voice, setVoice] = useState(ELEVEN_VOICES[0].id);
+  const [voice, setVoice] = useState<string>(ELEVEN_VOICES[0].id);
   const [text, setText] = useState(defaultSourceText);
   const [busy, setBusy] = useState(false);
 
