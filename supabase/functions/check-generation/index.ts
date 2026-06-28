@@ -78,8 +78,15 @@ Deno.serve(async (req) => {
       return json({ status: asset.status, file_url: asset.file_url });
     }
 
+    // fal.ai queue status/result endpoints use the app namespace
+    // (first two path segments), not the full model variant path.
+    // e.g. "fal-ai/veo3/fast" -> "fal-ai/veo3"
+    //      "fal-ai/kling-video/v2.1/standard/image-to-video" -> "fal-ai/kling-video"
+    const modelParts = asset.model_id.split("/").filter(Boolean);
+    const appId = modelParts.slice(0, 2).join("/") || asset.model_id;
+
     const statusRes = await fetch(
-      `https://queue.fal.run/${asset.model_id}/requests/${asset.job_id}/status`,
+      `https://queue.fal.run/${appId}/requests/${asset.job_id}/status`,
       { headers: { "Authorization": `Key ${FAL_KEY}` } },
     );
     if (!statusRes.ok) {
@@ -97,7 +104,7 @@ Deno.serve(async (req) => {
     if (falStatus === "COMPLETED") {
       // Fetch result body
       const resultRes = await fetch(
-        `https://queue.fal.run/${asset.model_id}/requests/${asset.job_id}`,
+        `https://queue.fal.run/${appId}/requests/${asset.job_id}`,
         { headers: { "Authorization": `Key ${FAL_KEY}` } },
       );
       if (!resultRes.ok) {
