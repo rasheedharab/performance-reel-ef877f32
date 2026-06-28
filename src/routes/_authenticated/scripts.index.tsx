@@ -167,6 +167,20 @@ type ScriptRow = {
   status: ScriptStatus;
 };
 
+type AiDraft = {
+  hook: string;
+  desire_beat: string;
+  body: string;
+  proof_beat: string;
+  cta: string;
+  vo_script: string;
+  on_screen_text: string;
+  estimated_duration: number;
+  sound_off_ok: boolean;
+  duration_note: string;
+  archetype: string;
+};
+
 const searchSchema = z.object({
   angle: z.string().optional(),
 });
