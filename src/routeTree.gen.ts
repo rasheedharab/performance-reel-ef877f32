@@ -24,6 +24,7 @@ import { Route as AuthenticatedDeliverablesRouteImport } from './routes/_authent
 import { Route as AuthenticatedAnglesRouteImport } from './routes/_authenticated/angles'
 import { Route as AuthenticatedBriefsIndexRouteImport } from './routes/_authenticated/briefs.index'
 import { Route as AuthenticatedBrandsIndexRouteImport } from './routes/_authenticated/brands.index'
+import { Route as AuthenticatedBriefsNewRouteImport } from './routes/_authenticated/briefs.new'
 import { Route as AuthenticatedBrandsNewRouteImport } from './routes/_authenticated/brands.new'
 import { Route as AuthenticatedBrandsBrandIdIndexRouteImport } from './routes/_authenticated/brands.$brandId.index'
 import { Route as AuthenticatedBrandsBrandIdEditRouteImport } from './routes/_authenticated/brands.$brandId.edit'
@@ -106,6 +107,11 @@ const AuthenticatedBrandsIndexRoute =
     path: '/brands/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedBriefsNewRoute = AuthenticatedBriefsNewRouteImport.update({
+  id: '/briefs/new',
+  path: '/briefs/new',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedBrandsNewRoute = AuthenticatedBrandsNewRouteImport.update({
   id: '/brands/new',
   path: '/brands/new',
@@ -138,6 +144,7 @@ export interface FileRoutesByFullPath {
   '/scripts': typeof AuthenticatedScriptsRoute
   '/storyboard': typeof AuthenticatedStoryboardRoute
   '/brands/new': typeof AuthenticatedBrandsNewRoute
+  '/briefs/new': typeof AuthenticatedBriefsNewRoute
   '/brands/': typeof AuthenticatedBrandsIndexRoute
   '/briefs/': typeof AuthenticatedBriefsIndexRoute
   '/brands/$brandId/edit': typeof AuthenticatedBrandsBrandIdEditRoute
@@ -157,6 +164,7 @@ export interface FileRoutesByTo {
   '/storyboard': typeof AuthenticatedStoryboardRoute
   '/': typeof AuthenticatedIndexRoute
   '/brands/new': typeof AuthenticatedBrandsNewRoute
+  '/briefs/new': typeof AuthenticatedBriefsNewRoute
   '/brands': typeof AuthenticatedBrandsIndexRoute
   '/briefs': typeof AuthenticatedBriefsIndexRoute
   '/brands/$brandId/edit': typeof AuthenticatedBrandsBrandIdEditRoute
@@ -178,6 +186,7 @@ export interface FileRoutesById {
   '/_authenticated/storyboard': typeof AuthenticatedStoryboardRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/brands/new': typeof AuthenticatedBrandsNewRoute
+  '/_authenticated/briefs/new': typeof AuthenticatedBriefsNewRoute
   '/_authenticated/brands/': typeof AuthenticatedBrandsIndexRoute
   '/_authenticated/briefs/': typeof AuthenticatedBriefsIndexRoute
   '/_authenticated/brands/$brandId/edit': typeof AuthenticatedBrandsBrandIdEditRoute
@@ -199,6 +208,7 @@ export interface FileRouteTypes {
     | '/scripts'
     | '/storyboard'
     | '/brands/new'
+    | '/briefs/new'
     | '/brands/'
     | '/briefs/'
     | '/brands/$brandId/edit'
@@ -218,6 +228,7 @@ export interface FileRouteTypes {
     | '/storyboard'
     | '/'
     | '/brands/new'
+    | '/briefs/new'
     | '/brands'
     | '/briefs'
     | '/brands/$brandId/edit'
@@ -238,6 +249,7 @@ export interface FileRouteTypes {
     | '/_authenticated/storyboard'
     | '/_authenticated/'
     | '/_authenticated/brands/new'
+    | '/_authenticated/briefs/new'
     | '/_authenticated/brands/'
     | '/_authenticated/briefs/'
     | '/_authenticated/brands/$brandId/edit'
@@ -356,6 +368,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBrandsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/briefs/new': {
+      id: '/_authenticated/briefs/new'
+      path: '/briefs/new'
+      fullPath: '/briefs/new'
+      preLoaderRoute: typeof AuthenticatedBriefsNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/brands/new': {
       id: '/_authenticated/brands/new'
       path: '/brands/new'
@@ -393,6 +412,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedStoryboardRoute: typeof AuthenticatedStoryboardRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedBrandsNewRoute: typeof AuthenticatedBrandsNewRoute
+  AuthenticatedBriefsNewRoute: typeof AuthenticatedBriefsNewRoute
   AuthenticatedBrandsIndexRoute: typeof AuthenticatedBrandsIndexRoute
   AuthenticatedBriefsIndexRoute: typeof AuthenticatedBriefsIndexRoute
   AuthenticatedBrandsBrandIdEditRoute: typeof AuthenticatedBrandsBrandIdEditRoute
@@ -412,6 +432,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedStoryboardRoute: AuthenticatedStoryboardRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedBrandsNewRoute: AuthenticatedBrandsNewRoute,
+  AuthenticatedBriefsNewRoute: AuthenticatedBriefsNewRoute,
   AuthenticatedBrandsIndexRoute: AuthenticatedBrandsIndexRoute,
   AuthenticatedBriefsIndexRoute: AuthenticatedBriefsIndexRoute,
   AuthenticatedBrandsBrandIdEditRoute: AuthenticatedBrandsBrandIdEditRoute,
