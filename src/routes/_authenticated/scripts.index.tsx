@@ -535,13 +535,42 @@ function ScriptsWorkspace() {
           open={formOpen}
           onOpenChange={(o) => {
             setFormOpen(o);
-            if (!o) setEditing(null);
+            if (!o) {
+              setEditing(null);
+              setAiCurrent(null);
+              // Pop next AI draft from the queue, if any
+              setAiQueue((q) => {
+                if (q.length === 0) return q;
+                const [next, ...rest] = q;
+                setAiCurrent(next);
+                setTimeout(() => setFormOpen(true), 50);
+                return rest;
+              });
+            }
           }}
           angleId={selectedAngle.id}
           briefArchetypes={briefArchetypes}
           existing={editing}
+          aiDraft={aiCurrent}
           onSaved={async () => {
             await loadScripts(selectedAngle.id);
+          }}
+        />
+      )}
+
+      {selectedAngle && (
+        <AiDraftPickerDialog
+          open={aiPickerOpen}
+          onOpenChange={setAiPickerOpen}
+          briefArchetypes={briefArchetypes}
+          angle={selectedAngle}
+          onDrafts={(drafts) => {
+            if (drafts.length === 0) return;
+            const [first, ...rest] = drafts;
+            setEditing(null);
+            setAiCurrent(first);
+            setAiQueue(rest);
+            setFormOpen(true);
           }}
         />
       )}
