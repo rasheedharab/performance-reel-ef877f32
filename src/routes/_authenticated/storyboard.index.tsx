@@ -12,6 +12,7 @@ import {
   Plus,
   Search,
   Send,
+  Sparkles,
   Upload,
   X,
 } from "lucide-react";
@@ -111,10 +112,26 @@ type ScriptFull = ScriptLite & {
   target_duration: number | null;
   on_screen_text: string | null;
   vo_script: string | null;
+  desire_beat: string | null;
+  body: string | null;
+  proof_beat: string | null;
+  cta: string | null;
   angle: (ScriptLite["angle"] & {
     brief:
       | (NonNullable<NonNullable<ScriptLite["angle"]>["brief"]> & {
           product_asset_urls: unknown;
+          product_name: string | null;
+          product_description: string | null;
+          brand:
+            | (NonNullable<
+                NonNullable<NonNullable<ScriptLite["angle"]>["brief"]>["brand"]
+              > & {
+                fonts: string | null;
+                primary_color: string | null;
+                secondary_color: string | null;
+                no_go_list: string | null;
+              })
+            | null;
         })
       | null;
   }) | null;
