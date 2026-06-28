@@ -656,7 +656,7 @@ function LaunchPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => setExportOpen(true)}
-                  disabled={cells.length === 0}
+                  disabled={cells.length === 0 || qaSignedOff === false}
                 >
                   <FileText className="h-3.5 w-3.5" /> Export launch plan
                 </Button>
