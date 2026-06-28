@@ -205,6 +205,10 @@ function ScriptsWorkspace() {
   const [editing, setEditing] = useState<ScriptRow | null>(null);
   const [detail, setDetail] = useState<ScriptRow | null>(null);
 
+  const [aiPickerOpen, setAiPickerOpen] = useState(false);
+  const [aiQueue, setAiQueue] = useState<AiDraft[]>([]);
+  const [aiCurrent, setAiCurrent] = useState<AiDraft | null>(null);
+
   useEffect(() => {
     (async () => {
       const { data } = await supabase
