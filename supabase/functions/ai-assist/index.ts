@@ -35,6 +35,11 @@ type TaskBuilder = (payload: Record<string, unknown>) => {
   user: string;
 };
 
+const TASK_MODELS: Record<string, string> = {
+  diagnose_variant: "claude-haiku-4-5",
+};
+const DEFAULT_MODEL = "claude-sonnet-4-6";
+
 const SYSTEM_BASE =
   "You are a senior direct-response creative strategist for Meta video ads. " +
   "You think in terms of audience truth, psychological entry points, and testable hypotheses. " +
@@ -218,6 +223,61 @@ Return ONLY this JSON shape (no other text):
   },
 };
 
+TASKS.diagnose_variant = (p) => {
+  const n = (v: unknown) =>
+    v == null || v === "" || !Number.isFinite(Number(v)) ? "—" : String(v);
+  const system =
+    "You are a performance-creative analyst for Meta video ads. " +
+    "You read the creative funnel in order — HOOK (3s view rate) → HOLD (watch-through) → " +
+    "CLICK (CTR) → CONVERT (CPA / ROAS vs target). " +
+    "Always find the FIRST stage that underperforms and diagnose there — a problem early in the " +
+    "funnel makes later metrics unreliable. Be specific to THIS variant's numbers and lineage; " +
+    "reference the entry point and hook. " +
+    "If spend or impressions are too low to trust, say so in confidence_note and lean toward a " +
+    "non-destructive action. " +
+    "You ALWAYS return ONLY valid JSON in the exact shape requested. " +
+    "No preamble. No commentary. No markdown fences.";
+  const user = `Diagnose this single ad variant.
+
+VARIANT LINEAGE
+- Angle: ${p.angle_title ?? "—"} (entry point: ${p.entry_point ?? "—"})
+- Archetype: ${p.archetype ?? "—"}
+- Hook label: ${p.hook_label ?? "—"}
+- Hook text: ${p.hook_text ?? "—"}
+- Format / placement: ${p.format ?? "—"}
+
+BENCHMARK CONTEXT
+- Campaign primary metric: ${p.primary_metric ?? "—"}
+- Brief KPI type: ${p.kpi_type ?? "—"}
+- Brief KPI target: ${p.kpi_target ?? "—"}
+
+METRICS (aggregated)
+- Spend: ${n(p.spend)}
+- Impressions: ${n(p.impressions)}
+- Conversions: ${n(p.conversions)}
+- Hook rate (3s view rate): ${n(p.hook_rate)}
+- Hold rate (watch-through): ${n(p.hold_rate)}
+- CTR: ${n(p.ctr)}
+- CPA: ${n(p.cpa)}
+- ROAS: ${n(p.roas)}
+
+REASONING FRAME
+- Low hook → recommend iterate_hook ("Recut the first 3 seconds").
+- Healthy hook, low hold → recommend iterate_body ("Hook works, body's weak").
+- Healthy hold, low CTR → recommend iterate_offer ("They watch but don't click — fix offer/CTA").
+- Strong through convert and beating target → recommend scale ("Winner — scale and spin new hooks on this body").
+- Failing at convert despite a good funnel, or unprofitable → consider iterate_offer or kill.
+
+Return ONLY this JSON shape (no other text):
+{
+  "weakest_stage": "hook | hold | click | convert | none",
+  "diagnosis": "1–2 sentences, specific to this variant's numbers and lineage",
+  "recommended_action": "scale | iterate_hook | iterate_body | iterate_offer | kill",
+  "confidence_note": "one short line; flag if spend/impressions are too low to trust yet"
+}`;
+  return { system, user };
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -249,7 +309,7 @@ Deno.serve(async (req) => {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
+        model: TASK_MODELS[task] ?? DEFAULT_MODEL,
         max_tokens: 4000,
         system,
         messages: [{ role: "user", content: user }],

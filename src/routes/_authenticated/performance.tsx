@@ -16,6 +16,8 @@ import {
   Target,
   Trophy,
   X,
+  Loader2,
+  AlertTriangle,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
@@ -187,6 +189,13 @@ const ACTIONS: { id: MetricAction; label: string }[] = [
   { id: "kill", label: "Kill" },
 ];
 
+type AiDiagnosis = {
+  weakest_stage: Stage | "none";
+  diagnosis: string;
+  recommended_action: MetricAction;
+  confidence_note: string;
+};
+
 const PLACEMENT_LABEL: Record<Placement, { label: string; ratio: string }> = {
   reels: { label: "Reels", ratio: "9:16" },
   feed: { label: "Feed", ratio: "4:5" },
@@ -357,6 +366,11 @@ function PerformancePage() {
   const [csvOpen, setCsvOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [aiResults, setAiResults] = useState<Record<string, AiDiagnosis>>({});
+  const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({});
+  const [aiBatch, setAiBatch] = useState<{ done: number; total: number } | null>(
+    null,
+  );
 
   useEffect(() => {
     void loadCampaigns();
@@ -613,6 +627,112 @@ function PerformancePage() {
     }
   }
 
+  async function diagnoseVariant(cell: TestCellRow): Promise<boolean> {
+    const cellMetrics = metrics.filter((m) => m.test_cell_id === cell.id);
+    const agg = aggregate(cellMetrics);
+    const angle = angles.find((a) => a.id === cell.angle_id);
+    const camp = selected;
+    const briefRow = camp?.brief;
+    setAiLoading((prev) => ({ ...prev, [cell.id]: true }));
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-assist", {
+        body: {
+          task: "diagnose_variant",
+          payload: {
+            angle_title: angle?.title ?? null,
+            entry_point: angle?.entry_point ?? null,
+            archetype: cell.format_label ?? null,
+            hook_label: cell.hook_label ?? null,
+            hook_text: cell.hook_label ?? null,
+            format: cell.format_label ?? null,
+            primary_metric: camp?.primary_metric ?? null,
+            kpi_type: briefRow?.kpi_type ?? null,
+            kpi_target: briefRow?.kpi_target ?? null,
+            spend: agg.spend,
+            impressions: agg.impressions,
+            conversions: agg.conversions,
+            hook_rate: agg.hook_rate,
+            hold_rate: agg.hold_rate,
+            ctr: agg.ctr,
+            cpa: agg.cpa,
+            roas: agg.roas,
+          },
+        },
+      });
+      if (error) throw new Error(error.message);
+      const payload = data as { result?: unknown; error?: string };
+      if (payload?.error) {
+        toast.error(payload.error);
+        return false;
+      }
+      const r = payload?.result as Partial<AiDiagnosis> | undefined;
+      if (!r || typeof r !== "object" || typeof r.diagnosis !== "string") {
+        toast.error("AI returned an unexpected response. Try again.");
+        return false;
+      }
+      const validStages: Array<Stage | "none"> = [
+        "hook",
+        "hold",
+        "click",
+        "convert",
+        "none",
+      ];
+      const validActions: MetricAction[] = [
+        "none",
+        "scale",
+        "iterate_hook",
+        "iterate_body",
+        "iterate_offer",
+        "kill",
+      ];
+      const clean: AiDiagnosis = {
+        weakest_stage: validStages.includes(r.weakest_stage as Stage)
+          ? (r.weakest_stage as Stage | "none")
+          : "none",
+        diagnosis: r.diagnosis,
+        recommended_action: validActions.includes(
+          r.recommended_action as MetricAction,
+        )
+          ? (r.recommended_action as MetricAction)
+          : "none",
+        confidence_note:
+          typeof r.confidence_note === "string" ? r.confidence_note : "",
+      };
+      setAiResults((prev) => ({ ...prev, [cell.id]: clean }));
+      // Persist the diagnosis text to the latest metric row
+      const date =
+        agg.latest?.date ?? new Date().toISOString().slice(0, 10);
+      await saveMetric(cell, { diagnosis: clean.diagnosis }, date);
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "AI diagnose failed");
+      return false;
+    } finally {
+      setAiLoading((prev) => {
+        const next = { ...prev };
+        delete next[cell.id];
+        return next;
+      });
+    }
+  }
+
+  async function diagnoseAllLogged() {
+    const eligible = cells.filter((c) =>
+      metrics.some((m) => m.test_cell_id === c.id),
+    );
+    if (eligible.length === 0) {
+      toast.info("No variants have metrics logged yet.");
+      return;
+    }
+    setAiBatch({ done: 0, total: eligible.length });
+    for (let i = 0; i < eligible.length; i++) {
+      await diagnoseVariant(eligible[i]);
+      setAiBatch({ done: i + 1, total: eligible.length });
+    }
+    setAiBatch(null);
+    toast.success(`Diagnosed ${eligible.length} variant(s)`);
+  }
+
   return (
     <div className="container max-w-7xl mx-auto px-6 py-10">
       <div className="mb-6">
@@ -659,6 +779,30 @@ function PerformancePage() {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => void diagnoseAllLogged()}
+              disabled={
+                aiBatch !== null ||
+                cells.every(
+                  (c) => !metrics.some((m) => m.test_cell_id === c.id),
+                )
+              }
+              className="border-[var(--color-rec)] text-[var(--color-rec)] hover:bg-[var(--color-rec)]/5"
+            >
+              {aiBatch ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Diagnosing {aiBatch.done}/{aiBatch.total}…
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-3.5 w-3.5" /> Diagnose all logged
+                  variants
+                </>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setReportOpen(true)}
               disabled={cells.length === 0}
             >
@@ -699,6 +843,9 @@ function PerformancePage() {
                 brandId={brief?.brand?.id ?? null}
                 brandName={brief?.brand?.name ?? null}
                 projectName={brief?.project_name ?? null}
+                ai={aiResults[cell.id] ?? null}
+                aiLoading={!!aiLoading[cell.id]}
+                onDiagnose={() => diagnoseVariant(cell)}
                 onSave={(patch, date) => saveMetric(cell, patch, date)}
                 onSaveDiagnosis={(text) => {
                   const date =
@@ -792,6 +939,9 @@ function CellRow({
   brandId,
   brandName,
   projectName,
+  ai,
+  aiLoading,
+  onDiagnose,
   onSave,
   onSaveDiagnosis,
   onAction,
@@ -806,6 +956,9 @@ function CellRow({
   brandId: string | null;
   brandName: string | null;
   projectName: string | null;
+  ai: AiDiagnosis | null;
+  aiLoading: boolean;
+  onDiagnose: () => Promise<boolean>;
   onSave: (patch: Partial<MetricRow>, date: string) => Promise<void>;
   onSaveDiagnosis: (text: string) => Promise<void>;
   onAction: (a: MetricAction) => Promise<void>;
@@ -827,6 +980,17 @@ function CellRow({
     roas: agg.latest?.roas ?? "",
   });
   const [diagnosisText, setDiagnosisText] = useState(agg.diagnosis ?? "");
+
+  useEffect(() => {
+    if (ai?.diagnosis) setDiagnosisText(ai.diagnosis);
+  }, [ai?.diagnosis]);
+
+  const displayAction: MetricAction =
+    ai?.recommended_action && agg.action_taken === "none"
+      ? ai.recommended_action
+      : agg.action_taken;
+  const actionIsPending =
+    ai != null && displayAction !== agg.action_taken;
 
   function n(v: string | number | null | undefined): number | null {
     if (v === "" || v == null) return null;
@@ -947,16 +1111,27 @@ function CellRow({
             </Link>
           )}
           <Select
-            value={agg.action_taken}
+            value={displayAction}
             onValueChange={(v) => void onAction(v as MetricAction)}
           >
-            <SelectTrigger className="h-8 w-44">
+            <SelectTrigger
+              className={cn(
+                "h-8 w-44",
+                actionIsPending &&
+                  "border-[var(--color-rec)] text-[var(--color-rec)]",
+              )}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {ACTIONS.map((a) => (
                 <SelectItem key={a.id} value={a.id}>
                   {a.label}
+                  {ai?.recommended_action === a.id && a.id !== "none" ? (
+                    <span className="ml-2 font-mono text-[10px] text-[var(--color-rec)]">
+                      AI
+                    </span>
+                  ) : null}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -1057,6 +1232,7 @@ function CellRow({
               value={pct(agg.hook_rate)}
               question="Stopping the scroll?"
               tier={diag.tiers.hook}
+              weakest={ai?.weakest_stage === "hook"}
             />
             <FunnelStage
               label="HOLD"
@@ -1064,6 +1240,7 @@ function CellRow({
               value={pct(agg.hold_rate)}
               question="Body holding them?"
               tier={diag.tiers.hold}
+              weakest={ai?.weakest_stage === "hold"}
             />
             <FunnelStage
               label="CLICK"
@@ -1071,6 +1248,7 @@ function CellRow({
               value={pct(agg.ctr)}
               question="Message + CTA?"
               tier={diag.tiers.click}
+              weakest={ai?.weakest_stage === "click"}
             />
             <FunnelStage
               label="CONVERT"
@@ -1084,15 +1262,43 @@ function CellRow({
               }
               question="Does it pay?"
               tier={diag.tiers.convert}
+              weakest={ai?.weakest_stage === "convert"}
             />
           </div>
 
           <div className="mt-4 border border-foreground rounded-[2px] p-3 bg-background">
-            <div className="flex items-center gap-2 mb-1">
-              <Sparkles className="h-3.5 w-3.5 text-[var(--color-rec)]" />
-              <p className="label-mono">DIAGNOSIS</p>
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-3.5 w-3.5 text-[var(--color-rec)]" />
+                <p className="label-mono">DIAGNOSIS</p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 border-[var(--color-rec)] text-[var(--color-rec)] hover:bg-[var(--color-rec)]/5"
+                onClick={() => void onDiagnose()}
+                disabled={aiLoading || agg.rows === 0}
+              >
+                {aiLoading ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Reading the funnel…
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3 w-3" />
+                    {ai ? "Re-diagnose" : "Diagnose"}
+                  </>
+                )}
+              </Button>
             </div>
-            <p className="text-sm">{diag.suggestion}</p>
+            <p className="text-sm">{ai?.diagnosis ?? diag.suggestion}</p>
+            {ai?.confidence_note ? (
+              <div className="mt-2 flex items-start gap-2 border border-amber-600 bg-amber-50 text-amber-900 rounded-[2px] px-2 py-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <p className="text-xs leading-snug">{ai.confidence_note}</p>
+              </div>
+            ) : null}
             <Textarea
               value={diagnosisText}
               onChange={(e) => setDiagnosisText(e.target.value)}
@@ -1104,6 +1310,9 @@ function CellRow({
               rows={2}
               className="mt-2 text-sm"
             />
+            <p className="label-mono text-muted-foreground mt-2">
+              ✨ AI diagnosis — a read, not a verdict. You make the call.
+            </p>
           </div>
         </div>
       </div>
@@ -1141,23 +1350,32 @@ function FunnelStage({
   value,
   question,
   tier,
+  weakest,
 }: {
   label: string;
   sub: string;
   value: string;
   question: string;
   tier: Tier;
+  weakest?: boolean;
 }) {
   return (
     <div
       className={cn(
         "border rounded-[2px] p-3",
         TIER_STYLES[tier],
+        weakest &&
+          "ring-2 ring-[var(--color-rec)] ring-offset-1 ring-offset-background border-[var(--color-rec)]",
       )}
     >
       <div className="flex items-center gap-1.5 mb-1">
         <span className={cn("h-2 w-2 rounded-full", TIER_DOT[tier])} />
         <p className="font-mono text-[10px] uppercase tracking-wider">{label}</p>
+        {weakest ? (
+          <span className="ml-auto font-mono text-[9px] uppercase tracking-wider text-[var(--color-rec)] border border-[var(--color-rec)] rounded-[2px] px-1">
+            weakest
+          </span>
+        ) : null}
       </div>
       <p className="font-display text-xl font-bold leading-tight">{value}</p>
       <p className="label-mono opacity-70 mt-0.5">{sub}</p>
