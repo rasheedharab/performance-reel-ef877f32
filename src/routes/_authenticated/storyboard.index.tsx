@@ -242,6 +242,11 @@ function StoryboardWorkspace() {
   const [editing, setEditing] = useState<ShotRow | null>(null);
   const [guideOpen, setGuideOpen] = useState(true);
 
+  // AI shot-list draft state
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiDrafts, setAiDrafts] = useState<DraftShot[] | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+
   // signed URLs cache for both brief product assets and shot reference images
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
 
