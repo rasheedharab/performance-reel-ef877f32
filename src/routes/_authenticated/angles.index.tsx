@@ -1160,3 +1160,231 @@ function AngleDetailDialog({
     </Dialog>
   );
 }
+
+function SuggestButton({
+  coreDriver,
+  loading,
+  onClick,
+}: {
+  coreDriver: string | null;
+  loading: boolean;
+  onClick: () => void;
+}) {
+  const disabled = !coreDriver || loading;
+  const btn = (
+    <Button
+      size="sm"
+      variant="outline"
+      onClick={onClick}
+      disabled={disabled}
+      className="gap-1.5"
+    >
+      {loading ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <Sparkles className="h-4 w-4" />
+      )}
+      {loading ? "Drafting angles…" : "Suggest angles"}
+    </Button>
+  );
+  if (coreDriver) return btn;
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span tabIndex={0}>{btn}</span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-xs">
+          Add a core driver to the brief first — the AI needs audience context to draft useful angles.
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+function SuggestDrawer({
+  open,
+  onOpenChange,
+  loading,
+  error,
+  suggestions,
+  setSuggestions,
+  onAdd,
+  onRetry,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  loading: boolean;
+  error: string | null;
+  suggestions: SuggestedAngle[] | null;
+  setSuggestions: (s: SuggestedAngle[] | null) => void;
+  onAdd: (s: SuggestedAngle) => Promise<boolean>;
+  onRetry: () => void;
+}) {
+  const [addingAll, setAddingAll] = useState(false);
+
+  const updateAt = (idx: number, patch: Partial<SuggestedAngle>) => {
+    if (!suggestions) return;
+    setSuggestions(suggestions.map((s, i) => (i === idx ? { ...s, ...patch } : s)));
+  };
+  const dismissAt = (idx: number) => {
+    if (!suggestions) return;
+    setSuggestions(suggestions.filter((_, i) => i !== idx));
+  };
+  const addAt = async (idx: number) => {
+    if (!suggestions) return;
+    const ok = await onAdd(suggestions[idx]);
+    if (ok) {
+      toast.success("Angle added as draft");
+      dismissAt(idx);
+    }
+  };
+  const addAll = async () => {
+    if (!suggestions) return;
+    setAddingAll(true);
+    const remaining: SuggestedAngle[] = [];
+    let added = 0;
+    for (const s of suggestions) {
+      const ok = await onAdd(s);
+      if (ok) added += 1;
+      else remaining.push(s);
+    }
+    setAddingAll(false);
+    if (added > 0) toast.success(`Added ${added} angle${added === 1 ? "" : "s"}`);
+    setSuggestions(remaining);
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-xl flex flex-col gap-0 p-0">
+        <SheetHeader className="p-6 pb-4 border-b border-border">
+          <div className="flex items-center gap-2 mb-1">
+            <Sparkles className="h-4 w-4 text-[var(--color-rec)]" />
+            <p className="label-mono">AI suggestions</p>
+          </div>
+          <SheetTitle className="font-display text-2xl">Drafted angles</SheetTitle>
+          <p className="text-xs text-muted-foreground mt-1 italic">
+            AI drafts — edit before adding. You're the director.
+          </p>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {loading && (
+            <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
+              <Loader2 className="h-6 w-6 animate-spin" />
+              <p className="label-mono">Drafting angles…</p>
+            </div>
+          )}
+
+          {!loading && error && (
+            <div className="border border-[var(--color-rec)]/40 bg-[var(--color-rec)]/5 rounded-[3px] p-4">
+              <p className="label-mono text-[var(--color-rec)] mb-1">Something went wrong</p>
+              <p className="text-sm text-foreground/80 mb-3">{error}</p>
+              <Button size="sm" variant="outline" onClick={onRetry}>
+                Try again
+              </Button>
+            </div>
+          )}
+
+          {!loading && !error && suggestions && suggestions.length === 0 && (
+            <div className="text-center py-12 text-sm text-muted-foreground">
+              <p className="label-mono mb-2">All clear</p>
+              <p>No more suggestions to review.</p>
+            </div>
+          )}
+
+          {!loading &&
+            !error &&
+            suggestions?.map((s, idx) => (
+              <article
+                key={idx}
+                className="border border-border bg-card rounded-[3px] p-4 space-y-3"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <Select
+                    value={s.entry_point}
+                    onValueChange={(v) => updateAt(idx, { entry_point: v as EntryPoint })}
+                  >
+                    <SelectTrigger className="h-7 w-auto gap-1.5 border-0 bg-transparent p-0 hover:bg-transparent focus:ring-0 [&>svg]:hidden">
+                      <span className="block">
+                        <EntryPointChip ep={s.entry_point} />
+                      </span>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ENTRY_POINTS.map((ep) => (
+                        <SelectItem key={ep} value={ep}>
+                          {ENTRY_POINT_LABEL[ep]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <button
+                    onClick={() => dismissAt(idx)}
+                    className="p-1 text-muted-foreground hover:text-foreground"
+                    aria-label="Dismiss"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                <div>
+                  <label className="label-mono mb-1 block">Title</label>
+                  <Input
+                    value={s.title}
+                    onChange={(e) => updateAt(idx, { title: e.target.value })}
+                    className="font-display text-base"
+                  />
+                </div>
+
+                <div>
+                  <label className="label-mono mb-1 block">Target segment</label>
+                  <Input
+                    value={s.target_segment}
+                    onChange={(e) => updateAt(idx, { target_segment: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="label-mono mb-1 block">Hook seed</label>
+                  <Input
+                    value={s.hook_seed}
+                    onChange={(e) => updateAt(idx, { hook_seed: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="label-mono mb-1 block">Description</label>
+                  <Textarea
+                    value={s.description}
+                    onChange={(e) => updateAt(idx, { description: e.target.value })}
+                    rows={3}
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">
+                  <Button size="sm" variant="ghost" onClick={() => dismissAt(idx)}>
+                    Dismiss
+                  </Button>
+                  <Button size="sm" onClick={() => addAt(idx)}>
+                    Add
+                  </Button>
+                </div>
+              </article>
+            ))}
+        </div>
+
+        {!loading && !error && suggestions && suggestions.length > 1 && (
+          <div className="border-t border-border p-4 flex items-center justify-between gap-2 bg-card">
+            <p className="text-xs text-muted-foreground">
+              {suggestions.length} draft{suggestions.length === 1 ? "" : "s"} remaining
+            </p>
+            <Button size="sm" onClick={addAll} disabled={addingAll}>
+              {addingAll && <Loader2 className="h-4 w-4 animate-spin" />}
+              Add all
+            </Button>
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
