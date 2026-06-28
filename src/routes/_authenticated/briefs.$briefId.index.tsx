@@ -264,7 +264,7 @@ function BriefDetailPage() {
           {locked ? "Unlock to edit" : "Lock brief"}
         </Button>
         <Button size="sm" asChild>
-          <Link to="/angles">
+          <Link to="/angles" search={{ brief: brief.id }}>
             Develop angles
             <ArrowRight className="h-4 w-4" />
           </Link>
