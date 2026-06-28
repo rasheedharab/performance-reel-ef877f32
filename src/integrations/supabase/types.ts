@@ -411,42 +411,60 @@ export type Database = {
       campaigns: {
         Row: {
           brief_id: string
+          campaign_type: Database["public"]["Enums"]["campaign_type"] | null
           created_at: string
+          daily_budget: number | null
           id: string
           meta_campaign_name: string | null
           naming_convention: string | null
+          notes: string | null
           objective: string | null
+          primary_metric: string | null
+          start_date: string | null
           status: string | null
           structure_type: string | null
           test_matrix: Json | null
           updated_at: string
           user_id: string
+          utm_template: string | null
         }
         Insert: {
           brief_id: string
+          campaign_type?: Database["public"]["Enums"]["campaign_type"] | null
           created_at?: string
+          daily_budget?: number | null
           id?: string
           meta_campaign_name?: string | null
           naming_convention?: string | null
+          notes?: string | null
           objective?: string | null
+          primary_metric?: string | null
+          start_date?: string | null
           status?: string | null
           structure_type?: string | null
           test_matrix?: Json | null
           updated_at?: string
           user_id: string
+          utm_template?: string | null
         }
         Update: {
           brief_id?: string
+          campaign_type?: Database["public"]["Enums"]["campaign_type"] | null
           created_at?: string
+          daily_budget?: number | null
           id?: string
           meta_campaign_name?: string | null
           naming_convention?: string | null
+          notes?: string | null
           objective?: string | null
+          primary_metric?: string | null
+          start_date?: string | null
           status?: string | null
           structure_type?: string | null
           test_matrix?: Json | null
           updated_at?: string
           user_id?: string
+          utm_template?: string | null
         }
         Relationships: [
           {
@@ -978,6 +996,76 @@ export type Database = {
           },
         ]
       }
+      test_cells: {
+        Row: {
+          ad_name: string | null
+          angle_id: string | null
+          campaign_id: string
+          created_at: string
+          deliverable_id: string | null
+          format_label: string | null
+          hook_label: string | null
+          id: string
+          notes: string | null
+          status: Database["public"]["Enums"]["test_cell_status"]
+          updated_at: string
+          user_id: string
+          utm_url: string | null
+        }
+        Insert: {
+          ad_name?: string | null
+          angle_id?: string | null
+          campaign_id: string
+          created_at?: string
+          deliverable_id?: string | null
+          format_label?: string | null
+          hook_label?: string | null
+          id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["test_cell_status"]
+          updated_at?: string
+          user_id?: string
+          utm_url?: string | null
+        }
+        Update: {
+          ad_name?: string | null
+          angle_id?: string | null
+          campaign_id?: string
+          created_at?: string
+          deliverable_id?: string | null
+          format_label?: string | null
+          hook_label?: string | null
+          id?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["test_cell_status"]
+          updated_at?: string
+          user_id?: string
+          utm_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_cells_angle_id_fkey"
+            columns: ["angle_id"]
+            isOneToOne: false
+            referencedRelation: "angles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_cells_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_cells_deliverable_id_fkey"
+            columns: ["deliverable_id"]
+            isOneToOne: false
+            referencedRelation: "deliverables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1003,10 +1091,12 @@ export type Database = {
         | "leads"
         | "sales"
       brief_status: "draft" | "locked" | "in_production" | "live" | "archived"
+      campaign_type: "advantage_plus" | "manual_abo" | "manual_cbo"
       deliverable_aspect: "9:16" | "4:5" | "1:1"
       deliverable_placement: "reels" | "feed" | "stories"
       script_status: "draft" | "approved" | "archived"
       shot_generation_method: "text-to-video" | "image-to-video"
+      test_cell_status: "planned" | "live" | "paused" | "winner" | "killed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1147,10 +1237,12 @@ export const Constants = {
       asset_type: ["clip", "voiceover", "music", "sfx"],
       brief_objective: ["awareness", "traffic", "engagement", "leads", "sales"],
       brief_status: ["draft", "locked", "in_production", "live", "archived"],
+      campaign_type: ["advantage_plus", "manual_abo", "manual_cbo"],
       deliverable_aspect: ["9:16", "4:5", "1:1"],
       deliverable_placement: ["reels", "feed", "stories"],
       script_status: ["draft", "approved", "archived"],
       shot_generation_method: ["text-to-video", "image-to-video"],
+      test_cell_status: ["planned", "live", "paused", "winner", "killed"],
     },
   },
 } as const
