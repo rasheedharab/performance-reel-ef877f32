@@ -199,7 +199,7 @@ function LibraryPage() {
 
   const filtered = useMemo(() => {
     const s = query.trim().toLowerCase();
-    return entries.filter((e) => {
+    const list = entries.filter((e) => {
       if (activeCategory !== "all" && e.category !== activeCategory)
         return false;
       if (filterArchetype !== "all" && e.archetype !== filterArchetype)
@@ -213,6 +213,19 @@ function LibraryPage() {
         (e.prompt_text ?? "").toLowerCase().includes(s) ||
         (e.notes ?? "").toLowerCase().includes(s)
       );
+    });
+    // Proven winners (source_metric set) sort to top within their category,
+    // then favorites, then most-recently-updated.
+    return [...list].sort((a, b) => {
+      if (a.category !== b.category)
+        return a.category.localeCompare(b.category);
+      const aw = a.source_metric ? 1 : 0;
+      const bw = b.source_metric ? 1 : 0;
+      if (aw !== bw) return bw - aw;
+      const af = a.is_favorite ? 1 : 0;
+      const bf = b.is_favorite ? 1 : 0;
+      if (af !== bf) return bf - af;
+      return (b.updated_at ?? "").localeCompare(a.updated_at ?? "");
     });
   }, [
     entries,
