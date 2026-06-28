@@ -23,6 +23,7 @@ import { Route as AuthenticatedEditRoomRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedDeliverablesRouteImport } from './routes/_authenticated/deliverables'
 import { Route as AuthenticatedBriefsRouteImport } from './routes/_authenticated/briefs'
 import { Route as AuthenticatedAnglesRouteImport } from './routes/_authenticated/angles'
+import { Route as AuthenticatedBrandsIndexRouteImport } from './routes/_authenticated/brands.index'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -95,6 +96,12 @@ const AuthenticatedAnglesRoute = AuthenticatedAnglesRouteImport.update({
   path: '/angles',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedBrandsIndexRoute =
+  AuthenticatedBrandsIndexRouteImport.update({
+    id: '/brands/',
+    path: '/brands/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/qa': typeof AuthenticatedQaRoute
   '/scripts': typeof AuthenticatedScriptsRoute
   '/storyboard': typeof AuthenticatedStoryboardRoute
+  '/brands/': typeof AuthenticatedBrandsIndexRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
@@ -125,6 +133,7 @@ export interface FileRoutesByTo {
   '/scripts': typeof AuthenticatedScriptsRoute
   '/storyboard': typeof AuthenticatedStoryboardRoute
   '/': typeof AuthenticatedIndexRoute
+  '/brands': typeof AuthenticatedBrandsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -142,6 +151,7 @@ export interface FileRoutesById {
   '/_authenticated/scripts': typeof AuthenticatedScriptsRoute
   '/_authenticated/storyboard': typeof AuthenticatedStoryboardRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/brands/': typeof AuthenticatedBrandsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/qa'
     | '/scripts'
     | '/storyboard'
+    | '/brands/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -174,6 +185,7 @@ export interface FileRouteTypes {
     | '/scripts'
     | '/storyboard'
     | '/'
+    | '/brands'
   id:
     | '__root__'
     | '/_authenticated'
@@ -190,6 +202,7 @@ export interface FileRouteTypes {
     | '/_authenticated/scripts'
     | '/_authenticated/storyboard'
     | '/_authenticated/'
+    | '/_authenticated/brands/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -297,6 +310,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAnglesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/brands/': {
+      id: '/_authenticated/brands/'
+      path: '/brands'
+      fullPath: '/brands/'
+      preLoaderRoute: typeof AuthenticatedBrandsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -313,6 +333,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedScriptsRoute: typeof AuthenticatedScriptsRoute
   AuthenticatedStoryboardRoute: typeof AuthenticatedStoryboardRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedBrandsIndexRoute: typeof AuthenticatedBrandsIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -328,6 +349,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedScriptsRoute: AuthenticatedScriptsRoute,
   AuthenticatedStoryboardRoute: AuthenticatedStoryboardRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedBrandsIndexRoute: AuthenticatedBrandsIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
