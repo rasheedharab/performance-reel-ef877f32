@@ -489,7 +489,12 @@ function NewCutDialog({
 
       let skipped = 0;
       let total = 0;
-      const cutShots: Array<Record<string, unknown>> = [];
+      const cutShots: Array<{
+        cut_id: string;
+        shot_id: string;
+        asset_id: string | null;
+        sequence_order: number;
+      }> = [];
       if (shotRows.length > 0) {
         const shotIds = shotRows.map((s) => s.id);
         const { data: takes } = await supabase
