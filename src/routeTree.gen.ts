@@ -26,6 +26,7 @@ import { Route as AuthenticatedAnglesRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedBrandsIndexRouteImport } from './routes/_authenticated/brands.index'
 import { Route as AuthenticatedBrandsNewRouteImport } from './routes/_authenticated/brands.new'
 import { Route as AuthenticatedBrandsBrandIdIndexRouteImport } from './routes/_authenticated/brands.$brandId.index'
+import { Route as AuthenticatedBrandsBrandIdEditRouteImport } from './routes/_authenticated/brands.$brandId.edit'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -115,6 +116,12 @@ const AuthenticatedBrandsBrandIdIndexRoute =
     path: '/brands/$brandId/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedBrandsBrandIdEditRoute =
+  AuthenticatedBrandsBrandIdEditRouteImport.update({
+    id: '/brands/$brandId/edit',
+    path: '/brands/$brandId/edit',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -132,6 +139,7 @@ export interface FileRoutesByFullPath {
   '/storyboard': typeof AuthenticatedStoryboardRoute
   '/brands/new': typeof AuthenticatedBrandsNewRoute
   '/brands/': typeof AuthenticatedBrandsIndexRoute
+  '/brands/$brandId/edit': typeof AuthenticatedBrandsBrandIdEditRoute
   '/brands/$brandId/': typeof AuthenticatedBrandsBrandIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -150,6 +158,7 @@ export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/brands/new': typeof AuthenticatedBrandsNewRoute
   '/brands': typeof AuthenticatedBrandsIndexRoute
+  '/brands/$brandId/edit': typeof AuthenticatedBrandsBrandIdEditRoute
   '/brands/$brandId': typeof AuthenticatedBrandsBrandIdIndexRoute
 }
 export interface FileRoutesById {
@@ -170,6 +179,7 @@ export interface FileRoutesById {
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/brands/new': typeof AuthenticatedBrandsNewRoute
   '/_authenticated/brands/': typeof AuthenticatedBrandsIndexRoute
+  '/_authenticated/brands/$brandId/edit': typeof AuthenticatedBrandsBrandIdEditRoute
   '/_authenticated/brands/$brandId/': typeof AuthenticatedBrandsBrandIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -190,6 +200,7 @@ export interface FileRouteTypes {
     | '/storyboard'
     | '/brands/new'
     | '/brands/'
+    | '/brands/$brandId/edit'
     | '/brands/$brandId/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -208,6 +219,7 @@ export interface FileRouteTypes {
     | '/'
     | '/brands/new'
     | '/brands'
+    | '/brands/$brandId/edit'
     | '/brands/$brandId'
   id:
     | '__root__'
@@ -227,6 +239,7 @@ export interface FileRouteTypes {
     | '/_authenticated/'
     | '/_authenticated/brands/new'
     | '/_authenticated/brands/'
+    | '/_authenticated/brands/$brandId/edit'
     | '/_authenticated/brands/$brandId/'
   fileRoutesById: FileRoutesById
 }
@@ -356,6 +369,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBrandsBrandIdIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/brands/$brandId/edit': {
+      id: '/_authenticated/brands/$brandId/edit'
+      path: '/brands/$brandId/edit'
+      fullPath: '/brands/$brandId/edit'
+      preLoaderRoute: typeof AuthenticatedBrandsBrandIdEditRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -374,6 +394,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedBrandsNewRoute: typeof AuthenticatedBrandsNewRoute
   AuthenticatedBrandsIndexRoute: typeof AuthenticatedBrandsIndexRoute
+  AuthenticatedBrandsBrandIdEditRoute: typeof AuthenticatedBrandsBrandIdEditRoute
   AuthenticatedBrandsBrandIdIndexRoute: typeof AuthenticatedBrandsBrandIdIndexRoute
 }
 
@@ -392,6 +413,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedBrandsNewRoute: AuthenticatedBrandsNewRoute,
   AuthenticatedBrandsIndexRoute: AuthenticatedBrandsIndexRoute,
+  AuthenticatedBrandsBrandIdEditRoute: AuthenticatedBrandsBrandIdEditRoute,
   AuthenticatedBrandsBrandIdIndexRoute: AuthenticatedBrandsBrandIdIndexRoute,
 }
 
