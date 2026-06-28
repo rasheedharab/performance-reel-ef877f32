@@ -456,7 +456,12 @@ function DeliverablesPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate({ to: "/launch" })}
+              onClick={() =>
+                navigate({
+                  to: "/launch",
+                  search: { brief: selectedCut.brief?.id ?? undefined },
+                })
+              }
               disabled={setStats.ready === 0}
             >
               <Rocket className="h-3.5 w-3.5" /> Plan launch →
