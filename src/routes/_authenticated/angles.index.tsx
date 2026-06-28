@@ -158,6 +158,29 @@ type AngleRow = {
   priority: number;
 };
 
+type SuggestedAngle = {
+  title: string;
+  entry_point: EntryPoint;
+  target_segment: string;
+  hook_seed: string;
+  description: string;
+};
+
+function normalizeSuggested(raw: unknown): SuggestedAngle | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const title = typeof r.title === "string" ? r.title.trim() : "";
+  const ep = typeof r.entry_point === "string" ? r.entry_point.toLowerCase().trim() : "";
+  if (!title || !ENTRY_POINTS.includes(ep as EntryPoint)) return null;
+  return {
+    title,
+    entry_point: ep as EntryPoint,
+    target_segment: typeof r.target_segment === "string" ? r.target_segment : "",
+    hook_seed: typeof r.hook_seed === "string" ? r.hook_seed : "",
+    description: typeof r.description === "string" ? r.description : "",
+  };
+}
+
 const searchSchema = z.object({
   brief: z.string().optional(),
 });
