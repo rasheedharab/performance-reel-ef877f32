@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedQaRouteImport } from './routes/_authenticated/qa'
+import { Route as AuthenticatedPerformanceRouteImport } from './routes/_authenticated/performance'
 import { Route as AuthenticatedLibraryRouteImport } from './routes/_authenticated/library'
 import { Route as AuthenticatedLaunchRouteImport } from './routes/_authenticated/launch'
 import { Route as AuthenticatedGenerationRouteImport } from './routes/_authenticated/generation'
@@ -49,6 +50,12 @@ const AuthenticatedQaRoute = AuthenticatedQaRouteImport.update({
   path: '/qa',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPerformanceRoute =
+  AuthenticatedPerformanceRouteImport.update({
+    id: '/performance',
+    path: '/performance',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedLibraryRoute = AuthenticatedLibraryRouteImport.update({
   id: '/library',
   path: '/library',
@@ -148,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/generation': typeof AuthenticatedGenerationRoute
   '/launch': typeof AuthenticatedLaunchRoute
   '/library': typeof AuthenticatedLibraryRoute
+  '/performance': typeof AuthenticatedPerformanceRoute
   '/qa': typeof AuthenticatedQaRoute
   '/brands/new': typeof AuthenticatedBrandsNewRoute
   '/briefs/new': typeof AuthenticatedBriefsNewRoute
@@ -168,6 +176,7 @@ export interface FileRoutesByTo {
   '/generation': typeof AuthenticatedGenerationRoute
   '/launch': typeof AuthenticatedLaunchRoute
   '/library': typeof AuthenticatedLibraryRoute
+  '/performance': typeof AuthenticatedPerformanceRoute
   '/qa': typeof AuthenticatedQaRoute
   '/': typeof AuthenticatedIndexRoute
   '/brands/new': typeof AuthenticatedBrandsNewRoute
@@ -191,6 +200,7 @@ export interface FileRoutesById {
   '/_authenticated/generation': typeof AuthenticatedGenerationRoute
   '/_authenticated/launch': typeof AuthenticatedLaunchRoute
   '/_authenticated/library': typeof AuthenticatedLibraryRoute
+  '/_authenticated/performance': typeof AuthenticatedPerformanceRoute
   '/_authenticated/qa': typeof AuthenticatedQaRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/brands/new': typeof AuthenticatedBrandsNewRoute
@@ -215,6 +225,7 @@ export interface FileRouteTypes {
     | '/generation'
     | '/launch'
     | '/library'
+    | '/performance'
     | '/qa'
     | '/brands/new'
     | '/briefs/new'
@@ -235,6 +246,7 @@ export interface FileRouteTypes {
     | '/generation'
     | '/launch'
     | '/library'
+    | '/performance'
     | '/qa'
     | '/'
     | '/brands/new'
@@ -257,6 +269,7 @@ export interface FileRouteTypes {
     | '/_authenticated/generation'
     | '/_authenticated/launch'
     | '/_authenticated/library'
+    | '/_authenticated/performance'
     | '/_authenticated/qa'
     | '/_authenticated/'
     | '/_authenticated/brands/new'
@@ -305,6 +318,13 @@ declare module '@tanstack/react-router' {
       path: '/qa'
       fullPath: '/qa'
       preLoaderRoute: typeof AuthenticatedQaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/performance': {
+      id: '/_authenticated/performance'
+      path: '/performance'
+      fullPath: '/performance'
+      preLoaderRoute: typeof AuthenticatedPerformanceRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/library': {
@@ -428,6 +448,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedGenerationRoute: typeof AuthenticatedGenerationRoute
   AuthenticatedLaunchRoute: typeof AuthenticatedLaunchRoute
   AuthenticatedLibraryRoute: typeof AuthenticatedLibraryRoute
+  AuthenticatedPerformanceRoute: typeof AuthenticatedPerformanceRoute
   AuthenticatedQaRoute: typeof AuthenticatedQaRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedBrandsNewRoute: typeof AuthenticatedBrandsNewRoute
@@ -449,6 +470,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedGenerationRoute: AuthenticatedGenerationRoute,
   AuthenticatedLaunchRoute: AuthenticatedLaunchRoute,
   AuthenticatedLibraryRoute: AuthenticatedLibraryRoute,
+  AuthenticatedPerformanceRoute: AuthenticatedPerformanceRoute,
   AuthenticatedQaRoute: AuthenticatedQaRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedBrandsNewRoute: AuthenticatedBrandsNewRoute,
