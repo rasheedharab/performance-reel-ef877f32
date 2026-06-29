@@ -1723,37 +1723,142 @@ function AssetDetailDialog({
 
 // ============== Generate clip dialog (fal.ai) ==============
 
-// Each CLIP_MODEL maps a fal model id to:
-//   • the storyboard `assigned_tool` semantic name used by compile_prompt
-//   • whether the model accepts a separate audio cue line (Veo)
-const CLIP_MODELS = [
-  {
-    id: "fal-ai/veo3/fast",
-    label: "Veo 3 Fast",
-    compileTool: "Veo 3.1",
-    method: "text-to-video" as const,
-    cost: 0.4,
-    supportsAudio: true,
-  },
-  {
-    id: "fal-ai/kling-video/v2.1/standard/text-to-video",
-    label: "Kling 2.1 (T2V)",
-    compileTool: "Kling 3.0",
-    method: "text-to-video" as const,
-    cost: 0.3,
-    supportsAudio: false,
-  },
-  {
-    id: "fal-ai/kling-video/v2.1/standard/image-to-video",
-    label: "Kling 2.1 (I2V)",
-    compileTool: "Kling 3.0",
-    method: "image-to-video" as const,
-    cost: 0.35,
-    supportsAudio: false,
-  },
-] as const;
+// Two-tier model family map. Each family pairs a CHEAP "draft" variant
+// (fast / lite / turbo) with the FINAL flagship model. Cost-per-second is
+// approximate — the user sees the live estimate before they spend.
+// NOTE: fal.ai model slugs marked `placeholder` should be confirmed against
+// the fal.ai docs before going live; they're set to the closest known route
+// so the UI is functional today.
+type TierVariant = {
+  id: string;
+  label: string;
+  costPerSecond: number; // USD/sec, approximate
+};
+type ModelFamily = {
+  key: string;
+  label: string;
+  compileTool: string; // storyboard `assigned_tool` value used by compile_prompt
+  method: "text-to-video" | "image-to-video";
+  supportsAudio: boolean;
+  draft: TierVariant;
+  final: TierVariant;
+};
 
-type ClipModel = (typeof CLIP_MODELS)[number];
+const MODEL_FAMILIES: ModelFamily[] = [
+  {
+    key: "veo-3-1-t2v",
+    label: "Veo 3.1",
+    compileTool: "Veo 3.1",
+    method: "text-to-video",
+    supportsAudio: true,
+    draft: { id: "fal-ai/veo3/fast", label: "Veo 3.1 Fast", costPerSecond: 0.05 },
+    final: { id: "fal-ai/veo3", label: "Veo 3.1 Quality", costPerSecond: 0.15 },
+  },
+  {
+    key: "kling-3-t2v",
+    label: "Kling 3.0",
+    compileTool: "Kling 3.0",
+    method: "text-to-video",
+    supportsAudio: false,
+    draft: {
+      id: "fal-ai/kling-video/v2.1/standard/text-to-video",
+      label: "Kling Turbo (T2V)",
+      costPerSecond: 0.04,
+    },
+    final: {
+      id: "fal-ai/kling-video/v2.1/master/text-to-video",
+      label: "Kling 3.0 4K (T2V)",
+      costPerSecond: 0.12,
+    },
+  },
+  {
+    key: "kling-3-i2v",
+    label: "Kling 3.0 (I2V)",
+    compileTool: "Kling 3.0",
+    method: "image-to-video",
+    supportsAudio: false,
+    draft: {
+      id: "fal-ai/kling-video/v2.1/standard/image-to-video",
+      label: "Kling Turbo (I2V)",
+      costPerSecond: 0.05,
+    },
+    final: {
+      id: "fal-ai/kling-video/v2.1/master/image-to-video",
+      label: "Kling 3.0 4K (I2V)",
+      costPerSecond: 0.13,
+    },
+  },
+  {
+    key: "runway-gen-4-t2v",
+    label: "Runway Gen-4.5",
+    compileTool: "Runway Gen-4.5",
+    method: "text-to-video",
+    supportsAudio: false,
+    draft: {
+      id: "fal-ai/runway-gen4/turbo", // placeholder — confirm slug
+      label: "Gen-4 Turbo",
+      costPerSecond: 0.05,
+    },
+    final: {
+      id: "fal-ai/runway-gen4", // placeholder — confirm slug
+      label: "Gen-4.5",
+      costPerSecond: 0.15,
+    },
+  },
+  {
+    key: "runway-gen-4-i2v",
+    label: "Runway Gen-4.5 (I2V)",
+    compileTool: "Runway Gen-4.5",
+    method: "image-to-video",
+    supportsAudio: false,
+    draft: {
+      id: "fal-ai/runway-gen4/turbo/image-to-video", // placeholder
+      label: "Gen-4 Turbo (I2V)",
+      costPerSecond: 0.05,
+    },
+    final: {
+      id: "fal-ai/runway-gen4/image-to-video", // placeholder
+      label: "Gen-4.5 (I2V)",
+      costPerSecond: 0.15,
+    },
+  },
+  {
+    key: "luma-ray3-i2v",
+    label: "Luma Ray3",
+    compileTool: "Luma Ray3",
+    method: "image-to-video",
+    supportsAudio: false,
+    draft: {
+      id: "fal-ai/luma-dream-machine/ray-3/fast", // placeholder
+      label: "Ray3 Fast",
+      costPerSecond: 0.04,
+    },
+    final: {
+      id: "fal-ai/luma-dream-machine/ray-3", // placeholder — HDR variant
+      label: "Ray3 HDR",
+      costPerSecond: 0.12,
+    },
+  },
+];
+
+type RenderTier = "draft" | "final";
+
+function getFamilyByModelId(modelId: string | null | undefined): ModelFamily | null {
+  if (!modelId) return null;
+  return (
+    MODEL_FAMILIES.find(
+      (f) => f.draft.id === modelId || f.final.id === modelId,
+    ) ?? null
+  );
+}
+function getTierForModelId(modelId: string | null | undefined): RenderTier | null {
+  const f = getFamilyByModelId(modelId);
+  if (!f) return null;
+  return f.final.id === modelId ? "final" : "draft";
+}
+function estimateCost(variant: TierVariant, durationSeconds: number) {
+  return Math.max(0, variant.costPerSecond * Math.max(1, durationSeconds || 8));
+}
 
 function buildCompilePayload(shot: ShotRow, compileTool: string) {
   return {
