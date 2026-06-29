@@ -886,6 +886,38 @@ function StoryboardWorkspace() {
               />
             )}
 
+            {shots && shots.length > 0 && (
+              <div className="border border-border bg-card rounded-[3px] px-4 py-3 mb-3 flex flex-wrap items-center gap-3">
+                <span className="label-mono">Recompile all shots for</span>
+                <Select value={recompileTool || undefined} onValueChange={setRecompileTool}>
+                  <SelectTrigger className="h-8 w-[180px] text-xs">
+                    <SelectValue placeholder="Target model…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TOOLS.map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={recompileAll}
+                  disabled={!recompileTool || recompileAllRunning}
+                >
+                  {recompileAllRunning ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Wand2 className="h-4 w-4" />
+                  )}
+                  {recompileAllRunning ? "Recompiling…" : "Recompile sequence"}
+                </Button>
+                <span className="text-[11px] text-muted-foreground italic">
+                  Re-runs the prompt compiler on every shot with the picked target model.
+                </span>
+              </div>
+            )}
+
             {shots === null ? (
               <div className="border border-border rounded-[3px] bg-card animate-pulse h-48" />
             ) : shots.length === 0 ? (
