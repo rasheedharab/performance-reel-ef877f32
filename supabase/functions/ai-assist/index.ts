@@ -348,6 +348,105 @@ Return ONLY this JSON shape (no other text):
   return { system, user };
 };
 
+TASKS.compile_prompt = (p) => {
+  const s = (k: string) => {
+    const v = p[k];
+    return v == null || v === "" ? "—" : String(v);
+  };
+  const tool = String(p.assigned_tool ?? p.target_model ?? "").trim();
+  const isI2V =
+    String(p.generation_method ?? "").toLowerCase() === "image-to-video" ||
+    Boolean(p.has_anchor_image);
+  const wordTarget = Number(p.prompt_word_target) > 0 ? Number(p.prompt_word_target) : 60;
+
+  let toolGuidance =
+    "GENERIC / OTHER: Balanced cinematic structure — subject, action, setting, lighting, lens, grade, mood, motion. Single clear action.";
+  const t = tool.toLowerCase();
+  if (t.includes("veo")) {
+    toolGuidance =
+      "VEO 3.1: Structured 'ingredient list' style — subject → action → setting → lighting → lens → grade → mood → camera move. " +
+      "Veo supports native synced audio: put audio on a SEPARATE line at the end formatted as `Audio: <dialogue/SFX/ambient>`. " +
+      "Reference-image aware. Use precise cinematographic terms. Avoid vague mood adjectives that cause concept-bleeding. " +
+      "Return the visual prompt in compiled_prompt and the audio line in audio_prompt.";
+  } else if (t.includes("kling")) {
+    toolGuidance =
+      "KLING 3.0: Tight, motion-and-beat aware. Concise. Lead with motion verbs and beats. " +
+      "If a reference is used, mention 'Elements reference for character consistency'. " +
+      "Do NOT inline an audio line — leave audio_prompt null.";
+  } else if (t.includes("runway")) {
+    toolGuidance =
+      "RUNWAY GEN-4.5: Camera-and-physics language. Describe forces, weight, momentum, and EXPLICIT camera movement " +
+      "(focal length, dolly/track/orbit/push, speed). Concise. Anchor-frame aware: if has_anchor_image, write a motion-only prompt. " +
+      "Leave audio_prompt null.";
+  } else if (t.includes("luma") || t.includes("ray")) {
+    toolGuidance =
+      "LUMA RAY3 (image-to-video): MOTION-ONLY. Describe movement, change, parallax, and camera trajectory ONLY. " +
+      "Do NOT redescribe the subject the anchor image already shows. Leave audio_prompt null.";
+  } else if (t.includes("arcads") || t.includes("heygen") || t.includes("synthesia")) {
+    toolGuidance =
+      "AVATAR/UGC TOOL: Talking-head. Compile a short visual brief covering wardrobe, " +
+      "setting, framing, and energy. Put any spoken line in audio_prompt.";
+  }
+
+  const system =
+    "You are an expert AI-video prompt engineer. You compile structured shot slots into ONE optimized, " +
+    "MODEL-SPECIFIC generation prompt. " +
+    "GLOBAL RULES: stay within prompt_word_target (default ~60, hard cap ~90 words — tighter is better); " +
+    "use specific focal lengths and motion verbs; ONE clear action per shot; no contradictory style cues; " +
+    "convert subjective adjectives into concrete cinematographic terms; reuse subject_tokens VERBATIM for consistency. " +
+    "If generation_method is image-to-video OR has_anchor_image is true, write a MOTION-ONLY prompt regardless of model " +
+    "— describe movement and change, not the subject the anchor already shows. " +
+    "Build a clean negative_prompt from negative_prompt input (deduped, comma-separated). " +
+    "Flag warnings for: contradictory cues, over-length, multiple actions in one shot, or a product/hero shot missing an anchor image. " +
+    "Return ONLY valid JSON in the exact shape requested. No preamble, no markdown fences.";
+
+  const user = `Compile a single optimized generation prompt for target model: ${tool || "Generic"}.
+
+MODEL-SPECIFIC RULES
+${toolGuidance}
+
+SHOT SLOTS
+- subject: ${s("subject")}
+- subject_tokens (reuse verbatim): ${s("subject_tokens")}
+- action (ONE clear action): ${s("action")}
+- setting: ${s("setting")}
+- lighting: ${s("lighting")}
+- lens: ${s("lens")}
+- style_grade: ${s("style_grade")}
+- mood: ${s("mood")}
+- camera_move: ${s("camera_move")}
+- motion_intensity: ${s("motion_intensity")}
+- duration_seconds: ${s("duration_seconds")}
+- dialogue: ${s("dialogue")}
+- sfx: ${s("sfx")}
+- ambient: ${s("ambient")}
+- negative_prompt (raw): ${s("negative_prompt")}
+- seed: ${s("seed")}
+- generation_method: ${s("generation_method")}
+- has_anchor_image: ${isI2V ? "true" : "false"}
+- prompt_word_target: ${wordTarget}
+
+REQUIREMENTS
+- compiled_prompt must be ONE prompt, optimized for ${tool || "a generic T2V model"}, within ${wordTarget} words (hard cap 90).
+- If has_anchor_image is true OR generation_method is image-to-video, write MOTION-ONLY.
+- negative_prompt: clean, deduped, comma-separated; empty string if nothing.
+- audio_prompt: only set for Veo (audio line) or avatar/UGC tools (the spoken line); null otherwise.
+- seed: echo the input seed as a number, or null.
+- word_count: integer count of words in compiled_prompt.
+- warnings: array of short strings flagging issues (contradictory cues, over-length, multiple actions, missing anchor for product shot, etc.). Empty array if none.
+
+Return ONLY this JSON shape (no other text):
+{
+  "compiled_prompt": "the final optimized prompt",
+  "negative_prompt": "clean, deduped, comma-separated; empty string if none",
+  "audio_prompt": "audio line for Veo / spoken line for avatars, otherwise null",
+  "seed": null,
+  "word_count": 0,
+  "warnings": []
+}`;
+  return { system, user };
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
