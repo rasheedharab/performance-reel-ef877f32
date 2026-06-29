@@ -592,10 +592,7 @@ function GenerationBoard() {
       toast.error("Not signed in.");
       return;
     }
-    const brandId =
-      selected?.angle?.brief?.brand?.id ??
-      selected?.angle?.brief?.brand_id ??
-      null;
+    const brandId = selected?.angle?.brief?.brand?.id ?? null;
     const title = `${asset.tool_used ?? asset.model_id ?? "Prompt"} · A/B winner${asset.variant_label ? ` · ${asset.variant_label}` : ""}`;
     const { error } = await supabase.from("prompt_library").insert({
       user_id: uid,
@@ -846,6 +843,7 @@ function GenerationBoard() {
                   onRenderFinal={(a) => renderFinalFromAsset(shot, a)}
                   onSelectTake={(assetId) => setSelectedTake(shot.id, assetId)}
                   onOpenDetail={(a) => setDetailOpen(a)}
+                  onSavePromptToLibrary={(a) => savePromptToLibrary(a)}
                 />
               ))
             )}
