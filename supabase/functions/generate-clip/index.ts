@@ -104,6 +104,8 @@ Deno.serve(async (req) => {
       negative_prompt,
       audio_prompt,
       seed,
+      render_tier,
+      cost_estimate,
     } = body as Record<string, unknown>;
 
     if (!shot_id || typeof shot_id !== "string")
@@ -133,6 +135,13 @@ Deno.serve(async (req) => {
         : null;
     const seedNum =
       typeof seed === "number" && Number.isFinite(seed) ? Math.floor(seed) : null;
+
+    const tier: "draft" | "final" =
+      render_tier === "final" ? "final" : "draft";
+    const finalCost =
+      typeof cost_estimate === "number" && Number.isFinite(cost_estimate)
+        ? cost_estimate
+        : defaults.cost;
 
     // Submit to fal queue
     const falInput = buildFalInput(
@@ -197,7 +206,8 @@ Deno.serve(async (req) => {
         reference_image_url:
           typeof reference_image_url === "string" ? reference_image_url : null,
         duration_seconds: finalDuration,
-        cost_estimate: defaults.cost,
+        cost_estimate: finalCost,
+        render_tier: tier,
         is_selected: false,
       })
       .select("id")
