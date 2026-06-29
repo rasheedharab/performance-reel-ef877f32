@@ -1483,12 +1483,92 @@ function ShotFormDialog({
     }
   };
 
+  const handleCompile = async () => {
+    const tool = assignedTool.trim();
+    if (!tool) {
+      toast.error("Pick a target model first.");
+      return;
+    }
+    setCompileLoading(true);
+    try {
+      const payload = {
+        assigned_tool: tool,
+        subject: subject.trim() || null,
+        subject_tokens: subjectTokens.trim() || null,
+        action: action.trim() || null,
+        setting: setting.trim() || null,
+        lighting: lighting.trim() || null,
+        lens: lens.trim() || null,
+        style_grade: styleGrade.trim() || null,
+        mood: mood.trim() || null,
+        dialogue: dialogue.trim() || null,
+        sfx: sfx.trim() || null,
+        ambient: ambient.trim() || null,
+        negative_prompt: negativePrompt.trim() || null,
+        seed: seed.trim() === "" ? null : Number(seed),
+        camera_move: camera || null,
+        motion_intensity: motionLabel,
+        duration_seconds: duration || null,
+        generation_method: genMethod,
+        has_anchor_image: !!referenceImageUrl,
+        prompt_word_target: promptWordTarget || 60,
+      };
+      const { data, error: err } = await supabase.functions.invoke("ai-assist", {
+        body: { task: "compile_prompt", payload },
+      });
+      if (err) throw new Error(err.message);
+      const r = (data as { result?: Record<string, unknown> } | null)?.result;
+      if (!r || typeof r !== "object") throw new Error("Empty AI response");
+      const compiled_prompt = String(r.compiled_prompt ?? "").trim();
+      const negative_prompt = String(r.negative_prompt ?? "").trim();
+      const audioRaw = r.audio_prompt;
+      const audio_prompt =
+        typeof audioRaw === "string" && audioRaw.trim() ? audioRaw.trim() : null;
+      const warnings = Array.isArray(r.warnings)
+        ? (r.warnings as unknown[]).filter((w) => typeof w === "string").map(String)
+        : [];
+      const result = {
+        compiled_prompt,
+        negative_prompt,
+        audio_prompt,
+        seed: seed.trim() === "" ? null : Number(seed),
+        warnings,
+        for_tool: tool,
+      };
+      setCompileResult(result);
+      // Persist to DB only if we're editing an existing shot
+      if (existing) {
+        const { error: dbErr } = await supabase
+          .from("shots")
+          .update({
+            compiled_prompt: compiled_prompt || null,
+            compiled_negative: negative_prompt || null,
+            compiled_audio: audio_prompt,
+            compiled_for_tool: tool,
+            compiled_at: new Date().toISOString(),
+          })
+          .eq("id", existing.id);
+        if (dbErr) throw new Error(dbErr.message);
+        await onSaved();
+      }
+      if (warnings.length > 0) {
+        toast.warning(`Compiled with ${warnings.length} warning(s).`);
+      } else {
+        toast.success(existing ? "Prompt compiled & saved." : "Prompt compiled. Save the shot to persist.");
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Compile failed";
+      toast.error(msg);
+    } finally {
+      setCompileLoading(false);
+    }
+  };
+
   const save = async () => {
     if (!visual.trim()) {
       setError("Visual description is required.");
       return;
     }
-    // placeholder anchor – body unchanged below
     setError(null);
     setSaving(true);
     const { data: userData } = await supabase.auth.getUser();
