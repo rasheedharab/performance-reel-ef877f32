@@ -106,6 +106,8 @@ Deno.serve(async (req) => {
       seed,
       render_tier,
       cost_estimate,
+      ab_group_id,
+      variant_label,
     } = body as Record<string, unknown>;
 
     if (!shot_id || typeof shot_id !== "string")
@@ -209,6 +211,14 @@ Deno.serve(async (req) => {
         cost_estimate: finalCost,
         render_tier: tier,
         is_selected: false,
+        ab_group_id:
+          typeof ab_group_id === "string" && ab_group_id.trim()
+            ? ab_group_id.trim()
+            : null,
+        variant_label:
+          typeof variant_label === "string" && variant_label.trim()
+            ? variant_label.trim()
+            : null,
       })
       .select("id")
       .single();
