@@ -1967,7 +1967,7 @@ function GenerateClipDialog({
 
   // Pull-down or compile from slots for this target model.
   const ensureCompiled = async (forceRecompile = false) => {
-    const tool = selectedModel.compileTool;
+    const tool = selectedFamily.compileTool;
     const isFresh =
       !!shot.compiled_prompt &&
       shot.compiled_for_tool === tool &&
@@ -2139,7 +2139,7 @@ function GenerateClipDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Method + model */}
+        {/* Method */}
         <div className="flex gap-2 flex-wrap">
           {(["text-to-video", "image-to-video"] as const).map((m) => (
             <button
@@ -2147,8 +2147,8 @@ function GenerateClipDialog({
               type="button"
               onClick={() => {
                 setMethod(m);
-                const next = CLIP_MODELS.find((x) => x.method === m);
-                if (next) setModelId(next.id);
+                const next = MODEL_FAMILIES.find((x) => x.method === m);
+                if (next) setFamilyKey(next.key);
               }}
               className={cn(
                 "label-mono px-2 py-1 border rounded-[2px]",
@@ -2164,13 +2164,13 @@ function GenerateClipDialog({
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <p className="label-mono mb-1">Model</p>
-            <Select value={modelId} onValueChange={setModelId}>
+            <p className="label-mono mb-1">Model family</p>
+            <Select value={familyKey} onValueChange={setFamilyKey}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {availableModels.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>
-                    {m.label} · ~${m.cost.toFixed(2)}
+                {availableFamilies.map((f) => (
+                  <SelectItem key={f.key} value={f.key}>
+                    {f.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -2179,9 +2179,46 @@ function GenerateClipDialog({
           <div>
             <p className="label-mono mb-1">Compiled for</p>
             <div className="h-9 px-2 flex items-center border border-border rounded-[3px] bg-background font-mono text-xs">
-              {selectedModel.compileTool}
+              {selectedFamily.compileTool}
             </div>
           </div>
+        </div>
+
+        {/* Tier toggle */}
+        <div className="border border-border rounded-[3px] p-3 bg-background">
+          <p className="label-mono mb-2">Render tier</p>
+          <div className="grid grid-cols-2 gap-2">
+            {(["draft", "final"] as const).map((t) => {
+              const v = t === "draft" ? selectedFamily.draft : selectedFamily.final;
+              const active = tier === t;
+              const disabled = lockTier != null && lockTier !== t;
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => setTier(t)}
+                  className={cn(
+                    "text-left p-2 border rounded-[2px] transition-colors",
+                    active
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border hover:border-foreground/50",
+                    disabled && "opacity-50 cursor-not-allowed",
+                  )}
+                >
+                  <div className="label-mono">
+                    {t === "draft" ? "Draft · cheap iteration" : "Final · flagship render"}
+                  </div>
+                  <div className="font-mono text-[10px] mt-1 opacity-80">
+                    {v.label} · ~${estimateCost(v, duration).toFixed(2)} / {duration}s
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-2 font-mono">
+            model_id: {selectedVariant.id}
+          </p>
         </div>
 
         {/* Anchor image — required & blocking for I2V */}
@@ -2246,7 +2283,7 @@ function GenerateClipDialog({
             />
           </div>
 
-          {selectedModel.supportsAudio && (
+          {selectedFamily.supportsAudio && (
             <div>
               <p className="label-mono mb-1">Audio prompt (Veo)</p>
               <Textarea
@@ -2307,7 +2344,11 @@ function GenerateClipDialog({
         </div>
 
         <div className="border border-border rounded-[2px] bg-background p-3 text-xs text-muted-foreground">
-          About <span className="font-mono text-foreground">~${selectedModel.cost.toFixed(2)}</span> in API credits. You'll be charged by fal.ai when the job runs.
+          About{" "}
+          <span className="font-mono text-foreground">
+            ~${estimateCost(selectedVariant, duration).toFixed(2)}
+          </span>{" "}
+          in API credits ({tier} tier · {selectedVariant.label}). You'll be charged by fal.ai when the job runs.
         </div>
 
         <DialogFooter>
