@@ -633,7 +633,7 @@ function GenerationBoard() {
       ) : (
         <>
           {/* Progress strip */}
-          <div className="border border-border rounded-[3px] bg-card p-4 mb-6 grid md:grid-cols-2 gap-4">
+          <div className="border border-border rounded-[3px] bg-card p-4 mb-6 grid md:grid-cols-3 gap-4">
             <div>
               <p className="label-mono mb-2">Selected takes</p>
               <div className="flex items-baseline gap-2">
@@ -644,27 +644,88 @@ function GenerationBoard() {
                   of {shots?.length ?? 0} shots
                 </span>
               </div>
-              <div className="mt-2 h-1.5 bg-background border border-border rounded-[2px] overflow-hidden">
+              <div className="mt-2 flex items-center gap-3 text-[10px] font-mono text-muted-foreground">
+                <span>
+                  <span className="text-foreground font-medium">{finalSelectedCount}</span> final
+                </span>
+                <span>
+                  <span className="text-foreground font-medium">{draftSelected.length}</span> draft
+                </span>
+              </div>
+              <div className="mt-2 h-1.5 bg-background border border-border rounded-[2px] overflow-hidden flex">
                 <div
                   className="h-full bg-foreground transition-all"
                   style={{
                     width: shots && shots.length > 0
-                      ? `${(selectedTakeCount / shots.length) * 100}%`
+                      ? `${(finalSelectedCount / shots.length) * 100}%`
+                      : "0%",
+                  }}
+                />
+                <div
+                  className="h-full bg-foreground/30 transition-all"
+                  style={{
+                    width: shots && shots.length > 0
+                      ? `${(draftSelected.length / shots.length) * 100}%`
                       : "0%",
                   }}
                 />
               </div>
             </div>
             <div>
-              <p className="label-mono mb-2">Estimated cost</p>
+              <p className="label-mono mb-2">Spend by tier</p>
               <div className="flex items-baseline gap-2">
                 <span className="font-display text-2xl font-bold">
                   ${totalCost.toFixed(2)}
                 </span>
                 <span className="text-muted-foreground text-sm">
-                  across {(assets ?? []).length} assets
+                  total
                 </span>
               </div>
+              <div className="mt-2 flex items-center gap-3 text-[10px] font-mono text-muted-foreground">
+                <span>
+                  draft <span className="text-foreground">${tierSpend.draft.toFixed(2)}</span>
+                </span>
+                <span>
+                  final <span className="text-foreground">${tierSpend.final.toFixed(2)}</span>
+                </span>
+              </div>
+            </div>
+            <div>
+              <p className="label-mono mb-2">Promote to final</p>
+              {draftSelected.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  All selected takes are final renders.
+                </p>
+              ) : (
+                <>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    {draftSelected.length} selected{" "}
+                    {draftSelected.length === 1 ? "take is" : "takes are"} still draft.
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const estimate = draftSelected.reduce((sum, { shot, asset }) => {
+                        const fam = getFamilyByModelId(asset.model_id);
+                        const dur = shot.duration_seconds ?? asset.duration_seconds ?? 8;
+                        return sum + (fam ? estimateCost(fam.final, dur) : 0);
+                      }, 0);
+                      const ok = window.confirm(
+                        `Render ${draftSelected.length} selected take${
+                          draftSelected.length === 1 ? "" : "s"
+                        } as final?\n\nEstimated cost: ~$${estimate.toFixed(2)}.\nEach uses the same compiled prompt, negative, and seed — only the model swaps to the flagship variant.`,
+                      );
+                      if (!ok) return;
+                      void batchRenderFinal();
+                    }}
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Render all selected as final
+                  </Button>
+                </>
+              )}
             </div>
           </div>
 
