@@ -911,6 +911,8 @@ function StoryboardWorkspace() {
                     index={i}
                     total={shots.length}
                     imageUrls={imageUrls}
+                    compiling={compilingIds.has(shot.id)}
+                    onCompile={() => compileShot(shot)}
                     onMoveUp={() => reorder(shot, -1)}
                     onMoveDown={() => reorder(shot, 1)}
                     onEdit={() => { setEditing(shot); setFormOpen(true); }}
