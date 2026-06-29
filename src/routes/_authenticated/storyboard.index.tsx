@@ -1078,6 +1078,8 @@ function ShotRowCard({
   index,
   total,
   imageUrls,
+  compiling,
+  onCompile,
   onMoveUp,
   onMoveDown,
   onEdit,
@@ -1088,6 +1090,8 @@ function ShotRowCard({
   index: number;
   total: number;
   imageUrls: Record<string, string>;
+  compiling: boolean;
+  onCompile: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
   onEdit: () => void;
@@ -1096,8 +1100,15 @@ function ShotRowCard({
 }) {
   const longShot = (shot.duration_seconds ?? 0) > 10;
   const refUrl = shot.reference_image_url ? imageUrls[shot.reference_image_url] : null;
+  const hasCompiled = !!shot.compiled_prompt;
+  const compiledStale =
+    hasCompiled &&
+    shot.assigned_tool &&
+    shot.compiled_for_tool &&
+    shot.assigned_tool !== shot.compiled_for_tool;
   return (
-    <article className="border border-border bg-card rounded-[3px] p-4 flex gap-4 items-start hover:border-foreground/40 transition-colors">
+    <article className="border border-border bg-card rounded-[3px] p-4 hover:border-foreground/40 transition-colors">
+    <div className="flex gap-4 items-start">
       {/* Slate badge */}
       <div className="shrink-0 w-14 h-14 border border-foreground rounded-[2px] flex flex-col items-center justify-center bg-foreground text-background">
         <span className="font-mono text-[9px] uppercase opacity-70">Shot</span>
