@@ -479,6 +479,59 @@ function GenerationBoard() {
     });
   };
 
+  // Promote every selected-draft take to a final-tier render in one batch.
+  // Reuses the exact compiled_prompt / negative / audio / seed already on the
+  // approved draft asset — only the model_id swaps to the flagship variant.
+  const batchRenderFinal = async () => {
+    if (draftSelected.length === 0) return;
+    const toastId = toast.loading(
+      `Queuing ${draftSelected.length} final render${draftSelected.length === 1 ? "" : "s"}…`,
+    );
+    let queued = 0;
+    let failed = 0;
+    for (const { shot, asset } of draftSelected) {
+      const family = getFamilyByModelId(asset.model_id);
+      if (!family) {
+        failed += 1;
+        continue;
+      }
+      const dur = shot.duration_seconds ?? asset.duration_seconds ?? 8;
+      const existing = assetsByShot.get(shot.id) ?? [];
+      const method =
+        (shot.generation_method as "text-to-video" | "image-to-video" | null) ??
+        "text-to-video";
+      const { error } = await supabase.functions.invoke("generate-clip", {
+        body: {
+          shot_id: shot.id,
+          brief_id: briefId,
+          prompt: asset.prompt_used ?? "",
+          negative_prompt: asset.negative_used ?? null,
+          audio_prompt: family.supportsAudio ? asset.audio_used ?? null : null,
+          seed: asset.seed_used ?? null,
+          generation_method: method,
+          reference_image_url:
+            method === "image-to-video" ? shot.reference_image_url ?? null : null,
+          duration_seconds: dur,
+          aspect_ratio: "9:16",
+          model_id: family.final.id,
+          tool_used: `${family.label} · ${family.final.label}`,
+          render_tier: "final",
+          cost_estimate: estimateCost(family.final, dur),
+          version: existing.length + 1,
+        },
+      });
+      if (error) failed += 1;
+      else queued += 1;
+    }
+    toast.dismiss(toastId);
+    if (failed === 0) {
+      toast.success(`Queued ${queued} final render${queued === 1 ? "" : "s"}.`);
+    } else {
+      toast.error(`Queued ${queued}, failed ${failed}.`);
+    }
+    await reloadBoard();
+  };
+
   const setSelectedTake = async (shotId: string, assetId: string) => {
     if (!assets) return;
     const shotAssets = assetsByShot.get(shotId) ?? [];
