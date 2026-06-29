@@ -1296,6 +1296,115 @@ function VersionCard({
   );
 }
 
+// ============== A/B prompt comparison row ==============
+
+function AbGroupRow({
+  group,
+  signedUrls,
+  onSelectTake,
+  onOpenDetail,
+  onRenderFinal,
+  onSavePromptToLibrary,
+}: {
+  group: AssetRow[];
+  signedUrls: Record<string, string>;
+  onSelectTake: (assetId: string) => void;
+  onOpenDetail: (a: AssetRow) => void;
+  onRenderFinal: (a: AssetRow) => void;
+  onSavePromptToLibrary: (a: AssetRow) => void;
+}) {
+  if (group.length === 0) return null;
+  const winner = group.find((a) => a.is_selected) ?? null;
+  const winnerIsDraft = winner ? winner.render_tier !== "final" : false;
+  return (
+    <div className="border border-foreground/30 rounded-[3px] bg-background p-3">
+      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+        <p className="label-mono inline-flex items-center gap-2">
+          <span className="inline-block px-1.5 py-0.5 bg-foreground text-background rounded-[2px] text-[9px]">
+            A/B
+          </span>
+          Prompt test · {group.length} variant{group.length === 1 ? "" : "s"}
+          {winner?.variant_label && (
+            <span className="text-[var(--color-rec)]">
+              · winner: {winner.variant_label}
+            </span>
+          )}
+        </p>
+        <div className="flex items-center gap-2">
+          {winner && winnerIsDraft && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => onRenderFinal(winner)}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Render winner as final
+            </Button>
+          )}
+          {winner && winner.prompt_used && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => onSavePromptToLibrary(winner)}
+            >
+              <Upload className="h-3.5 w-3.5" />
+              Save prompt
+            </Button>
+          )}
+        </div>
+      </div>
+      <div className={cn(
+        "grid gap-3",
+        group.length === 2 ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1 md:grid-cols-3",
+      )}>
+        {group.map((a) => (
+          <div
+            key={a.id}
+            className={cn(
+              "border rounded-[3px] bg-card overflow-hidden flex flex-col",
+              a.is_selected
+                ? "border-[var(--color-rec)] ring-1 ring-[var(--color-rec)]/40"
+                : "border-border",
+            )}
+          >
+            <div className="px-2.5 py-1.5 border-b border-border flex items-center justify-between gap-2 bg-background">
+              <span className="font-mono text-[10px] uppercase tracking-wider text-foreground truncate">
+                {a.variant_label || "variant"}
+              </span>
+              <span
+                className={cn(
+                  "font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-[2px] border",
+                  a.render_tier === "final"
+                    ? "bg-foreground text-background border-foreground"
+                    : "bg-background text-muted-foreground border-border",
+                )}
+              >
+                {a.render_tier === "final" ? "Final" : "Draft"}
+              </span>
+            </div>
+            <VersionCard
+              asset={a}
+              signedUrls={signedUrls}
+              onSelectTake={() => onSelectTake(a.id)}
+              onOpenDetail={() => onOpenDetail(a)}
+            />
+            {a.prompt_used && (
+              <div className="px-2.5 py-2 border-t border-border bg-background">
+                <p className="label-mono mb-1">Prompt</p>
+                <p className="font-mono text-[11px] text-foreground/80 line-clamp-4 whitespace-pre-wrap">
+                  {a.prompt_used}
+                </p>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ============== Audio panel ==============
 
 function AudioPanel({
