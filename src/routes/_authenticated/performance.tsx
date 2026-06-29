@@ -393,6 +393,13 @@ function PerformancePage() {
     cellAdName: string;
     sourceMetric: string | null;
     sourceBrandId: string | null;
+    recipe: {
+      prompt: string | null;
+      negative: string | null;
+      seed: number | null;
+      model: string | null;
+      tool: string | null;
+    };
   } | null>(null);
 
   useEffect(() => {
