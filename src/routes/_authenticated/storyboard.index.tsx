@@ -1208,6 +1208,15 @@ function ShotRowCard({
           )}
           {compiling ? "Compiling…" : hasCompiled ? "Recompile" : "Compile"}
         </button>
+        <button
+          onClick={onAbTest}
+          disabled={!shot.assigned_tool}
+          title={!shot.assigned_tool ? "Pick a target model first" : "Run an A/B prompt test"}
+          className="label-mono text-muted-foreground hover:text-foreground inline-flex items-center gap-1 disabled:opacity-40"
+        >
+          <Beaker className="h-3 w-3" />
+          A/B test
+        </button>
       </div>
     </div>
 
