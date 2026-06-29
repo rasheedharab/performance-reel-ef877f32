@@ -812,19 +812,107 @@ function ShotPanel({
           <p className="label-mono text-muted-foreground">No takes yet</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {assets.map((a) => (
-            <VersionCard
-              key={a.id}
-              asset={a}
-              signedUrls={signedUrls}
-              onSelectTake={() => onSelectTake(a.id)}
-              onOpenDetail={() => onOpenDetail(a)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {assets.map((a) => (
+              <VersionCard
+                key={a.id}
+                asset={a}
+                signedUrls={signedUrls}
+                onSelectTake={() => onSelectTake(a.id)}
+                onOpenDetail={() => onOpenDetail(a)}
+              />
+            ))}
+          </div>
+          <VersionDiffStrip assets={assets} />
+        </>
       )}
     </article>
+  );
+}
+
+// Small diff strip: shows what changed in prompt_used / seed_used / negative_used
+// between the latest two clip versions, so the team can correlate prompt deltas
+// with take quality.
+function VersionDiffStrip({ assets }: { assets: AssetRow[] }) {
+  const clips = assets
+    .filter((a) => a.type === "clip")
+    .slice()
+    .sort((a, b) => (a.version ?? 0) - (b.version ?? 0));
+  if (clips.length < 2) return null;
+  const a = clips[clips.length - 2];
+  const b = clips[clips.length - 1];
+
+  const rows: Array<{ label: string; from: string; to: string; changed: boolean }> = [
+    {
+      label: "Prompt",
+      from: a.prompt_used ?? "",
+      to: b.prompt_used ?? "",
+      changed: (a.prompt_used ?? "") !== (b.prompt_used ?? ""),
+    },
+    {
+      label: "Negative",
+      from: a.negative_used ?? "",
+      to: b.negative_used ?? "",
+      changed: (a.negative_used ?? "") !== (b.negative_used ?? ""),
+    },
+    {
+      label: "Seed",
+      from: a.seed_used != null ? String(a.seed_used) : "—",
+      to: b.seed_used != null ? String(b.seed_used) : "—",
+      changed: (a.seed_used ?? null) !== (b.seed_used ?? null),
+    },
+    {
+      label: "Model",
+      from: a.tool_used ?? a.model_id ?? "—",
+      to: b.tool_used ?? b.model_id ?? "—",
+      changed:
+        (a.tool_used ?? a.model_id ?? "") !== (b.tool_used ?? b.model_id ?? ""),
+    },
+  ];
+  const anyChanged = rows.some((r) => r.changed);
+  if (!anyChanged) return null;
+
+  return (
+    <div className="mt-3 border border-border rounded-[3px] bg-background p-3">
+      <div className="flex items-center justify-between mb-2">
+        <p className="label-mono">
+          Prompt diff · v{a.version ?? 1} → v{b.version ?? 1}
+        </p>
+        <span className="font-mono text-[10px] text-muted-foreground">
+          What changed between the last two takes
+        </span>
+      </div>
+      <ul className="space-y-1.5 text-xs">
+        {rows
+          .filter((r) => r.changed)
+          .map((r) => (
+            <li key={r.label} className="grid grid-cols-[80px_1fr] gap-2">
+              <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground pt-0.5">
+                {r.label}
+              </span>
+              <div className="space-y-1">
+                <div className="flex gap-2">
+                  <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground pt-0.5 shrink-0">
+                    from
+                  </span>
+                  <span className="whitespace-pre-wrap text-foreground/60 line-through decoration-[var(--color-rec)]/40">
+                    {r.from || <span className="italic text-muted-foreground">empty</span>}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="font-mono text-[9px] uppercase tracking-wider text-emerald-700 pt-0.5 shrink-0">
+                    to
+                  </span>
+                  <span className="whitespace-pre-wrap">
+                    {r.to || <span className="italic text-muted-foreground">empty</span>}
+                  </span>
+                </div>
+              </div>
+            </li>
+          ))}
+      </ul>
+    </div>
   );
 }
 
