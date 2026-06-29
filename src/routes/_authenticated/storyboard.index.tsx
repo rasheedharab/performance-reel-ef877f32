@@ -190,6 +190,11 @@ type ShotRow = {
   negative_prompt: string | null;
   seed: number | null;
   prompt_word_target: number | null;
+  compiled_prompt: string | null;
+  compiled_negative: string | null;
+  compiled_audio: string | null;
+  compiled_for_tool: string | null;
+  compiled_at: string | null;
 };
 
 type DraftShot = {
