@@ -4,6 +4,7 @@ import { Pencil, FilePlus2, ArrowLeft, Building2, FileText, ExternalLink, Loader
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { getSignedUrl, getSignedUrls, fileNameFromPath } from "@/lib/brand-assets";
+import { StyleBibleSection } from "@/components/style-bible-form";
 import type { Database } from "@/integrations/supabase/types";
 
 type Brand = Database["public"]["Tables"]["brands"]["Row"];
@@ -297,6 +298,10 @@ function BrandDetailPage() {
           <Row label="Avoid resembling" value={brand.avoid_competitors} />
           <Row label="No-go list" value={brand.no_go_list} />
           <Row label="Notes" value={brand.notes} />
+        </Section>
+
+        <Section label="Style Bible">
+          <StyleBibleSection brandId={brand.id} />
         </Section>
       </div>
     </div>

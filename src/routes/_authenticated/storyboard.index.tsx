@@ -130,6 +130,30 @@ type ScriptFull = ScriptLite & {
                 primary_color: string | null;
                 secondary_color: string | null;
                 no_go_list: string | null;
+                style_bibles:
+                  | {
+                      id: string;
+                      film_look: string | null;
+                      color_grade: string | null;
+                      lighting_signature: string | null;
+                      lens_feel: string | null;
+                      motion_feel: string | null;
+                      subject_tokens: string | null;
+                      default_negative: string | null;
+                      locked_seed: number | null;
+                    }
+                  | null
+                  | Array<{
+                      id: string;
+                      film_look: string | null;
+                      color_grade: string | null;
+                      lighting_signature: string | null;
+                      lens_feel: string | null;
+                      motion_feel: string | null;
+                      subject_tokens: string | null;
+                      default_negative: string | null;
+                      locked_seed: number | null;
+                    }>;
               })
             | null;
         })
@@ -152,6 +176,20 @@ type ShotRow = {
   reference_image_url: string | null;
   tool_reason: string | null;
   caption_text: string | null;
+  subject: string | null;
+  subject_tokens: string | null;
+  action: string | null;
+  setting: string | null;
+  lighting: string | null;
+  lens: string | null;
+  style_grade: string | null;
+  mood: string | null;
+  dialogue: string | null;
+  sfx: string | null;
+  ambient: string | null;
+  negative_prompt: string | null;
+  seed: number | null;
+  prompt_word_target: number | null;
 };
 
 type DraftShot = {
@@ -274,7 +312,7 @@ function StoryboardWorkspace() {
       const { data } = await supabase
         .from("scripts")
         .select(
-          "id, archetype, hook, status, duration_seconds, target_duration, on_screen_text, vo_script, desire_beat, body, proof_beat, cta, angle:angles(id, title, brief:briefs(id, project_name, product_asset_urls, product_name, product_description, brand:brands(id, name, fonts, primary_color, secondary_color, no_go_list)))",
+          "id, archetype, hook, status, duration_seconds, target_duration, on_screen_text, vo_script, desire_beat, body, proof_beat, cta, angle:angles(id, title, brief:briefs(id, project_name, product_asset_urls, product_name, product_description, brand:brands(id, name, fonts, primary_color, secondary_color, no_go_list, style_bibles(id, film_look, color_grade, lighting_signature, lens_feel, motion_feel, subject_tokens, default_negative, locked_seed))))",
         )
         .eq("id", scriptParam)
         .maybeSingle();
@@ -287,7 +325,7 @@ function StoryboardWorkspace() {
     const { data } = await supabase
       .from("shots")
       .select(
-        "id, script_id, shot_number, visual_description, camera_move, motion_intensity, duration_seconds, audio_note, assigned_tool, reference_notes, generation_method, reference_image_url, tool_reason, caption_text",
+        "id, script_id, shot_number, visual_description, camera_move, motion_intensity, duration_seconds, audio_note, assigned_tool, reference_notes, generation_method, reference_image_url, tool_reason, caption_text, subject, subject_tokens, action, setting, lighting, lens, style_grade, mood, dialogue, sfx, ambient, negative_prompt, seed, prompt_word_target",
       )
       .eq("script_id", scriptId)
       .order("shot_number", { ascending: true })
@@ -1027,6 +1065,32 @@ function ShotFormDialog({
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Prompt slots
+  const [slotsOpen, setSlotsOpen] = useState(true);
+  const [subject, setSubject] = useState("");
+  const [subjectTokens, setSubjectTokens] = useState("");
+  const [action, setAction] = useState("");
+  const [setting, setSetting] = useState("");
+  const [lighting, setLighting] = useState("");
+  const [lens, setLens] = useState("");
+  const [styleGrade, setStyleGrade] = useState("");
+  const [mood, setMood] = useState("");
+  const [dialogue, setDialogue] = useState("");
+  const [sfx, setSfx] = useState("");
+  const [ambient, setAmbient] = useState("");
+  const [negativePrompt, setNegativePrompt] = useState("");
+  const [seed, setSeed] = useState<string>("");
+  const [promptWordTarget, setPromptWordTarget] = useState<number>(60);
+  const [prefilled, setPrefilled] = useState<Set<string>>(new Set());
+
+  // Style bible from current script's brand
+  const styleBible = useMemo(() => {
+    const sb = script.angle?.brief?.brand?.style_bibles;
+    if (!sb) return null;
+    if (Array.isArray(sb)) return sb[0] ?? null;
+    return sb;
+  }, [script]);
+
   // Convert motion slider (0-100) to a label
   const motionLabel = motion < 25 ? "Subtle" : motion < 60 ? "Moderate" : motion < 85 ? "High" : "Dynamic";
 
@@ -1050,6 +1114,21 @@ function ShotFormDialog({
       setCaptionText(existing.caption_text ?? "");
       setAudioNote(existing.audio_note ?? "");
       setReferenceNotes(existing.reference_notes ?? "");
+      setSubject(existing.subject ?? "");
+      setSubjectTokens(existing.subject_tokens ?? "");
+      setAction(existing.action ?? "");
+      setSetting(existing.setting ?? "");
+      setLighting(existing.lighting ?? "");
+      setLens(existing.lens ?? "");
+      setStyleGrade(existing.style_grade ?? "");
+      setMood(existing.mood ?? "");
+      setDialogue(existing.dialogue ?? "");
+      setSfx(existing.sfx ?? "");
+      setAmbient(existing.ambient ?? "");
+      setNegativePrompt(existing.negative_prompt ?? "");
+      setSeed(existing.seed != null ? String(existing.seed) : "");
+      setPromptWordTarget(existing.prompt_word_target ?? 60);
+      setPrefilled(new Set());
     } else {
       setVisual("");
       setCamera("");
@@ -1062,9 +1141,34 @@ function ShotFormDialog({
       setCaptionText("");
       setAudioNote("");
       setReferenceNotes("");
+      // Prefill prompt slots from the brand's Style Bible
+      const sb = styleBible;
+      const pre = new Set<string>();
+      setSubject("");
+      setAction("");
+      setSetting("");
+      setMood("");
+      setDialogue("");
+      setSfx("");
+      setAmbient("");
+      if (sb?.subject_tokens) { setSubjectTokens(sb.subject_tokens); pre.add("subject_tokens"); }
+      else setSubjectTokens("");
+      const grade = [sb?.film_look, sb?.color_grade].filter(Boolean).join(", ");
+      if (grade) { setStyleGrade(grade); pre.add("style_grade"); }
+      else setStyleGrade("");
+      if (sb?.lighting_signature) { setLighting(sb.lighting_signature); pre.add("lighting"); }
+      else setLighting("");
+      if (sb?.lens_feel) { setLens(sb.lens_feel); pre.add("lens"); }
+      else setLens("");
+      if (sb?.default_negative) { setNegativePrompt(sb.default_negative); pre.add("negative_prompt"); }
+      else setNegativePrompt("");
+      if (sb?.locked_seed != null) { setSeed(String(sb.locked_seed)); pre.add("seed"); }
+      else setSeed("");
+      setPromptWordTarget(60);
+      setPrefilled(pre);
     }
     setError(null);
-  }, [open, existing]);
+  }, [open, existing, styleBible]);
 
   // When method is image-to-video, ensure asset URLs are resolved
   useEffect(() => {
@@ -1125,6 +1229,20 @@ function ShotFormDialog({
       caption_text: captionText.trim() || null,
       audio_note: audioNote.trim() || null,
       reference_notes: referenceNotes.trim() || null,
+      subject: subject.trim() || null,
+      subject_tokens: subjectTokens.trim() || null,
+      action: action.trim() || null,
+      setting: setting.trim() || null,
+      lighting: lighting.trim() || null,
+      lens: lens.trim() || null,
+      style_grade: styleGrade.trim() || null,
+      mood: mood.trim() || null,
+      dialogue: dialogue.trim() || null,
+      sfx: sfx.trim() || null,
+      ambient: ambient.trim() || null,
+      negative_prompt: negativePrompt.trim() || null,
+      seed: seed.trim() === "" ? null : Number(seed),
+      prompt_word_target: promptWordTarget || 60,
     };
     const { error: err } = existing
       ? await supabase.from("shots").update(payload).eq("id", existing.id)
@@ -1149,12 +1267,12 @@ function ShotFormDialog({
         </DialogHeader>
 
         <div className="space-y-5 py-2">
-          <FormField label="Visual description" required error={error}>
+          <FormField label="Director's note (visual description)" required error={error}>
             <Textarea
               value={visual}
               onChange={(e) => setVisual(e.target.value)}
               rows={3}
-              placeholder="What we see in this shot."
+              placeholder="Human-readable note for the team. The prompt slots below drive the AI."
             />
           </FormField>
 
@@ -1340,6 +1458,23 @@ function ShotFormDialog({
               />
             </FormField>
           </div>
+
+          <PromptSlotsSection
+            open={slotsOpen}
+            onToggle={() => setSlotsOpen((v) => !v)}
+            prefilled={prefilled}
+            hasBible={!!styleBible}
+            values={{
+              subject, subjectTokens, action, setting, lighting, lens,
+              styleGrade, mood, dialogue, sfx, ambient, negativePrompt,
+              seed, promptWordTarget,
+            }}
+            setters={{
+              setSubject, setSubjectTokens, setAction, setSetting, setLighting,
+              setLens, setStyleGrade, setMood, setDialogue, setSfx, setAmbient,
+              setNegativePrompt, setSeed, setPromptWordTarget,
+            }}
+          />
         </div>
 
         <DialogFooter>
@@ -1378,6 +1513,213 @@ function FormField({
         <p className="text-xs mt-1 text-[var(--color-rec)] font-mono uppercase tracking-wider">
           {error}
         </p>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   PROMPT SLOTS
+   ============================================================ */
+
+type SlotValues = {
+  subject: string; subjectTokens: string; action: string; setting: string;
+  lighting: string; lens: string; styleGrade: string; mood: string;
+  dialogue: string; sfx: string; ambient: string; negativePrompt: string;
+  seed: string; promptWordTarget: number;
+};
+
+type SlotSetters = {
+  setSubject: (v: string) => void;
+  setSubjectTokens: (v: string) => void;
+  setAction: (v: string) => void;
+  setSetting: (v: string) => void;
+  setLighting: (v: string) => void;
+  setLens: (v: string) => void;
+  setStyleGrade: (v: string) => void;
+  setMood: (v: string) => void;
+  setDialogue: (v: string) => void;
+  setSfx: (v: string) => void;
+  setAmbient: (v: string) => void;
+  setNegativePrompt: (v: string) => void;
+  setSeed: (v: string) => void;
+  setPromptWordTarget: (v: number) => void;
+};
+
+function SlotField({
+  label,
+  hint,
+  fromBible,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  fromBible?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-1.5">
+        <label className="label-mono">{label}</label>
+        {fromBible && (
+          <span className="inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 border border-border rounded-[2px] text-muted-foreground">
+            <Sparkles className="h-2.5 w-2.5" />
+            from Style Bible
+          </span>
+        )}
+      </div>
+      {children}
+      {hint && <p className="text-[11px] text-muted-foreground mt-1 italic">{hint}</p>}
+    </div>
+  );
+}
+
+function PromptSlotsSection({
+  open,
+  onToggle,
+  prefilled,
+  hasBible,
+  values,
+  setters,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  prefilled: Set<string>;
+  hasBible: boolean;
+  values: SlotValues;
+  setters: SlotSetters;
+}) {
+  return (
+    <div className="border border-border rounded-[3px] bg-background">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between px-4 py-3 border-b border-border"
+      >
+        <span className="flex items-center gap-2">
+          <span className="label-mono">Prompt slots</span>
+          {hasBible && (
+            <span className="inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 border border-border rounded-[2px] text-muted-foreground">
+              <Sparkles className="h-2.5 w-2.5" /> Style Bible linked
+            </span>
+          )}
+        </span>
+        {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+      </button>
+      {open && (
+        <div className="p-4 space-y-5">
+          <p className="text-xs text-muted-foreground italic">
+            Structured slots the compiler will use. One action per shot. Specific focal lengths and motion verbs beat adjectives. Don't stack contradictory style cues — keep it tight.
+          </p>
+
+          <div className="grid grid-cols-2 gap-4">
+            <SlotField label="Subject" hint='Who/what is in frame, e.g. "barista, late 20s, navy apron"'>
+              <Input value={values.subject} onChange={(e) => setters.setSubject(e.target.value)} />
+            </SlotField>
+            <SlotField
+              label="Subject tokens"
+              hint="Locked recurring descriptors reused verbatim across shots."
+              fromBible={prefilled.has("subject_tokens")}
+            >
+              <Input
+                value={values.subjectTokens}
+                onChange={(e) => setters.setSubjectTokens(e.target.value)}
+              />
+            </SlotField>
+          </div>
+
+          <SlotField label="Action" hint='ONE verb-driven motion, e.g. "pours espresso into a glass"'>
+            <Input value={values.action} onChange={(e) => setters.setAction(e.target.value)} />
+          </SlotField>
+
+          <div className="grid grid-cols-2 gap-4">
+            <SlotField label="Setting" hint='Where, e.g. "morning kitchen, marble counter"'>
+              <Input value={values.setting} onChange={(e) => setters.setSetting(e.target.value)} />
+            </SlotField>
+            <SlotField label="Mood" hint='One mood word/phrase, e.g. "intimate, slow morning"'>
+              <Input value={values.mood} onChange={(e) => setters.setMood(e.target.value)} />
+            </SlotField>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <SlotField
+              label="Lighting"
+              hint='Specific direction + temperature, e.g. "soft side-light, 3500K"'
+              fromBible={prefilled.has("lighting")}
+            >
+              <Input value={values.lighting} onChange={(e) => setters.setLighting(e.target.value)} />
+            </SlotField>
+            <SlotField
+              label="Lens"
+              hint='Shot size + focal length, e.g. "medium close-up, 85mm"'
+              fromBible={prefilled.has("lens")}
+            >
+              <Input value={values.lens} onChange={(e) => setters.setLens(e.target.value)} />
+            </SlotField>
+          </div>
+
+          <SlotField
+            label="Style / grade"
+            hint='Film look + color grade, e.g. "filmic 35mm grain, warm teal-orange"'
+            fromBible={prefilled.has("style_grade")}
+          >
+            <Input value={values.styleGrade} onChange={(e) => setters.setStyleGrade(e.target.value)} />
+          </SlotField>
+
+          <div className="border-t border-border pt-4">
+            <p className="label-mono mb-3">Audio</p>
+            <div className="space-y-4">
+              <SlotField label="Dialogue" hint="Spoken line for this shot, if any.">
+                <Input value={values.dialogue} onChange={(e) => setters.setDialogue(e.target.value)} />
+              </SlotField>
+              <div className="grid grid-cols-2 gap-4">
+                <SlotField label="SFX" hint='e.g. "espresso steam hiss, ceramic clink"'>
+                  <Input value={values.sfx} onChange={(e) => setters.setSfx(e.target.value)} />
+                </SlotField>
+                <SlotField label="Ambient" hint='e.g. "quiet café morning, soft rain outside"'>
+                  <Input value={values.ambient} onChange={(e) => setters.setAmbient(e.target.value)} />
+                </SlotField>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-border pt-4">
+            <p className="label-mono mb-3">Negatives & seed</p>
+            <div className="space-y-4">
+              <SlotField
+                label="Negative prompt"
+                hint="Things to suppress — artifacts, contradictions, brand no-gos."
+                fromBible={prefilled.has("negative_prompt")}
+              >
+                <Textarea
+                  rows={2}
+                  value={values.negativePrompt}
+                  onChange={(e) => setters.setNegativePrompt(e.target.value)}
+                />
+              </SlotField>
+              <div className="grid grid-cols-2 gap-4">
+                <SlotField
+                  label="Seed"
+                  hint="Optional fixed seed for consistency across takes."
+                  fromBible={prefilled.has("seed")}
+                >
+                  <Input
+                    type="number"
+                    value={values.seed}
+                    onChange={(e) => setters.setSeed(e.target.value)}
+                  />
+                </SlotField>
+                <SlotField label="Prompt word target" hint="Target length for the compiled prompt.">
+                  <Input
+                    type="number"
+                    value={values.promptWordTarget}
+                    onChange={(e) => setters.setPromptWordTarget(Number(e.target.value) || 60)}
+                  />
+                </SlotField>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
