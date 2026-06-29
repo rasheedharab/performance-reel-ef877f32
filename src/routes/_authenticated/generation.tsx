@@ -147,6 +147,7 @@ type AssetRow = {
   is_selected: boolean;
   error_message: string | null;
   created_at: string;
+  render_tier: "draft" | "final";
 };
 
 const searchSchema = z.object({
