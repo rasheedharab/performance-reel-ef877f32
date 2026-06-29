@@ -43,21 +43,29 @@ function buildFalInput(
   durationSeconds: number,
   aspectRatio: string,
   referenceImageUrl: string | null,
+  negativePrompt: string | null,
+  seed: number | null,
 ) {
   // Veo3 expects duration as a string like "8s"; Kling expects "5"/"10".
   if (method === "text-to-video") {
-    return {
+    const input: Record<string, unknown> = {
       prompt,
       aspect_ratio: aspectRatio,
       duration: `${Math.max(4, Math.min(8, durationSeconds || 8))}s`,
     };
+    if (negativePrompt) input.negative_prompt = negativePrompt;
+    if (typeof seed === "number" && Number.isFinite(seed)) input.seed = seed;
+    return input;
   }
-  return {
+  const input: Record<string, unknown> = {
     prompt,
     image_url: referenceImageUrl,
     duration: String(durationSeconds >= 8 ? 10 : 5),
     aspect_ratio: aspectRatio,
   };
+  if (negativePrompt) input.negative_prompt = negativePrompt;
+  if (typeof seed === "number" && Number.isFinite(seed)) input.seed = seed;
+  return input;
 }
 
 Deno.serve(async (req) => {
@@ -93,6 +101,9 @@ Deno.serve(async (req) => {
       model_id,
       tool_used,
       version,
+      negative_prompt,
+      audio_prompt,
+      seed,
     } = body as Record<string, unknown>;
 
     if (!shot_id || typeof shot_id !== "string")
@@ -112,6 +123,17 @@ Deno.serve(async (req) => {
     const finalDuration = Number(duration_seconds) || 8;
     const finalAspect = (typeof aspect_ratio === "string" && aspect_ratio) || "9:16";
 
+    const negative =
+      typeof negative_prompt === "string" && negative_prompt.trim()
+        ? negative_prompt.trim()
+        : null;
+    const audio =
+      typeof audio_prompt === "string" && audio_prompt.trim()
+        ? audio_prompt.trim()
+        : null;
+    const seedNum =
+      typeof seed === "number" && Number.isFinite(seed) ? Math.floor(seed) : null;
+
     // Submit to fal queue
     const falInput = buildFalInput(
       method,
@@ -119,7 +141,13 @@ Deno.serve(async (req) => {
       finalDuration,
       finalAspect,
       typeof reference_image_url === "string" ? reference_image_url : null,
+      negative,
+      seedNum,
     );
+    // Veo supports a separate audio cue line — append it as a hint.
+    if (audio && /veo/i.test(finalModelId)) {
+      (falInput as Record<string, unknown>).prompt = `${prompt}\n\nAudio: ${audio}`;
+    }
 
     const falRes = await fetch(`https://queue.fal.run/${finalModelId}`, {
       method: "POST",
@@ -162,6 +190,9 @@ Deno.serve(async (req) => {
         model_id: finalModelId,
         job_id: jobId,
         prompt_used: prompt,
+        negative_used: negative,
+        audio_used: audio,
+        seed_used: seedNum,
         generation_method: method,
         reference_image_url:
           typeof reference_image_url === "string" ? reference_image_url : null,

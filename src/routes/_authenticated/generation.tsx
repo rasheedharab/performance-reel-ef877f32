@@ -101,6 +101,28 @@ type ShotRow = {
   duration_seconds: number | null;
   generation_method: string | null;
   reference_image_url: string | null;
+  // Prompt slots — used for auto-compile in the generate dialog.
+  subject: string | null;
+  subject_tokens: string | null;
+  action: string | null;
+  setting: string | null;
+  lighting: string | null;
+  lens: string | null;
+  style_grade: string | null;
+  mood: string | null;
+  dialogue: string | null;
+  sfx: string | null;
+  ambient: string | null;
+  negative_prompt: string | null;
+  seed: number | null;
+  camera_move: string | null;
+  motion_intensity: string | null;
+  prompt_word_target: number | null;
+  compiled_prompt: string | null;
+  compiled_negative: string | null;
+  compiled_audio: string | null;
+  compiled_for_tool: string | null;
+  compiled_at: string | null;
 };
 
 type AssetRow = {
@@ -111,6 +133,9 @@ type AssetRow = {
   tool_used: string | null;
   model_id: string | null;
   prompt_used: string | null;
+  negative_used: string | null;
+  audio_used: string | null;
+  seed_used: number | null;
   status: AssetStatus;
   version: number | null;
   file_url: string | null;
@@ -161,6 +186,7 @@ function GenerationBoard() {
   const [selected, setSelected] = useState<ScriptLite | null>(null);
   const [shots, setShots] = useState<ShotRow[] | null>(null);
   const [assets, setAssets] = useState<AssetRow[] | null>(null);
+  const [brandLockedSeed, setBrandLockedSeed] = useState<number | null>(null);
 
   const [manualOpen, setManualOpen] = useState<{ shot: ShotRow } | null>(null);
   const [audioOpen, setAudioOpen] = useState<{ type: AssetType } | null>(null);
@@ -208,13 +234,36 @@ function GenerationBoard() {
   }, [scriptParam]);
 
   const briefId = selected?.angle?.brief?.id ?? null;
+  const brandId = selected?.angle?.brief?.brand?.id ?? null;
+
+  // Style-bible locked seed → default seed across the campaign.
+  useEffect(() => {
+    if (!brandId) {
+      setBrandLockedSeed(null);
+      return;
+    }
+    let alive = true;
+    (async () => {
+      const { data } = await supabase
+        .from("style_bibles")
+        .select("locked_seed")
+        .eq("brand_id", brandId)
+        .maybeSingle();
+      if (!alive) return;
+      const s = (data as { locked_seed?: number | null } | null)?.locked_seed;
+      setBrandLockedSeed(typeof s === "number" ? s : null);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [brandId]);
 
   const reloadBoard = async () => {
     if (!selected) return;
     const { data: shotData } = await supabase
       .from("shots")
       .select(
-        "id, script_id, shot_number, visual_description, assigned_tool, duration_seconds, generation_method, reference_image_url",
+        "id, script_id, shot_number, visual_description, assigned_tool, duration_seconds, generation_method, reference_image_url, subject, subject_tokens, action, setting, lighting, lens, style_grade, mood, dialogue, sfx, ambient, negative_prompt, seed, camera_move, motion_intensity, prompt_word_target, compiled_prompt, compiled_negative, compiled_audio, compiled_for_tool, compiled_at",
       )
       .eq("script_id", selected.id)
       .order("shot_number", { ascending: true })
@@ -228,7 +277,7 @@ function GenerationBoard() {
       const { data: a } = await supabase
         .from("assets")
         .select(
-          "id, shot_id, brief_id, type, tool_used, model_id, prompt_used, status, version, file_url, cost_estimate, duration_seconds, voice_id, source_text, notes, is_selected, error_message, created_at",
+          "id, shot_id, brief_id, type, tool_used, model_id, prompt_used, negative_used, audio_used, seed_used, status, version, file_url, cost_estimate, duration_seconds, voice_id, source_text, notes, is_selected, error_message, created_at",
         )
         .in("shot_id", shotIds)
         .order("version", { ascending: true });
@@ -240,7 +289,7 @@ function GenerationBoard() {
       const { data: b } = await supabase
         .from("assets")
         .select(
-          "id, shot_id, brief_id, type, tool_used, model_id, prompt_used, status, version, file_url, cost_estimate, duration_seconds, voice_id, source_text, notes, is_selected, error_message, created_at",
+          "id, shot_id, brief_id, type, tool_used, model_id, prompt_used, negative_used, audio_used, seed_used, status, version, file_url, cost_estimate, duration_seconds, voice_id, source_text, notes, is_selected, error_message, created_at",
         )
         .eq("brief_id", briefId)
         .is("shot_id", null)
@@ -630,6 +679,7 @@ function GenerationBoard() {
         <GenerateClipDialog
           shot={generateOpen.shot}
           briefId={briefId}
+          brandLockedSeed={brandLockedSeed}
           existingVersionCount={
             (assetsByShot.get(generateOpen.shot.id) ?? []).length
           }
@@ -762,19 +812,107 @@ function ShotPanel({
           <p className="label-mono text-muted-foreground">No takes yet</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {assets.map((a) => (
-            <VersionCard
-              key={a.id}
-              asset={a}
-              signedUrls={signedUrls}
-              onSelectTake={() => onSelectTake(a.id)}
-              onOpenDetail={() => onOpenDetail(a)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {assets.map((a) => (
+              <VersionCard
+                key={a.id}
+                asset={a}
+                signedUrls={signedUrls}
+                onSelectTake={() => onSelectTake(a.id)}
+                onOpenDetail={() => onOpenDetail(a)}
+              />
+            ))}
+          </div>
+          <VersionDiffStrip assets={assets} />
+        </>
       )}
     </article>
+  );
+}
+
+// Small diff strip: shows what changed in prompt_used / seed_used / negative_used
+// between the latest two clip versions, so the team can correlate prompt deltas
+// with take quality.
+function VersionDiffStrip({ assets }: { assets: AssetRow[] }) {
+  const clips = assets
+    .filter((a) => a.type === "clip")
+    .slice()
+    .sort((a, b) => (a.version ?? 0) - (b.version ?? 0));
+  if (clips.length < 2) return null;
+  const a = clips[clips.length - 2];
+  const b = clips[clips.length - 1];
+
+  const rows: Array<{ label: string; from: string; to: string; changed: boolean }> = [
+    {
+      label: "Prompt",
+      from: a.prompt_used ?? "",
+      to: b.prompt_used ?? "",
+      changed: (a.prompt_used ?? "") !== (b.prompt_used ?? ""),
+    },
+    {
+      label: "Negative",
+      from: a.negative_used ?? "",
+      to: b.negative_used ?? "",
+      changed: (a.negative_used ?? "") !== (b.negative_used ?? ""),
+    },
+    {
+      label: "Seed",
+      from: a.seed_used != null ? String(a.seed_used) : "—",
+      to: b.seed_used != null ? String(b.seed_used) : "—",
+      changed: (a.seed_used ?? null) !== (b.seed_used ?? null),
+    },
+    {
+      label: "Model",
+      from: a.tool_used ?? a.model_id ?? "—",
+      to: b.tool_used ?? b.model_id ?? "—",
+      changed:
+        (a.tool_used ?? a.model_id ?? "") !== (b.tool_used ?? b.model_id ?? ""),
+    },
+  ];
+  const anyChanged = rows.some((r) => r.changed);
+  if (!anyChanged) return null;
+
+  return (
+    <div className="mt-3 border border-border rounded-[3px] bg-background p-3">
+      <div className="flex items-center justify-between mb-2">
+        <p className="label-mono">
+          Prompt diff · v{a.version ?? 1} → v{b.version ?? 1}
+        </p>
+        <span className="font-mono text-[10px] text-muted-foreground">
+          What changed between the last two takes
+        </span>
+      </div>
+      <ul className="space-y-1.5 text-xs">
+        {rows
+          .filter((r) => r.changed)
+          .map((r) => (
+            <li key={r.label} className="grid grid-cols-[80px_1fr] gap-2">
+              <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground pt-0.5">
+                {r.label}
+              </span>
+              <div className="space-y-1">
+                <div className="flex gap-2">
+                  <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground pt-0.5 shrink-0">
+                    from
+                  </span>
+                  <span className="whitespace-pre-wrap text-foreground/60 line-through decoration-[var(--color-rec)]/40">
+                    {r.from || <span className="italic text-muted-foreground">empty</span>}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="font-mono text-[9px] uppercase tracking-wider text-emerald-700 pt-0.5 shrink-0">
+                    to
+                  </span>
+                  <span className="whitespace-pre-wrap">
+                    {r.to || <span className="italic text-muted-foreground">empty</span>}
+                  </span>
+                </div>
+              </div>
+            </li>
+          ))}
+      </ul>
+    </div>
   );
 }
 
@@ -1470,6 +1608,34 @@ function AssetDetailDialog({
           </div>
         )}
 
+        {asset.type === "clip" &&
+          (asset.negative_used || asset.audio_used || asset.seed_used != null) && (
+            <div className="border-t border-border pt-3 grid grid-cols-1 gap-2 text-sm">
+              {asset.negative_used && (
+                <div>
+                  <p className="label-mono mb-0.5">Negative</p>
+                  <p className="whitespace-pre-wrap text-foreground/80">
+                    {asset.negative_used}
+                  </p>
+                </div>
+              )}
+              {asset.audio_used && (
+                <div>
+                  <p className="label-mono mb-0.5">Audio cue</p>
+                  <p className="whitespace-pre-wrap text-foreground/80">
+                    {asset.audio_used}
+                  </p>
+                </div>
+              )}
+              {asset.seed_used != null && (
+                <div>
+                  <p className="label-mono mb-0.5">Seed</p>
+                  <p className="font-mono text-xs text-foreground/80">{asset.seed_used}</p>
+                </div>
+              )}
+            </div>
+          )}
+
         {asset.error_message && (
           <div className="border-t border-[var(--color-rec)]/40 pt-3">
             <p className="label-mono text-[var(--color-rec)] mb-1">Error</p>
@@ -1556,36 +1722,82 @@ function AssetDetailDialog({
 
 // ============== Generate clip dialog (fal.ai) ==============
 
+// Each CLIP_MODEL maps a fal model id to:
+//   • the storyboard `assigned_tool` semantic name used by compile_prompt
+//   • whether the model accepts a separate audio cue line (Veo)
 const CLIP_MODELS = [
   {
     id: "fal-ai/veo3/fast",
     label: "Veo 3 Fast",
-    method: "text-to-video",
+    compileTool: "Veo 3.1",
+    method: "text-to-video" as const,
     cost: 0.4,
+    supportsAudio: true,
   },
   {
     id: "fal-ai/kling-video/v2.1/standard/text-to-video",
     label: "Kling 2.1 (T2V)",
-    method: "text-to-video",
+    compileTool: "Kling 3.0",
+    method: "text-to-video" as const,
     cost: 0.3,
+    supportsAudio: false,
   },
   {
     id: "fal-ai/kling-video/v2.1/standard/image-to-video",
     label: "Kling 2.1 (I2V)",
-    method: "image-to-video",
+    compileTool: "Kling 3.0",
+    method: "image-to-video" as const,
     cost: 0.35,
+    supportsAudio: false,
   },
 ] as const;
+
+type ClipModel = (typeof CLIP_MODELS)[number];
+
+function buildCompilePayload(shot: ShotRow, compileTool: string) {
+  return {
+    assigned_tool: compileTool,
+    subject: shot.subject,
+    subject_tokens: shot.subject_tokens,
+    action: shot.action,
+    setting: shot.setting,
+    lighting: shot.lighting,
+    lens: shot.lens,
+    style_grade: shot.style_grade,
+    mood: shot.mood,
+    dialogue: shot.dialogue,
+    sfx: shot.sfx,
+    ambient: shot.ambient,
+    negative_prompt: shot.negative_prompt,
+    seed: shot.seed,
+    camera_move: shot.camera_move,
+    motion_intensity: shot.motion_intensity,
+    duration_seconds: shot.duration_seconds,
+    generation_method: shot.generation_method,
+    has_anchor_image: !!shot.reference_image_url,
+    prompt_word_target: shot.prompt_word_target ?? 60,
+  };
+}
+
+type CompiledResult = {
+  compiled_prompt: string;
+  negative_prompt: string;
+  audio_prompt: string | null;
+  seed: number | null;
+  warnings: string[];
+};
 
 function GenerateClipDialog({
   shot,
   briefId,
+  brandLockedSeed,
   existingVersionCount,
   onClose,
   onSubmitted,
 }: {
   shot: ShotRow;
   briefId: string | null;
+  brandLockedSeed: number | null;
   existingVersionCount: number;
   onClose: () => void;
   onSubmitted: () => void;
@@ -1593,29 +1805,131 @@ function GenerateClipDialog({
   const initialMethod: "text-to-video" | "image-to-video" =
     shot.generation_method === "image-to-video" ? "image-to-video" : "text-to-video";
   const [method, setMethod] = useState(initialMethod);
-  const [modelId, setModelId] = useState<string>(() => {
-    const m = CLIP_MODELS.find((x) => x.method === initialMethod);
+
+  // Pick the model best matching the shot's storyboard assigned_tool if possible.
+  const initialModelId = useMemo(() => {
+    const matchTool = shot.assigned_tool ?? "";
+    const m =
+      CLIP_MODELS.find(
+        (x) => x.method === initialMethod && x.compileTool === matchTool,
+      ) ?? CLIP_MODELS.find((x) => x.method === initialMethod);
     return m?.id ?? CLIP_MODELS[0].id;
+  }, [shot.assigned_tool, initialMethod]);
+
+  const [modelId, setModelId] = useState<string>(initialModelId);
+  const availableModels = CLIP_MODELS.filter((m) => m.method === method);
+  const selectedModel: ClipModel =
+    availableModels.find((m) => m.id === modelId) ?? availableModels[0];
+
+  // Editable compiled prompt fields. We populate on mount + on model change via
+  // compile_prompt; user can refine before spending credits.
+  const [compiling, setCompiling] = useState(false);
+  const [compiledPrompt, setCompiledPrompt] = useState("");
+  const [negativePrompt, setNegativePrompt] = useState("");
+  const [audioPrompt, setAudioPrompt] = useState("");
+  const [seed, setSeed] = useState<string>(() => {
+    const s = shot.seed ?? brandLockedSeed;
+    return s != null ? String(s) : "";
   });
-  const [prompt, setPrompt] = useState<string>(shot.visual_description ?? "");
+  const [warnings, setWarnings] = useState<string[]>([]);
   const [referenceUrl, setReferenceUrl] = useState<string>(
     shot.reference_image_url ?? "",
   );
   const [aspect, setAspect] = useState<string>("9:16");
-  const [duration] = useState<number>(shot.duration_seconds ?? 8);
+  const duration = shot.duration_seconds ?? 8;
   const [busy, setBusy] = useState(false);
 
-  const availableModels = CLIP_MODELS.filter((m) => m.method === method);
-  const selectedModel =
-    availableModels.find((m) => m.id === modelId) ?? availableModels[0];
-
-  const submit = async () => {
-    if (!prompt.trim()) {
-      toast.error("Add a prompt before generating.");
+  // Pull-down or compile from slots for this target model.
+  const ensureCompiled = async (forceRecompile = false) => {
+    const tool = selectedModel.compileTool;
+    const isFresh =
+      !!shot.compiled_prompt &&
+      shot.compiled_for_tool === tool &&
+      !!shot.compiled_at;
+    if (!forceRecompile && isFresh) {
+      // Hydrate from the stored compiled output.
+      setCompiledPrompt(shot.compiled_prompt ?? "");
+      setNegativePrompt(shot.compiled_negative ?? "");
+      setAudioPrompt(selectedModel.supportsAudio ? (shot.compiled_audio ?? "") : "");
+      setWarnings([]);
       return;
     }
-    if (method === "image-to-video" && !referenceUrl.trim()) {
-      toast.error("Image-to-video needs a reference image URL.");
+    setCompiling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-assist", {
+        body: { task: "compile_prompt", payload: buildCompilePayload(shot, tool) },
+      });
+      if (error) throw new Error(error.message);
+      const result = (data as { result?: Record<string, unknown> } | null)?.result;
+      if (!result || typeof result !== "object")
+        throw new Error("Empty compile response");
+      const cp = String(result.compiled_prompt ?? "").trim();
+      const np = String(result.negative_prompt ?? "").trim();
+      const ap = result.audio_prompt;
+      const apStr =
+        typeof ap === "string" && ap.trim() ? ap.trim() : "";
+      const seedFromAi = typeof result.seed === "number" ? result.seed : null;
+      const warns = Array.isArray(result.warnings)
+        ? (result.warnings as unknown[]).filter((w) => typeof w === "string").map(String)
+        : [];
+      setCompiledPrompt(cp);
+      setNegativePrompt(np);
+      setAudioPrompt(selectedModel.supportsAudio ? apStr : "");
+      setWarnings(warns);
+      if (!seed && seedFromAi != null) setSeed(String(seedFromAi));
+
+      // Persist on the shot so subsequent opens are instant.
+      await supabase
+        .from("shots")
+        .update({
+          compiled_prompt: cp || null,
+          compiled_negative: np || null,
+          compiled_audio: apStr || null,
+          compiled_for_tool: tool,
+          compiled_at: new Date().toISOString(),
+        })
+        .eq("id", shot.id);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Compile failed");
+      // Fall back to slot-free human description so the user can still proceed.
+      if (!compiledPrompt) setCompiledPrompt(shot.visual_description ?? "");
+    } finally {
+      setCompiling(false);
+    }
+  };
+
+  // Initial compile (or hydrate) on open / when model changes.
+  useEffect(() => {
+    void ensureCompiled(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modelId]);
+
+  const wordCount = compiledPrompt.trim().split(/\s+/).filter(Boolean).length;
+  const wordTarget = shot.prompt_word_target ?? 60;
+  const wcColor =
+    wordCount === 0
+      ? "text-muted-foreground"
+      : wordCount <= wordTarget
+        ? "text-emerald-700"
+        : wordCount <= 90
+          ? "text-amber-700"
+          : "text-[var(--color-rec)]";
+
+  const blockingReferenceMissing =
+    method === "image-to-video" && !referenceUrl.trim();
+
+  const submit = async () => {
+    if (!compiledPrompt.trim()) {
+      toast.error("Compiled prompt is empty. Compile from the shot's slots first.");
+      return;
+    }
+    if (blockingReferenceMissing) {
+      toast.error("Image-to-video requires an anchor / reference image. Add one above.");
+      return;
+    }
+    const seedNum = seed.trim() === "" ? null : Number(seed);
+    if (seedNum != null && (!Number.isFinite(seedNum) || seedNum < 0)) {
+      toast.error("Seed must be a non-negative integer.");
       return;
     }
     setBusy(true);
@@ -1632,19 +1946,24 @@ function GenerateClipDialog({
         body: {
           shot_id: shot.id,
           brief_id: briefId,
-          prompt,
+          prompt: compiledPrompt.trim(),
+          negative_prompt: negativePrompt.trim() || null,
+          audio_prompt:
+            selectedModel.supportsAudio && audioPrompt.trim()
+              ? audioPrompt.trim()
+              : null,
+          seed: seedNum != null ? Math.floor(seedNum) : null,
           generation_method: method,
           reference_image_url:
             method === "image-to-video" ? referenceUrl.trim() : null,
           duration_seconds: duration,
           aspect_ratio: aspect,
-          model_id: selectedModel?.id,
-          tool_used: selectedModel?.label,
+          model_id: selectedModel.id,
+          tool_used: selectedModel.label,
           version: existingVersionCount + 1,
         },
         headers: { Authorization: `Bearer ${token}` },
       });
-      // supabase-js puts the function's response body on error.context for non-2xx
       if (error) {
         const ctxRes = (error as unknown as { context?: { response?: Response } })
           .context?.response;
@@ -1669,7 +1988,6 @@ function GenerateClipDialog({
       onSubmitted();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      // Friendlier message for the most common fal failure
       if (/exhausted balance|user is locked/i.test(msg)) {
         toast.error("fal.ai balance exhausted. Top up at fal.ai/dashboard/billing.");
       } else {
@@ -1682,17 +2000,19 @@ function GenerateClipDialog({
 
   return (
     <Dialog open onOpenChange={(v) => (!v ? onClose() : null)}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display">
             Generate · Shot {shot.shot_number ?? "—"}
           </DialogTitle>
           <DialogDescription>
-            Submit a video job to fal.ai. The take will appear here as soon as the job finishes.
+            Review the compiled prompt before spending. Edits below are saved
+            on the resulting take so you can compare versions later.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex gap-2">
+        {/* Method + model */}
+        <div className="flex gap-2 flex-wrap">
           {(["text-to-video", "image-to-video"] as const).map((m) => (
             <button
               key={m}
@@ -1714,42 +2034,112 @@ function GenerateClipDialog({
           ))}
         </div>
 
-        <div>
-          <p className="label-mono mb-1">Model</p>
-          <Select value={modelId} onValueChange={setModelId}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {availableModels.map((m) => (
-                <SelectItem key={m.id} value={m.id}>
-                  {m.label} · ~${m.cost.toFixed(2)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <p className="label-mono mb-1">Model</p>
+            <Select value={modelId} onValueChange={setModelId}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {availableModels.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.label} · ~${m.cost.toFixed(2)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <p className="label-mono mb-1">Compiled for</p>
+            <div className="h-9 px-2 flex items-center border border-border rounded-[3px] bg-background font-mono text-xs">
+              {selectedModel.compileTool}
+            </div>
+          </div>
         </div>
 
-        <div>
-          <p className="label-mono mb-1">Prompt</p>
-          <Textarea
-            rows={4}
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Describe the shot in cinematic detail…"
-          />
-        </div>
-
+        {/* Anchor image — required & blocking for I2V */}
         {method === "image-to-video" && (
           <div>
-            <p className="label-mono mb-1">Reference image URL</p>
+            <p className="label-mono mb-1">
+              Anchor / reference image URL <span className="text-[var(--color-rec)]">*</span>
+            </p>
             <Input
               value={referenceUrl}
               onChange={(e) => setReferenceUrl(e.target.value)}
               placeholder="https://…"
+              className={cn(blockingReferenceMissing && "border-[var(--color-rec)]")}
             />
+            {blockingReferenceMissing && (
+              <p className="text-xs text-[var(--color-rec)] mt-1">
+                Image-to-video can't run without an anchor frame. Add one in Storyboard
+                or paste a URL here.
+              </p>
+            )}
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
+        {/* Compiled prompt block */}
+        <div className="border border-border rounded-[3px] p-3 bg-background space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="label-mono">Compiled prompt</p>
+            <div className="flex items-center gap-2">
+              <span className={cn("font-mono text-[10px]", wcColor)}>
+                {wordCount}w / target {wordTarget}
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => void ensureCompiled(true)}
+                disabled={compiling}
+              >
+                {compiling ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3 w-3" />
+                )}
+                Recompile
+              </Button>
+            </div>
+          </div>
+          <Textarea
+            rows={5}
+            value={compiledPrompt}
+            onChange={(e) => setCompiledPrompt(e.target.value)}
+            placeholder={compiling ? "Compiling from slots…" : "Compiled prompt will appear here."}
+          />
+
+          <div>
+            <p className="label-mono mb-1">Negative prompt</p>
+            <Textarea
+              rows={2}
+              value={negativePrompt}
+              onChange={(e) => setNegativePrompt(e.target.value)}
+              placeholder="What to avoid…"
+            />
+          </div>
+
+          {selectedModel.supportsAudio && (
+            <div>
+              <p className="label-mono mb-1">Audio prompt (Veo)</p>
+              <Textarea
+                rows={2}
+                value={audioPrompt}
+                onChange={(e) => setAudioPrompt(e.target.value)}
+                placeholder="e.g. soft ambient room tone, footsteps on tile"
+              />
+            </div>
+          )}
+
+          {warnings.length > 0 && (
+            <ul className="text-xs text-[var(--color-rec)] space-y-0.5">
+              {warnings.map((w, i) => (
+                <li key={i}>⚠ {w}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
           <div>
             <p className="label-mono mb-1">Aspect ratio</p>
             <Select value={aspect} onValueChange={setAspect}>
@@ -1762,20 +2152,45 @@ function GenerateClipDialog({
             </Select>
           </div>
           <div>
-            <p className="label-mono mb-1">Duration (target)</p>
+            <p className="label-mono mb-1">Duration</p>
             <Input value={`${duration}s`} disabled />
+          </div>
+          <div>
+            <p className="label-mono mb-1 flex items-center justify-between">
+              <span>Seed</span>
+              {brandLockedSeed != null && (
+                <button
+                  type="button"
+                  onClick={() => setSeed(String(brandLockedSeed))}
+                  className="font-mono text-[9px] text-muted-foreground hover:text-foreground"
+                  title="Use brand Style Bible seed"
+                >
+                  brand: {brandLockedSeed}
+                </button>
+              )}
+            </p>
+            <Input
+              value={seed}
+              onChange={(e) => setSeed(e.target.value.replace(/[^0-9]/g, ""))}
+              placeholder={brandLockedSeed != null ? `${brandLockedSeed}` : "auto"}
+              inputMode="numeric"
+            />
           </div>
         </div>
 
         <div className="border border-border rounded-[2px] bg-background p-3 text-xs text-muted-foreground">
-          About <span className="font-mono text-foreground">~${selectedModel?.cost.toFixed(2) ?? "—"}</span> in API credits. You'll be charged by fal.ai when the job runs.
+          About <span className="font-mono text-foreground">~${selectedModel.cost.toFixed(2)}</span> in API credits. You'll be charged by fal.ai when the job runs.
         </div>
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
-          <Button type="button" onClick={submit} disabled={busy}>
+          <Button
+            type="button"
+            onClick={submit}
+            disabled={busy || compiling || blockingReferenceMissing || !compiledPrompt.trim()}
+          >
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
             Generate
           </Button>

@@ -69,6 +69,7 @@ export type Database = {
       }
       assets: {
         Row: {
+          audio_used: string | null
           brief_id: string | null
           cost_estimate: number | null
           created_at: string
@@ -80,9 +81,11 @@ export type Database = {
           is_selected: boolean
           job_id: string | null
           model_id: string | null
+          negative_used: string | null
           notes: string | null
           prompt_used: string | null
           reference_image_url: string | null
+          seed_used: number | null
           shot_id: string | null
           source_text: string | null
           status: Database["public"]["Enums"]["asset_status"]
@@ -94,6 +97,7 @@ export type Database = {
           voice_id: string | null
         }
         Insert: {
+          audio_used?: string | null
           brief_id?: string | null
           cost_estimate?: number | null
           created_at?: string
@@ -105,9 +109,11 @@ export type Database = {
           is_selected?: boolean
           job_id?: string | null
           model_id?: string | null
+          negative_used?: string | null
           notes?: string | null
           prompt_used?: string | null
           reference_image_url?: string | null
+          seed_used?: number | null
           shot_id?: string | null
           source_text?: string | null
           status?: Database["public"]["Enums"]["asset_status"]
@@ -119,6 +125,7 @@ export type Database = {
           voice_id?: string | null
         }
         Update: {
+          audio_used?: string | null
           brief_id?: string | null
           cost_estimate?: number | null
           created_at?: string
@@ -130,9 +137,11 @@ export type Database = {
           is_selected?: boolean
           job_id?: string | null
           model_id?: string | null
+          negative_used?: string | null
           notes?: string | null
           prompt_used?: string | null
           reference_image_url?: string | null
+          seed_used?: number | null
           shot_id?: string | null
           source_text?: string | null
           status?: Database["public"]["Enums"]["asset_status"]
