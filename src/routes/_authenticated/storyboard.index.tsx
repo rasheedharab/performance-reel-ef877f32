@@ -1839,6 +1839,45 @@ function ShotFormDialog({
               setNegativePrompt, setSeed, setPromptWordTarget,
             }}
           />
+
+          {/* Compile prompt panel */}
+          <div className="border border-border bg-background rounded-[3px] p-4">
+            <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+              <div>
+                <p className="label-mono mb-1 inline-flex items-center gap-1.5">
+                  <Wand2 className="h-3 w-3" /> Compiled prompt
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Compiles the slots into a model-specific prompt for{" "}
+                  <span className="font-mono">{assignedTool || "—"}</span>.
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleCompile}
+                disabled={compileLoading || !assignedTool}
+              >
+                {compileLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Wand2 className="h-4 w-4" />
+                )}
+                {compileLoading ? "Compiling…" : compileResult ? "Recompile" : "Compile prompt"}
+              </Button>
+            </div>
+
+            {compileResult ? (
+              <CompileResultView result={compileResult} target={promptWordTarget || 60} />
+            ) : (
+              <p className="text-xs text-muted-foreground italic">
+                {assignedTool
+                  ? "No compiled prompt yet — click Compile prompt."
+                  : "Pick a target model in the Tool section above to enable compilation."}
+              </p>
+            )}
+          </div>
         </div>
 
         <DialogFooter>
