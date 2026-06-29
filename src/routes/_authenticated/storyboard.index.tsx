@@ -1021,6 +1021,23 @@ function StoryboardWorkspace() {
           onSaved={async () => { await loadShots(selectedScript.id); }}
         />
       )}
+
+      {selectedScript && abShot && (
+        <AbPromptDialog
+          shot={abShot}
+          briefId={selectedScript.angle?.brief?.id ?? null}
+          onClose={() => setAbShot(null)}
+          onSubmitted={() => {
+            setAbShot(null);
+            toast.success("A/B variants queued — view in Generation.", {
+              action: {
+                label: "Open",
+                onClick: () => navigate({ to: "/generation", search: { script: selectedScript.id } }),
+              },
+            });
+          }}
+        />
+      )}
     </div>
   );
 }
