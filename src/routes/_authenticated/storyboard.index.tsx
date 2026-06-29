@@ -15,6 +15,8 @@ import {
   Sparkles,
   Upload,
   X,
+  Wand2,
+  AlertTriangle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -190,6 +192,11 @@ type ShotRow = {
   negative_prompt: string | null;
   seed: number | null;
   prompt_word_target: number | null;
+  compiled_prompt: string | null;
+  compiled_negative: string | null;
+  compiled_audio: string | null;
+  compiled_for_tool: string | null;
+  compiled_at: string | null;
 };
 
 type DraftShot = {
@@ -285,6 +292,11 @@ function StoryboardWorkspace() {
   const [aiDrafts, setAiDrafts] = useState<DraftShot[] | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
 
+  // Prompt-compiler state
+  const [compilingIds, setCompilingIds] = useState<Set<string>>(new Set());
+  const [recompileTool, setRecompileTool] = useState<string>("");
+  const [recompileAllRunning, setRecompileAllRunning] = useState(false);
+
   // signed URLs cache for both brief product assets and shot reference images
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
 
@@ -325,7 +337,7 @@ function StoryboardWorkspace() {
     const { data } = await supabase
       .from("shots")
       .select(
-        "id, script_id, shot_number, visual_description, camera_move, motion_intensity, duration_seconds, audio_note, assigned_tool, reference_notes, generation_method, reference_image_url, tool_reason, caption_text, subject, subject_tokens, action, setting, lighting, lens, style_grade, mood, dialogue, sfx, ambient, negative_prompt, seed, prompt_word_target",
+        "id, script_id, shot_number, visual_description, camera_move, motion_intensity, duration_seconds, audio_note, assigned_tool, reference_notes, generation_method, reference_image_url, tool_reason, caption_text, subject, subject_tokens, action, setting, lighting, lens, style_grade, mood, dialogue, sfx, ambient, negative_prompt, seed, prompt_word_target, compiled_prompt, compiled_negative, compiled_audio, compiled_for_tool, compiled_at",
       )
       .eq("script_id", scriptId)
       .order("shot_number", { ascending: true })
@@ -336,6 +348,120 @@ function StoryboardWorkspace() {
   useEffect(() => {
     if (scriptParam) loadShots(scriptParam);
   }, [scriptParam]);
+
+  const compileOne = async (
+    shot: ShotRow,
+    overrideTool?: string,
+  ): Promise<{ ok: boolean; warnings?: string[] }> => {
+    const tool = (overrideTool || shot.assigned_tool || "").trim();
+    if (!tool) {
+      toast.error("Set a target model on this shot first.");
+      return { ok: false };
+    }
+    setCompilingIds((prev) => {
+      const n = new Set(prev);
+      n.add(shot.id);
+      return n;
+    });
+    try {
+      const payload = {
+        assigned_tool: tool,
+        subject: shot.subject,
+        subject_tokens: shot.subject_tokens,
+        action: shot.action,
+        setting: shot.setting,
+        lighting: shot.lighting,
+        lens: shot.lens,
+        style_grade: shot.style_grade,
+        mood: shot.mood,
+        dialogue: shot.dialogue,
+        sfx: shot.sfx,
+        ambient: shot.ambient,
+        negative_prompt: shot.negative_prompt,
+        seed: shot.seed,
+        camera_move: shot.camera_move,
+        motion_intensity: shot.motion_intensity,
+        duration_seconds: shot.duration_seconds,
+        generation_method: shot.generation_method,
+        has_anchor_image: !!shot.reference_image_url,
+        prompt_word_target: shot.prompt_word_target ?? 60,
+      };
+      const { data, error } = await supabase.functions.invoke("ai-assist", {
+        body: { task: "compile_prompt", payload },
+      });
+      if (error) throw new Error(error.message);
+      const result = (data as { result?: Record<string, unknown> } | null)?.result;
+      if (!result || typeof result !== "object") throw new Error("Empty AI response");
+      const compiled_prompt = String(result.compiled_prompt ?? "").trim();
+      const compiled_negative = String(result.negative_prompt ?? "").trim();
+      const audioRaw = result.audio_prompt;
+      const compiled_audio =
+        typeof audioRaw === "string" && audioRaw.trim() ? audioRaw.trim() : null;
+      const warnings = Array.isArray(result.warnings)
+        ? (result.warnings as unknown[]).filter((w) => typeof w === "string").map(String)
+        : [];
+      const { error: dbErr } = await supabase
+        .from("shots")
+        .update({
+          compiled_prompt: compiled_prompt || null,
+          compiled_negative: compiled_negative || null,
+          compiled_audio,
+          compiled_for_tool: tool,
+          compiled_at: new Date().toISOString(),
+          // Persist tool override if the user requested a recompile-for-X
+          ...(overrideTool && overrideTool !== shot.assigned_tool
+            ? { assigned_tool: overrideTool }
+            : {}),
+        })
+        .eq("id", shot.id);
+      if (dbErr) throw new Error(dbErr.message);
+      return { ok: true, warnings };
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Compile failed";
+      toast.error(msg);
+      return { ok: false };
+    } finally {
+      setCompilingIds((prev) => {
+        const n = new Set(prev);
+        n.delete(shot.id);
+        return n;
+      });
+    }
+  };
+
+  const compileShot = async (shot: ShotRow) => {
+    const r = await compileOne(shot);
+    if (r.ok) {
+      await loadShots(shot.script_id);
+      if (r.warnings && r.warnings.length > 0) {
+        toast.warning(`Compiled with ${r.warnings.length} warning(s).`);
+      } else {
+        toast.success("Prompt compiled.");
+      }
+    }
+  };
+
+  const recompileAll = async () => {
+    if (!shots || shots.length === 0) return;
+    const tool = recompileTool.trim();
+    if (!tool) {
+      toast.error("Pick a target model first.");
+      return;
+    }
+    setRecompileAllRunning(true);
+    let okCount = 0;
+    let warnCount = 0;
+    for (const s of shots) {
+      const r = await compileOne(s, tool);
+      if (r.ok) {
+        okCount += 1;
+        warnCount += r.warnings?.length ?? 0;
+      }
+    }
+    setRecompileAllRunning(false);
+    if (selectedScript) await loadShots(selectedScript.id);
+    toast.success(`Recompiled ${okCount}/${shots.length} shots for ${tool}${warnCount ? ` · ${warnCount} warnings` : ""}.`);
+  };
 
   const productAssetPaths = useMemo(() => {
     const a = selectedScript?.angle?.brief?.product_asset_urls as unknown;
@@ -760,6 +886,38 @@ function StoryboardWorkspace() {
               />
             )}
 
+            {shots && shots.length > 0 && (
+              <div className="border border-border bg-card rounded-[3px] px-4 py-3 mb-3 flex flex-wrap items-center gap-3">
+                <span className="label-mono">Recompile all shots for</span>
+                <Select value={recompileTool || undefined} onValueChange={setRecompileTool}>
+                  <SelectTrigger className="h-8 w-[180px] text-xs">
+                    <SelectValue placeholder="Target model…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TOOLS.map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={recompileAll}
+                  disabled={!recompileTool || recompileAllRunning}
+                >
+                  {recompileAllRunning ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Wand2 className="h-4 w-4" />
+                  )}
+                  {recompileAllRunning ? "Recompiling…" : "Recompile sequence"}
+                </Button>
+                <span className="text-[11px] text-muted-foreground italic">
+                  Re-runs the prompt compiler on every shot with the picked target model.
+                </span>
+              </div>
+            )}
+
             {shots === null ? (
               <div className="border border-border rounded-[3px] bg-card animate-pulse h-48" />
             ) : shots.length === 0 ? (
@@ -785,6 +943,8 @@ function StoryboardWorkspace() {
                     index={i}
                     total={shots.length}
                     imageUrls={imageUrls}
+                    compiling={compilingIds.has(shot.id)}
+                    onCompile={() => compileShot(shot)}
                     onMoveUp={() => reorder(shot, -1)}
                     onMoveDown={() => reorder(shot, 1)}
                     onEdit={() => { setEditing(shot); setFormOpen(true); }}
@@ -918,6 +1078,8 @@ function ShotRowCard({
   index,
   total,
   imageUrls,
+  compiling,
+  onCompile,
   onMoveUp,
   onMoveDown,
   onEdit,
@@ -928,6 +1090,8 @@ function ShotRowCard({
   index: number;
   total: number;
   imageUrls: Record<string, string>;
+  compiling: boolean;
+  onCompile: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
   onEdit: () => void;
@@ -936,8 +1100,15 @@ function ShotRowCard({
 }) {
   const longShot = (shot.duration_seconds ?? 0) > 10;
   const refUrl = shot.reference_image_url ? imageUrls[shot.reference_image_url] : null;
+  const hasCompiled = !!shot.compiled_prompt;
+  const compiledStale =
+    hasCompiled &&
+    shot.assigned_tool &&
+    shot.compiled_for_tool &&
+    shot.assigned_tool !== shot.compiled_for_tool;
   return (
-    <article className="border border-border bg-card rounded-[3px] p-4 flex gap-4 items-start hover:border-foreground/40 transition-colors">
+    <article className="border border-border bg-card rounded-[3px] p-4 hover:border-foreground/40 transition-colors">
+    <div className="flex gap-4 items-start">
       {/* Slate badge */}
       <div className="shrink-0 w-14 h-14 border border-foreground rounded-[2px] flex flex-col items-center justify-center bg-foreground text-background">
         <span className="font-mono text-[9px] uppercase opacity-70">Shot</span>
@@ -1019,8 +1190,96 @@ function ShotRowCard({
         >
           <X className="h-3 w-3" /> Remove
         </button>
+        <button
+          onClick={onCompile}
+          disabled={compiling || !shot.assigned_tool}
+          title={!shot.assigned_tool ? "Pick a target model first" : "Compile prompt for this model"}
+          className="label-mono text-muted-foreground hover:text-foreground inline-flex items-center gap-1 disabled:opacity-40"
+        >
+          {compiling ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <Wand2 className="h-3 w-3" />
+          )}
+          {compiling ? "Compiling…" : hasCompiled ? "Recompile" : "Compile"}
+        </button>
       </div>
+    </div>
+
+    <CompiledPromptPanel shot={shot} stale={!!compiledStale} />
     </article>
+  );
+}
+
+function CompiledPromptPanel({
+  shot,
+  stale,
+}: {
+  shot: ShotRow;
+  stale: boolean;
+}) {
+  if (!shot.compiled_prompt) return null;
+  const target = shot.prompt_word_target ?? 60;
+  const wc = shot.compiled_prompt.trim().split(/\s+/).filter(Boolean).length;
+  const wcState =
+    wc <= target ? "good" : wc <= 90 ? "warn" : "bad";
+  const wcColor =
+    wcState === "good"
+      ? "text-emerald-700 border-emerald-700/40 bg-emerald-700/10"
+      : wcState === "warn"
+      ? "text-amber-700 border-amber-700/40 bg-amber-700/10"
+      : "text-[var(--color-rec)] border-[var(--color-rec)]/40 bg-[var(--color-rec)]/10";
+  return (
+    <div className="mt-3 pt-3 border-t border-border space-y-2">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="label-mono">Compiled prompt</span>
+          {shot.compiled_for_tool && (
+            <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 border border-border rounded-[2px] text-muted-foreground">
+              for {shot.compiled_for_tool}
+            </span>
+          )}
+          <span className={cn(
+            "font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 border rounded-[2px]",
+            wcColor,
+          )}>
+            {wc}/{target} words
+          </span>
+          {stale && (
+            <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 border border-amber-700/40 bg-amber-700/10 text-amber-700 rounded-[2px]">
+              stale · model changed
+            </span>
+          )}
+        </div>
+        {shot.compiled_at && (
+          <span className="font-mono text-[10px] text-muted-foreground">
+            {new Date(shot.compiled_at).toLocaleString()}
+          </span>
+        )}
+      </div>
+      <pre className="font-mono text-xs leading-relaxed whitespace-pre-wrap bg-background border border-border rounded-[2px] p-3">
+        {shot.compiled_prompt}
+      </pre>
+      {shot.compiled_audio && (
+        <div>
+          <p className="label-mono mb-1">Audio</p>
+          <pre className="font-mono text-xs whitespace-pre-wrap bg-background border border-border rounded-[2px] p-2">
+            {shot.compiled_audio}
+          </pre>
+        </div>
+      )}
+      {shot.compiled_negative && (
+        <div>
+          <p className="label-mono mb-1">Negative</p>
+          <pre className="font-mono text-xs whitespace-pre-wrap bg-background border border-border rounded-[2px] p-2 text-muted-foreground">
+            {shot.compiled_negative}
+          </pre>
+        </div>
+      )}
+      {shot.seed != null && (
+        <p className="font-mono text-[11px] text-muted-foreground">seed · {shot.seed}</p>
+      )}
+    </div>
   );
 }
 
@@ -1082,6 +1341,17 @@ function ShotFormDialog({
   const [seed, setSeed] = useState<string>("");
   const [promptWordTarget, setPromptWordTarget] = useState<number>(60);
   const [prefilled, setPrefilled] = useState<Set<string>>(new Set());
+
+  // Compile-prompt state inside the form
+  const [compileLoading, setCompileLoading] = useState(false);
+  const [compileResult, setCompileResult] = useState<{
+    compiled_prompt: string;
+    negative_prompt: string;
+    audio_prompt: string | null;
+    seed: number | null;
+    warnings: string[];
+    for_tool: string;
+  } | null>(null);
 
   // Style bible from current script's brand
   const styleBible = useMemo(() => {
@@ -1168,6 +1438,19 @@ function ShotFormDialog({
       setPrefilled(pre);
     }
     setError(null);
+    // Hydrate compile preview from existing shot if present
+    if (existing && existing.compiled_prompt) {
+      setCompileResult({
+        compiled_prompt: existing.compiled_prompt,
+        negative_prompt: existing.compiled_negative ?? "",
+        audio_prompt: existing.compiled_audio,
+        seed: existing.seed,
+        warnings: [],
+        for_tool: existing.compiled_for_tool ?? "",
+      });
+    } else {
+      setCompileResult(null);
+    }
   }, [open, existing, styleBible]);
 
   // When method is image-to-video, ensure asset URLs are resolved
@@ -1197,6 +1480,87 @@ function ShotFormDialog({
       toast.error(msg);
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleCompile = async () => {
+    const tool = assignedTool.trim();
+    if (!tool) {
+      toast.error("Pick a target model first.");
+      return;
+    }
+    setCompileLoading(true);
+    try {
+      const payload = {
+        assigned_tool: tool,
+        subject: subject.trim() || null,
+        subject_tokens: subjectTokens.trim() || null,
+        action: action.trim() || null,
+        setting: setting.trim() || null,
+        lighting: lighting.trim() || null,
+        lens: lens.trim() || null,
+        style_grade: styleGrade.trim() || null,
+        mood: mood.trim() || null,
+        dialogue: dialogue.trim() || null,
+        sfx: sfx.trim() || null,
+        ambient: ambient.trim() || null,
+        negative_prompt: negativePrompt.trim() || null,
+        seed: seed.trim() === "" ? null : Number(seed),
+        camera_move: camera || null,
+        motion_intensity: motionLabel,
+        duration_seconds: duration || null,
+        generation_method: genMethod,
+        has_anchor_image: !!referenceImageUrl,
+        prompt_word_target: promptWordTarget || 60,
+      };
+      const { data, error: err } = await supabase.functions.invoke("ai-assist", {
+        body: { task: "compile_prompt", payload },
+      });
+      if (err) throw new Error(err.message);
+      const r = (data as { result?: Record<string, unknown> } | null)?.result;
+      if (!r || typeof r !== "object") throw new Error("Empty AI response");
+      const compiled_prompt = String(r.compiled_prompt ?? "").trim();
+      const negative_prompt = String(r.negative_prompt ?? "").trim();
+      const audioRaw = r.audio_prompt;
+      const audio_prompt =
+        typeof audioRaw === "string" && audioRaw.trim() ? audioRaw.trim() : null;
+      const warnings = Array.isArray(r.warnings)
+        ? (r.warnings as unknown[]).filter((w) => typeof w === "string").map(String)
+        : [];
+      const result = {
+        compiled_prompt,
+        negative_prompt,
+        audio_prompt,
+        seed: seed.trim() === "" ? null : Number(seed),
+        warnings,
+        for_tool: tool,
+      };
+      setCompileResult(result);
+      // Persist to DB only if we're editing an existing shot
+      if (existing) {
+        const { error: dbErr } = await supabase
+          .from("shots")
+          .update({
+            compiled_prompt: compiled_prompt || null,
+            compiled_negative: negative_prompt || null,
+            compiled_audio: audio_prompt,
+            compiled_for_tool: tool,
+            compiled_at: new Date().toISOString(),
+          })
+          .eq("id", existing.id);
+        if (dbErr) throw new Error(dbErr.message);
+        await onSaved();
+      }
+      if (warnings.length > 0) {
+        toast.warning(`Compiled with ${warnings.length} warning(s).`);
+      } else {
+        toast.success(existing ? "Prompt compiled & saved." : "Prompt compiled. Save the shot to persist.");
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Compile failed";
+      toast.error(msg);
+    } finally {
+      setCompileLoading(false);
     }
   };
 
@@ -1475,6 +1839,45 @@ function ShotFormDialog({
               setNegativePrompt, setSeed, setPromptWordTarget,
             }}
           />
+
+          {/* Compile prompt panel */}
+          <div className="border border-border bg-background rounded-[3px] p-4">
+            <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+              <div>
+                <p className="label-mono mb-1 inline-flex items-center gap-1.5">
+                  <Wand2 className="h-3 w-3" /> Compiled prompt
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Compiles the slots into a model-specific prompt for{" "}
+                  <span className="font-mono">{assignedTool || "—"}</span>.
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleCompile}
+                disabled={compileLoading || !assignedTool}
+              >
+                {compileLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Wand2 className="h-4 w-4" />
+                )}
+                {compileLoading ? "Compiling…" : compileResult ? "Recompile" : "Compile prompt"}
+              </Button>
+            </div>
+
+            {compileResult ? (
+              <CompileResultView result={compileResult} target={promptWordTarget || 60} />
+            ) : (
+              <p className="text-xs text-muted-foreground italic">
+                {assignedTool
+                  ? "No compiled prompt yet — click Compile prompt."
+                  : "Pick a target model in the Tool section above to enable compilation."}
+              </p>
+            )}
+          </div>
         </div>
 
         <DialogFooter>
@@ -1513,6 +1916,86 @@ function FormField({
         <p className="text-xs mt-1 text-[var(--color-rec)] font-mono uppercase tracking-wider">
           {error}
         </p>
+      )}
+    </div>
+  );
+}
+
+function CompileResultView({
+  result,
+  target,
+}: {
+  result: {
+    compiled_prompt: string;
+    negative_prompt: string;
+    audio_prompt: string | null;
+    seed: number | null;
+    warnings: string[];
+    for_tool: string;
+  };
+  target: number;
+}) {
+  const wc = result.compiled_prompt.trim().split(/\s+/).filter(Boolean).length;
+  const wcState = wc <= target ? "good" : wc <= 90 ? "warn" : "bad";
+  const wcColor =
+    wcState === "good"
+      ? "text-emerald-700 border-emerald-700/40 bg-emerald-700/10"
+      : wcState === "warn"
+      ? "text-amber-700 border-amber-700/40 bg-amber-700/10"
+      : "text-[var(--color-rec)] border-[var(--color-rec)]/40 bg-[var(--color-rec)]/10";
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 flex-wrap">
+        {result.for_tool && (
+          <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 border border-border rounded-[2px] text-muted-foreground">
+            for {result.for_tool}
+          </span>
+        )}
+        <span className={cn(
+          "font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 border rounded-[2px]",
+          wcColor,
+        )}>
+          {wc}/{target} words
+        </span>
+        {result.seed != null && (
+          <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 border border-border rounded-[2px] text-muted-foreground">
+            seed · {result.seed}
+          </span>
+        )}
+      </div>
+      <div>
+        <p className="label-mono mb-1">Prompt</p>
+        <pre className="font-mono text-xs leading-relaxed whitespace-pre-wrap bg-card border border-border rounded-[2px] p-3">
+          {result.compiled_prompt}
+        </pre>
+      </div>
+      {result.audio_prompt && (
+        <div>
+          <p className="label-mono mb-1">Audio</p>
+          <pre className="font-mono text-xs whitespace-pre-wrap bg-card border border-border rounded-[2px] p-2">
+            {result.audio_prompt}
+          </pre>
+        </div>
+      )}
+      {result.negative_prompt && (
+        <div>
+          <p className="label-mono mb-1">Negative</p>
+          <pre className="font-mono text-xs whitespace-pre-wrap bg-card border border-border rounded-[2px] p-2 text-muted-foreground">
+            {result.negative_prompt}
+          </pre>
+        </div>
+      )}
+      {result.warnings.length > 0 && (
+        <div className="border border-[var(--color-rec)]/40 bg-[var(--color-rec)]/5 rounded-[2px] p-3">
+          <p className="label-mono mb-1 inline-flex items-center gap-1.5 text-[var(--color-rec)]">
+            <AlertTriangle className="h-3 w-3" /> Warnings
+          </p>
+          <ul className="list-disc pl-5 space-y-1">
+            {result.warnings.map((w, i) => (
+              <li key={i} className="text-xs text-[var(--color-rec)]">{w}</li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

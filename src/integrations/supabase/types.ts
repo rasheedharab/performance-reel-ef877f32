@@ -1011,6 +1011,11 @@ export type Database = {
           audio_note: string | null
           camera_move: string | null
           caption_text: string | null
+          compiled_at: string | null
+          compiled_audio: string | null
+          compiled_for_tool: string | null
+          compiled_negative: string | null
+          compiled_prompt: string | null
           created_at: string
           dialogue: string | null
           duration_seconds: number | null
@@ -1044,6 +1049,11 @@ export type Database = {
           audio_note?: string | null
           camera_move?: string | null
           caption_text?: string | null
+          compiled_at?: string | null
+          compiled_audio?: string | null
+          compiled_for_tool?: string | null
+          compiled_negative?: string | null
+          compiled_prompt?: string | null
           created_at?: string
           dialogue?: string | null
           duration_seconds?: number | null
@@ -1077,6 +1087,11 @@ export type Database = {
           audio_note?: string | null
           camera_move?: string | null
           caption_text?: string | null
+          compiled_at?: string | null
+          compiled_audio?: string | null
+          compiled_for_tool?: string | null
+          compiled_negative?: string | null
+          compiled_prompt?: string | null
           created_at?: string
           dialogue?: string | null
           duration_seconds?: number | null
