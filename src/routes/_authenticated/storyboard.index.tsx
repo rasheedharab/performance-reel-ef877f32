@@ -1267,12 +1267,12 @@ function ShotFormDialog({
         </DialogHeader>
 
         <div className="space-y-5 py-2">
-          <FormField label="Visual description" required error={error}>
+          <FormField label="Director's note (visual description)" required error={error}>
             <Textarea
               value={visual}
               onChange={(e) => setVisual(e.target.value)}
               rows={3}
-              placeholder="What we see in this shot."
+              placeholder="Human-readable note for the team. The prompt slots below drive the AI."
             />
           </FormField>
 
