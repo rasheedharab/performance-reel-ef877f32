@@ -919,6 +919,7 @@ function ShotPanel({
   onRenderFinal,
   onSelectTake,
   onOpenDetail,
+  onSavePromptToLibrary,
 }: {
   shot: ShotRow;
   assets: AssetRow[];
@@ -928,9 +929,36 @@ function ShotPanel({
   onRenderFinal: (asset: AssetRow) => void;
   onSelectTake: (assetId: string) => void;
   onOpenDetail: (a: AssetRow) => void;
+  onSavePromptToLibrary: (a: AssetRow) => void;
 }) {
   const selected = assets.find((a) => a.is_selected && a.type === "clip");
   const selectedIsDraft = selected ? selected.render_tier !== "final" : false;
+
+  // Partition clip assets into A/B groups and solo takes.
+  const clipAssets = assets.filter((a) => a.type === "clip");
+  const nonClipAssets = assets.filter((a) => a.type !== "clip");
+  const abGroupsMap = new Map<string, AssetRow[]>();
+  const soloClips: AssetRow[] = [];
+  for (const a of clipAssets) {
+    if (a.ab_group_id) {
+      const arr = abGroupsMap.get(a.ab_group_id) ?? [];
+      arr.push(a);
+      abGroupsMap.set(a.ab_group_id, arr);
+    } else {
+      soloClips.push(a);
+    }
+  }
+  const abGroups = Array.from(abGroupsMap.entries())
+    .map(([id, list]) => ({
+      id,
+      assets: list.slice().sort((x, y) => (x.version ?? 0) - (y.version ?? 0)),
+      createdAt: list.reduce(
+        (min, x) => (x.created_at < min ? x.created_at : min),
+        list[0]?.created_at ?? "",
+      ),
+    }))
+    .sort((x, y) => (x.createdAt < y.createdAt ? -1 : 1));
+
   return (
     <article className="border border-border bg-card rounded-[3px] p-4">
       <header className="flex items-start gap-4 mb-4">
@@ -1016,7 +1044,7 @@ function ShotPanel({
             </div>
           )}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {assets.map((a) => (
+            {[...soloClips, ...nonClipAssets].map((a) => (
               <VersionCard
                 key={a.id}
                 asset={a}
@@ -1026,6 +1054,21 @@ function ShotPanel({
               />
             ))}
           </div>
+          {abGroups.length > 0 && (
+            <div className="mt-4 space-y-3">
+              {abGroups.map((g) => (
+                <AbGroupRow
+                  key={g.id}
+                  group={g.assets}
+                  signedUrls={signedUrls}
+                  onSelectTake={onSelectTake}
+                  onOpenDetail={onOpenDetail}
+                  onRenderFinal={onRenderFinal}
+                  onSavePromptToLibrary={onSavePromptToLibrary}
+                />
+              ))}
+            </div>
+          )}
           <VersionDiffStrip assets={assets} />
         </>
       )}
