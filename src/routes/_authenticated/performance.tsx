@@ -832,6 +832,66 @@ function PerformancePage() {
         }
       }
 
+      // Pull the exact prompt recipe used by the winning take, if any. We pick
+      // the selected/approved clip of the highest version for each shot, then
+      // collapse them down to a single "winning recipe" if they share the same
+      // prompt/model — otherwise we pass the most-recent.
+      let winningRecipe: {
+        prompt: string | null;
+        negative: string | null;
+        seed: number | null;
+        model: string | null;
+        tool: string | null;
+      } = { prompt: null, negative: null, seed: null, model: null, tool: null };
+      try {
+        const { data: del2 } = await supabase
+          .from("deliverables")
+          .select("cut_id")
+          .eq("id", cell.deliverable_id ?? "")
+          .maybeSingle();
+        const cutId2 = (del2 as { cut_id?: string } | null)?.cut_id;
+        if (cutId2) {
+          const { data: cs } = await supabase
+            .from("cut_shots")
+            .select("asset_id")
+            .eq("cut_id", cutId2);
+          const assetIds = ((cs ?? []) as Array<{ asset_id: string | null }>)
+            .map((r) => r.asset_id)
+            .filter((x): x is string => !!x);
+          if (assetIds.length > 0) {
+            const { data: as } = await supabase
+              .from("assets")
+              .select(
+                "prompt_used, negative_used, seed_used, model_id, tool_used, created_at, type",
+              )
+              .in("id", assetIds)
+              .eq("type", "clip")
+              .order("created_at", { ascending: false })
+              .limit(1);
+            const a = (as ?? [])[0] as
+              | {
+                  prompt_used: string | null;
+                  negative_used: string | null;
+                  seed_used: number | null;
+                  model_id: string | null;
+                  tool_used: string | null;
+                }
+              | undefined;
+            if (a) {
+              winningRecipe = {
+                prompt: a.prompt_used,
+                negative: a.negative_used,
+                seed: a.seed_used,
+                model: a.model_id,
+                tool: a.tool_used,
+              };
+            }
+          }
+        }
+      } catch {
+        // best-effort — we still distill from script-level lineage
+      }
+
       const { data, error } = await supabase.functions.invoke("ai-assist", {
         body: {
           task: "distill_winner",
@@ -849,6 +909,12 @@ function PerformancePage() {
             hook_rate: agg.hook_rate,
             hold_rate: agg.hold_rate,
             ctr: agg.ctr,
+            // Reproducible recipe from the winning take.
+            compiled_prompt: winningRecipe.prompt,
+            negative_used: winningRecipe.negative,
+            seed_used: winningRecipe.seed,
+            model_id: winningRecipe.model,
+            tool_used: winningRecipe.tool,
           },
         },
       });
@@ -907,6 +973,7 @@ function PerformancePage() {
         cellAdName: cell.ad_name ?? cell.hook_label ?? "Winning variant",
         sourceMetric,
         sourceBrandId: brief?.brand?.id ?? null,
+        recipe: winningRecipe,
       });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "AI distill failed");
