@@ -1211,6 +1211,78 @@ function ShotRowCard({
   );
 }
 
+function CompiledPromptPanel({
+  shot,
+  stale,
+}: {
+  shot: ShotRow;
+  stale: boolean;
+}) {
+  if (!shot.compiled_prompt) return null;
+  const target = shot.prompt_word_target ?? 60;
+  const wc = shot.compiled_prompt.trim().split(/\s+/).filter(Boolean).length;
+  const wcState =
+    wc <= target ? "good" : wc <= 90 ? "warn" : "bad";
+  const wcColor =
+    wcState === "good"
+      ? "text-emerald-700 border-emerald-700/40 bg-emerald-700/10"
+      : wcState === "warn"
+      ? "text-amber-700 border-amber-700/40 bg-amber-700/10"
+      : "text-[var(--color-rec)] border-[var(--color-rec)]/40 bg-[var(--color-rec)]/10";
+  return (
+    <div className="mt-3 pt-3 border-t border-border space-y-2">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="label-mono">Compiled prompt</span>
+          {shot.compiled_for_tool && (
+            <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 border border-border rounded-[2px] text-muted-foreground">
+              for {shot.compiled_for_tool}
+            </span>
+          )}
+          <span className={cn(
+            "font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 border rounded-[2px]",
+            wcColor,
+          )}>
+            {wc}/{target} words
+          </span>
+          {stale && (
+            <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 border border-amber-700/40 bg-amber-700/10 text-amber-700 rounded-[2px]">
+              stale · model changed
+            </span>
+          )}
+        </div>
+        {shot.compiled_at && (
+          <span className="font-mono text-[10px] text-muted-foreground">
+            {new Date(shot.compiled_at).toLocaleString()}
+          </span>
+        )}
+      </div>
+      <pre className="font-mono text-xs leading-relaxed whitespace-pre-wrap bg-background border border-border rounded-[2px] p-3">
+        {shot.compiled_prompt}
+      </pre>
+      {shot.compiled_audio && (
+        <div>
+          <p className="label-mono mb-1">Audio</p>
+          <pre className="font-mono text-xs whitespace-pre-wrap bg-background border border-border rounded-[2px] p-2">
+            {shot.compiled_audio}
+          </pre>
+        </div>
+      )}
+      {shot.compiled_negative && (
+        <div>
+          <p className="label-mono mb-1">Negative</p>
+          <pre className="font-mono text-xs whitespace-pre-wrap bg-background border border-border rounded-[2px] p-2 text-muted-foreground">
+            {shot.compiled_negative}
+          </pre>
+        </div>
+      )}
+      {shot.seed != null && (
+        <p className="font-mono text-[11px] text-muted-foreground">seed · {shot.seed}</p>
+      )}
+    </div>
+  );
+}
+
 /* ============================================================
    SHOT FORM DIALOG
    ============================================================ */
