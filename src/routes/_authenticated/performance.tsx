@@ -999,19 +999,47 @@ function PerformancePage() {
       toast.error("Not signed in");
       return;
     }
-    const rows = chosen.map((e) => ({
-      user_id: uid,
-      title: e.title.trim(),
-      category: e.category,
-      prompt_text: e.content.trim(),
-      notes: e.notes.trim() || null,
-      archetype: e.archetype,
-      tool: e.tool,
-      entry_point: e.entry_point,
-      performance_tag: "winner",
-      source_metric: distillReview.sourceMetric,
-      source_brand_id: distillReview.sourceBrandId,
-    }));
+    const recipe = distillReview.recipe;
+    const recipeNote =
+      recipe.prompt || recipe.seed != null
+        ? [
+            "— Exact recipe (reproducible) —",
+            recipe.tool || recipe.model ? `Model: ${recipe.tool ?? recipe.model}` : null,
+            recipe.seed != null ? `Seed: ${recipe.seed}` : null,
+            recipe.negative ? `Negative: ${recipe.negative}` : null,
+          ]
+            .filter(Boolean)
+            .join("\n")
+        : null;
+
+    const rows = chosen.map((e) => {
+      // For generation_prompt entries, save the exact compiled prompt verbatim
+      // so the recipe is reproducible. Other categories keep the AI-distilled
+      // pattern text.
+      const isGenPrompt = e.category === "generation_prompt";
+      const promptText = isGenPrompt && recipe.prompt
+        ? recipe.prompt
+        : e.content.trim();
+      const baseNotes = e.notes.trim();
+      const notes = isGenPrompt && recipeNote
+        ? [baseNotes, recipeNote].filter(Boolean).join("\n\n")
+        : baseNotes || null;
+      return {
+        user_id: uid,
+        title: e.title.trim(),
+        category: e.category,
+        prompt_text: promptText,
+        notes,
+        archetype: e.archetype,
+        // Tag with the actual compile-target model so future picks know what
+        // model the recipe was tuned for.
+        tool: isGenPrompt ? (recipe.tool ?? recipe.model ?? e.tool) : e.tool,
+        entry_point: e.entry_point,
+        performance_tag: "winner",
+        source_metric: distillReview.sourceMetric,
+        source_brand_id: distillReview.sourceBrandId,
+      };
+    });
     const { error } = await supabase
       .from("prompt_library")
       .insert(rows as never);
