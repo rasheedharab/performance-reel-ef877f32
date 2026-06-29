@@ -1520,6 +1520,34 @@ function AssetDetailDialog({
           </div>
         )}
 
+        {asset.type === "clip" &&
+          (asset.negative_used || asset.audio_used || asset.seed_used != null) && (
+            <div className="border-t border-border pt-3 grid grid-cols-1 gap-2 text-sm">
+              {asset.negative_used && (
+                <div>
+                  <p className="label-mono mb-0.5">Negative</p>
+                  <p className="whitespace-pre-wrap text-foreground/80">
+                    {asset.negative_used}
+                  </p>
+                </div>
+              )}
+              {asset.audio_used && (
+                <div>
+                  <p className="label-mono mb-0.5">Audio cue</p>
+                  <p className="whitespace-pre-wrap text-foreground/80">
+                    {asset.audio_used}
+                  </p>
+                </div>
+              )}
+              {asset.seed_used != null && (
+                <div>
+                  <p className="label-mono mb-0.5">Seed</p>
+                  <p className="font-mono text-xs text-foreground/80">{asset.seed_used}</p>
+                </div>
+              )}
+            </div>
+          )}
+
         {asset.error_message && (
           <div className="border-t border-[var(--color-rec)]/40 pt-3">
             <p className="label-mono text-[var(--color-rec)] mb-1">Error</p>
