@@ -447,6 +447,108 @@ Return ONLY this JSON shape (no other text):
   return { system, user };
 };
 
+TASKS.prompt_variants = (p) => {
+  const s = (k: string) => {
+    const v = p[k];
+    return v == null || v === "" ? "—" : String(v);
+  };
+  const tool = String(p.assigned_tool ?? p.target_model ?? "").trim();
+  const isI2V =
+    String(p.generation_method ?? "").toLowerCase() === "image-to-video" ||
+    Boolean(p.has_anchor_image);
+  const wordTarget =
+    Number(p.prompt_word_target) > 0 ? Number(p.prompt_word_target) : 60;
+  const rawCount = Number(p.count);
+  const count = rawCount === 2 ? 2 : 3; // 2 or 3 only
+
+  let toolGuidance =
+    "GENERIC / OTHER: Balanced cinematic structure — subject, action, setting, lighting, lens, grade, mood, motion. Single clear action.";
+  const t = tool.toLowerCase();
+  if (t.includes("veo")) {
+    toolGuidance =
+      "VEO 3.1: Structured 'ingredient list' — subject → action → setting → lighting → lens → grade → mood → camera move. " +
+      "Audio goes on a SEPARATE final line `Audio: ...` (return in audio_prompt). Use precise cinematographic terms.";
+  } else if (t.includes("kling")) {
+    toolGuidance =
+      "KLING 3.0: Tight, motion-and-beat aware. Lead with motion verbs and beats. Do NOT inline audio — leave audio_prompt null.";
+  } else if (t.includes("runway")) {
+    toolGuidance =
+      "RUNWAY GEN-4.5: Camera-and-physics language. Forces, weight, momentum, EXPLICIT camera move (focal length, dolly/track/orbit, speed). " +
+      "If has_anchor_image, write motion-only. Leave audio_prompt null.";
+  } else if (t.includes("luma") || t.includes("ray")) {
+    toolGuidance =
+      "LUMA RAY3 (image-to-video): MOTION-ONLY. Movement, change, parallax, camera trajectory only. Leave audio_prompt null.";
+  } else if (t.includes("arcads") || t.includes("heygen") || t.includes("synthesia")) {
+    toolGuidance =
+      "AVATAR/UGC TOOL: Talking-head. Short visual brief (wardrobe, setting, framing, energy). Spoken line → audio_prompt.";
+  }
+
+  const system =
+    "You are an expert AI-video prompt engineer running a clean A/B prompt test. " +
+    "You produce N DISTINCT compiled prompt variants for the SAME shot and SAME target model. " +
+    "Each variant takes a DIFFERENT valid approach to the SAME creative intent — e.g. vary phrasing emphasis " +
+    "(camera-led vs action-led vs lighting-led vs mood-led), structure, or term selection — while keeping " +
+    "subject_tokens VERBATIM, the SINGLE action IDENTICAL, and the core look IDENTICAL so the test is fair. " +
+    "GLOBAL RULES: stay within prompt_word_target (default ~60, hard cap ~90); specific focal lengths and motion verbs; " +
+    "ONE clear action per shot; no contradictory style cues; if generation_method is image-to-video OR has_anchor_image " +
+    "is true, EVERY variant is MOTION-ONLY (no subject re-description). Build a clean negative_prompt per variant from " +
+    "negative_prompt input (deduped, comma-separated). Return ONLY valid JSON, no markdown fences.";
+
+  const user = `Produce ${count} DISTINCT compiled prompt variants for target model: ${tool || "Generic"}.
+
+MODEL-SPECIFIC RULES
+${toolGuidance}
+
+SHOT SLOTS (same for every variant)
+- subject: ${s("subject")}
+- subject_tokens (reuse VERBATIM in every variant): ${s("subject_tokens")}
+- action (ONE clear action, identical across variants): ${s("action")}
+- setting: ${s("setting")}
+- lighting: ${s("lighting")}
+- lens: ${s("lens")}
+- style_grade: ${s("style_grade")}
+- mood: ${s("mood")}
+- camera_move: ${s("camera_move")}
+- motion_intensity: ${s("motion_intensity")}
+- duration_seconds: ${s("duration_seconds")}
+- dialogue: ${s("dialogue")}
+- sfx: ${s("sfx")}
+- ambient: ${s("ambient")}
+- negative_prompt (raw): ${s("negative_prompt")}
+- generation_method: ${s("generation_method")}
+- has_anchor_image: ${isI2V ? "true" : "false"}
+- prompt_word_target: ${wordTarget}
+
+VARIATION STRATEGY
+- Pick ${count} different emphases (suggested labels: "camera-led", "action-led", "lighting-led", "mood-led", "lens-led").
+- Use the chosen emphasis to reorder/restructure the SAME ingredients, NOT to change them.
+- Do NOT swap setting, lighting kind, lens range, mood family, or the single action.
+- Each variant should be a credible compiled prompt a director would actually try.
+
+REQUIREMENTS
+- ${count} variants in the response.
+- Each compiled_prompt within ${wordTarget} words (hard cap 90).
+- If has_anchor_image is true, every variant is MOTION-ONLY.
+- negative_prompt: clean, deduped, comma-separated; empty string if nothing.
+- audio_prompt: only set for Veo (audio line) or avatar/UGC tools (spoken line); null otherwise.
+- word_count: integer count of words in compiled_prompt.
+- label: short kebab-or-space identifier for the emphasis (e.g. "camera-led").
+
+Return ONLY this JSON shape (no other text):
+{
+  "variants": [
+    {
+      "label": "camera-led",
+      "compiled_prompt": "the final optimized prompt",
+      "negative_prompt": "clean, deduped, comma-separated; empty string if none",
+      "audio_prompt": "audio line for Veo / spoken line for avatars, otherwise null",
+      "word_count": 0
+    }
+  ]
+}`;
+  return { system, user };
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
