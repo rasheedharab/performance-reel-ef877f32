@@ -952,6 +952,7 @@ function StoryboardWorkspace() {
                     onEdit={() => { setEditing(shot); setFormOpen(true); }}
                     onDuplicate={() => duplicate(shot)}
                     onRemove={() => removeShot(shot)}
+                    onAbTest={() => setAbShot(shot)}
                   />
                 ))}
               </div>
