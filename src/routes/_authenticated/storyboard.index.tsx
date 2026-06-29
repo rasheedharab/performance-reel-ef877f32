@@ -1342,6 +1342,17 @@ function ShotFormDialog({
   const [promptWordTarget, setPromptWordTarget] = useState<number>(60);
   const [prefilled, setPrefilled] = useState<Set<string>>(new Set());
 
+  // Compile-prompt state inside the form
+  const [compileLoading, setCompileLoading] = useState(false);
+  const [compileResult, setCompileResult] = useState<{
+    compiled_prompt: string;
+    negative_prompt: string;
+    audio_prompt: string | null;
+    seed: number | null;
+    warnings: string[];
+    for_tool: string;
+  } | null>(null);
+
   // Style bible from current script's brand
   const styleBible = useMemo(() => {
     const sb = script.angle?.brief?.brand?.style_bibles;
