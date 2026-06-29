@@ -1438,6 +1438,19 @@ function ShotFormDialog({
       setPrefilled(pre);
     }
     setError(null);
+    // Hydrate compile preview from existing shot if present
+    if (existing && existing.compiled_prompt) {
+      setCompileResult({
+        compiled_prompt: existing.compiled_prompt,
+        negative_prompt: existing.compiled_negative ?? "",
+        audio_prompt: existing.compiled_audio,
+        seed: existing.seed,
+        warnings: [],
+        for_tool: existing.compiled_for_tool ?? "",
+      });
+    } else {
+      setCompileResult(null);
+    }
   }, [open, existing, styleBible]);
 
   // When method is image-to-video, ensure asset URLs are resolved
