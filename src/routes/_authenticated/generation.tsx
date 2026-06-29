@@ -278,7 +278,7 @@ function GenerationBoard() {
       const { data: a } = await supabase
         .from("assets")
         .select(
-          "id, shot_id, brief_id, type, tool_used, model_id, prompt_used, negative_used, audio_used, seed_used, status, version, file_url, cost_estimate, duration_seconds, voice_id, source_text, notes, is_selected, error_message, created_at",
+          "id, shot_id, brief_id, type, tool_used, model_id, prompt_used, negative_used, audio_used, seed_used, status, version, file_url, cost_estimate, duration_seconds, voice_id, source_text, notes, is_selected, error_message, created_at, render_tier",
         )
         .in("shot_id", shotIds)
         .order("version", { ascending: true });
@@ -290,7 +290,7 @@ function GenerationBoard() {
       const { data: b } = await supabase
         .from("assets")
         .select(
-          "id, shot_id, brief_id, type, tool_used, model_id, prompt_used, negative_used, audio_used, seed_used, status, version, file_url, cost_estimate, duration_seconds, voice_id, source_text, notes, is_selected, error_message, created_at",
+          "id, shot_id, brief_id, type, tool_used, model_id, prompt_used, negative_used, audio_used, seed_used, status, version, file_url, cost_estimate, duration_seconds, voice_id, source_text, notes, is_selected, error_message, created_at, render_tier",
         )
         .eq("brief_id", briefId)
         .is("shot_id", null)
