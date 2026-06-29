@@ -1976,7 +1976,7 @@ function GenerateClipDialog({
       // Hydrate from the stored compiled output.
       setCompiledPrompt(shot.compiled_prompt ?? "");
       setNegativePrompt(shot.compiled_negative ?? "");
-      setAudioPrompt(selectedModel.supportsAudio ? (shot.compiled_audio ?? "") : "");
+      setAudioPrompt(selectedFamily.supportsAudio ? (shot.compiled_audio ?? "") : "");
       setWarnings([]);
       return;
     }
@@ -2000,7 +2000,7 @@ function GenerateClipDialog({
         : [];
       setCompiledPrompt(cp);
       setNegativePrompt(np);
-      setAudioPrompt(selectedModel.supportsAudio ? apStr : "");
+      setAudioPrompt(selectedFamily.supportsAudio ? apStr : "");
       setWarnings(warns);
       if (!seed && seedFromAi != null) setSeed(String(seedFromAi));
 
@@ -2028,7 +2028,7 @@ function GenerateClipDialog({
   useEffect(() => {
     void ensureCompiled(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modelId]);
+  }, [familyKey]);
 
   const wordCount = compiledPrompt.trim().split(/\s+/).filter(Boolean).length;
   const wordTarget = shot.prompt_word_target ?? 60;
@@ -2075,7 +2075,7 @@ function GenerateClipDialog({
           prompt: compiledPrompt.trim(),
           negative_prompt: negativePrompt.trim() || null,
           audio_prompt:
-            selectedModel.supportsAudio && audioPrompt.trim()
+            selectedFamily.supportsAudio && audioPrompt.trim()
               ? audioPrompt.trim()
               : null,
           seed: seedNum != null ? Math.floor(seedNum) : null,
@@ -2084,8 +2084,10 @@ function GenerateClipDialog({
             method === "image-to-video" ? referenceUrl.trim() : null,
           duration_seconds: duration,
           aspect_ratio: aspect,
-          model_id: selectedModel.id,
-          tool_used: selectedModel.label,
+          model_id: selectedVariant.id,
+          tool_used: `${selectedFamily.label} · ${selectedVariant.label}`,
+          render_tier: tier,
+          cost_estimate: estimateCost(selectedVariant, duration),
           version: existingVersionCount + 1,
         },
         headers: { Authorization: `Bearer ${token}` },
