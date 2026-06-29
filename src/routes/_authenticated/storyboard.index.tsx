@@ -17,6 +17,7 @@ import {
   X,
   Wand2,
   AlertTriangle,
+  Beaker,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -285,6 +286,7 @@ function StoryboardWorkspace() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<ShotRow | null>(null);
+  const [abShot, setAbShot] = useState<ShotRow | null>(null);
   const [guideOpen, setGuideOpen] = useState(true);
 
   // AI shot-list draft state
@@ -950,6 +952,7 @@ function StoryboardWorkspace() {
                     onEdit={() => { setEditing(shot); setFormOpen(true); }}
                     onDuplicate={() => duplicate(shot)}
                     onRemove={() => removeShot(shot)}
+                    onAbTest={() => setAbShot(shot)}
                   />
                 ))}
               </div>
@@ -1016,6 +1019,23 @@ function StoryboardWorkspace() {
             setImageUrls((p) => ({ ...p, ...fresh }));
           }}
           onSaved={async () => { await loadShots(selectedScript.id); }}
+        />
+      )}
+
+      {selectedScript && abShot && (
+        <AbPromptDialog
+          shot={abShot}
+          briefId={selectedScript.angle?.brief?.id ?? null}
+          onClose={() => setAbShot(null)}
+          onSubmitted={() => {
+            setAbShot(null);
+            toast.success("A/B variants queued — view in Generation.", {
+              action: {
+                label: "Open",
+                onClick: () => navigate({ to: "/generation", search: { script: selectedScript.id } }),
+              },
+            });
+          }}
         />
       )}
     </div>
@@ -1085,6 +1105,7 @@ function ShotRowCard({
   onEdit,
   onDuplicate,
   onRemove,
+  onAbTest,
 }: {
   shot: ShotRow;
   index: number;
@@ -1097,6 +1118,7 @@ function ShotRowCard({
   onEdit: () => void;
   onDuplicate: () => void;
   onRemove: () => void;
+  onAbTest: () => void;
 }) {
   const longShot = (shot.duration_seconds ?? 0) > 10;
   const refUrl = shot.reference_image_url ? imageUrls[shot.reference_image_url] : null;
@@ -1202,6 +1224,15 @@ function ShotRowCard({
             <Wand2 className="h-3 w-3" />
           )}
           {compiling ? "Compiling…" : hasCompiled ? "Recompile" : "Compile"}
+        </button>
+        <button
+          onClick={onAbTest}
+          disabled={!shot.assigned_tool}
+          title={!shot.assigned_tool ? "Pick a target model first" : "Run an A/B prompt test"}
+          className="label-mono text-muted-foreground hover:text-foreground inline-flex items-center gap-1 disabled:opacity-40"
+        >
+          <Beaker className="h-3 w-3" />
+          A/B test
         </button>
       </div>
     </div>
@@ -2272,6 +2303,382 @@ function AiShotlistReview({
         ))}
       </div>
     </div>
+  );
+}
+
+/* ============================================================
+   A/B PROMPT TEST DIALOG
+   Generates N prompt variants of the same shot via ai-assist,
+   lets the user edit each, then queues a generate-clip call per
+   variant with a shared ab_group_id.
+   ============================================================ */
+
+type AbVariant = {
+  label: string;
+  compiled_prompt: string;
+  negative_prompt: string;
+  audio_prompt: string | null;
+  word_count: number;
+};
+
+function buildShotSlotsPayload(shot: ShotRow) {
+  return {
+    assigned_tool: shot.assigned_tool ?? "",
+    subject: shot.subject,
+    subject_tokens: shot.subject_tokens,
+    action: shot.action,
+    setting: shot.setting,
+    lighting: shot.lighting,
+    lens: shot.lens,
+    style_grade: shot.style_grade,
+    mood: shot.mood,
+    dialogue: shot.dialogue,
+    sfx: shot.sfx,
+    ambient: shot.ambient,
+    negative_prompt: shot.negative_prompt,
+    seed: shot.seed,
+    camera_move: shot.camera_move,
+    motion_intensity: shot.motion_intensity,
+    duration_seconds: shot.duration_seconds,
+    generation_method: shot.generation_method,
+    has_anchor_image: !!shot.reference_image_url,
+    prompt_word_target: shot.prompt_word_target ?? 60,
+  };
+}
+
+function AbPromptDialog({
+  shot,
+  briefId,
+  onClose,
+  onSubmitted,
+}: {
+  shot: ShotRow;
+  briefId: string | null;
+  onClose: () => void;
+  onSubmitted: () => void;
+}) {
+  const [count, setCount] = useState<2 | 3>(3);
+  const [tier, setTier] = useState<"draft" | "final">("draft");
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [variants, setVariants] = useState<AbVariant[] | null>(null);
+
+  const tool = shot.assigned_tool ?? "Generic";
+  const supportsAudio = /veo|arcads|heygen|synthesia/i.test(tool);
+  const isI2V = shot.generation_method === "image-to-video";
+
+  const fetchVariants = async (n: 2 | 3) => {
+    setLoading(true);
+    setVariants(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-assist", {
+        body: {
+          task: "prompt_variants",
+          payload: { ...buildShotSlotsPayload(shot), count: n },
+        },
+      });
+      if (error) throw new Error(error.message);
+      const result = (data as { result?: { variants?: unknown[] } } | null)?.result;
+      const list = Array.isArray(result?.variants) ? result.variants : [];
+      const cleaned: AbVariant[] = list
+        .map((v) => {
+          const obj = (v ?? {}) as Record<string, unknown>;
+          const cp = String(obj.compiled_prompt ?? "").trim();
+          const np = String(obj.negative_prompt ?? "").trim();
+          const apRaw = obj.audio_prompt;
+          const ap =
+            typeof apRaw === "string" && apRaw.trim() ? apRaw.trim() : null;
+          const lbl = String(obj.label ?? "").trim() || "variant";
+          const wc = cp.split(/\s+/).filter(Boolean).length;
+          return {
+            label: lbl,
+            compiled_prompt: cp,
+            negative_prompt: np,
+            audio_prompt: supportsAudio ? ap : null,
+            word_count: wc,
+          };
+        })
+        .filter((v) => v.compiled_prompt);
+      if (cleaned.length === 0) {
+        toast.error("AI returned no usable variants. Try again.");
+      }
+      setVariants(cleaned);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Variant generation failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void fetchVariants(count);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const updateVariant = (i: number, patch: Partial<AbVariant>) => {
+    setVariants((prev) => {
+      if (!prev) return prev;
+      const next = prev.slice();
+      const merged = { ...next[i], ...patch };
+      if (patch.compiled_prompt != null) {
+        merged.word_count = patch.compiled_prompt
+          .trim()
+          .split(/\s+/)
+          .filter(Boolean).length;
+      }
+      next[i] = merged;
+      return next;
+    });
+  };
+
+  const submit = async () => {
+    if (!variants || variants.length === 0) return;
+    if (isI2V && !shot.reference_image_url) {
+      toast.error("Image-to-video requires a reference image on the shot.");
+      return;
+    }
+    const seed = shot.seed ?? null;
+    const duration = shot.duration_seconds ?? 8;
+    const abGroupId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    setSubmitting(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        toast.error("Not signed in.");
+        return;
+      }
+      let ok = 0;
+      for (let i = 0; i < variants.length; i++) {
+        const v = variants[i];
+        if (!v.compiled_prompt.trim()) continue;
+        const { data, error } = await supabase.functions.invoke("generate-clip", {
+          body: {
+            shot_id: shot.id,
+            brief_id: briefId,
+            prompt: v.compiled_prompt.trim(),
+            negative_prompt: v.negative_prompt.trim() || null,
+            audio_prompt: supportsAudio && v.audio_prompt ? v.audio_prompt : null,
+            seed,
+            generation_method: shot.generation_method,
+            reference_image_url: shot.reference_image_url,
+            duration_seconds: duration,
+            aspect_ratio: "9:16",
+            render_tier: tier,
+            version: i + 1,
+            ab_group_id: abGroupId,
+            variant_label: v.label,
+          },
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (error) {
+          console.error("generate-clip error", error);
+          continue;
+        }
+        if ((data as { error?: string } | null)?.error) continue;
+        ok += 1;
+      }
+      if (ok === 0) {
+        toast.error("No variants were queued.");
+        return;
+      }
+      toast.success(`${ok} variant${ok === 1 ? "" : "s"} queued for ${tier} render.`);
+      onSubmitted();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(v) => (!v ? onClose() : null)}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="font-display flex items-center gap-2">
+            <Beaker className="h-4 w-4" />
+            A/B prompt test · Shot {shot.shot_number ?? "—"}
+          </DialogTitle>
+        </DialogHeader>
+
+        <p className="text-sm text-muted-foreground">
+          Generates {count} distinct phrasings of the same shot for <span className="font-mono">{tool}</span>.
+          Same seed, same reference, same duration — only the prompt differs.
+        </p>
+
+        <div className="grid grid-cols-2 gap-3 border border-border rounded-[3px] p-3 bg-background">
+          <div>
+            <p className="label-mono mb-1.5">Variants</p>
+            <div className="flex gap-1">
+              {([2, 3] as const).map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  disabled={loading || submitting}
+                  onClick={() => {
+                    setCount(n);
+                    void fetchVariants(n);
+                  }}
+                  className={cn(
+                    "label-mono px-2 py-1 border rounded-[2px]",
+                    count === n
+                      ? "bg-foreground text-background border-foreground"
+                      : "border-border text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="label-mono mb-1.5">Render tier</p>
+            <div className="flex gap-1">
+              {(["draft", "final"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => setTier(t)}
+                  className={cn(
+                    "label-mono px-2 py-1 border rounded-[2px]",
+                    tier === t
+                      ? "bg-foreground text-background border-foreground"
+                      : "border-border text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] font-mono text-muted-foreground mt-1">
+              A/B is cheap by design — draft tier recommended.
+            </p>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="border border-dashed border-border rounded-[3px] p-8 text-center text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
+            Drafting {count} variants…
+          </div>
+        ) : !variants || variants.length === 0 ? (
+          <div className="border border-dashed border-border rounded-[3px] p-8 text-center text-muted-foreground">
+            <p>No variants yet.</p>
+            <Button
+              size="sm"
+              variant="outline"
+              className="mt-3"
+              onClick={() => void fetchVariants(count)}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Try again
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {variants.map((v, i) => {
+              const wcState =
+                v.word_count <= (shot.prompt_word_target ?? 60)
+                  ? "good"
+                  : v.word_count <= 90
+                    ? "warn"
+                    : "bad";
+              const wcColor =
+                wcState === "good"
+                  ? "text-emerald-700 border-emerald-700/40 bg-emerald-700/10"
+                  : wcState === "warn"
+                    ? "text-amber-700 border-amber-700/40 bg-amber-700/10"
+                    : "text-[var(--color-rec)] border-[var(--color-rec)]/40 bg-[var(--color-rec)]/10";
+              return (
+                <div
+                  key={i}
+                  className="border border-border rounded-[3px] bg-card p-3 space-y-2"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <Input
+                      value={v.label}
+                      onChange={(e) => updateVariant(i, { label: e.target.value })}
+                      className="h-7 font-mono text-xs uppercase tracking-wider max-w-[60%]"
+                    />
+                    <span
+                      className={cn(
+                        "inline-flex font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border rounded-[2px]",
+                        wcColor,
+                      )}
+                    >
+                      {v.word_count} words
+                    </span>
+                  </div>
+                  <div>
+                    <p className="label-mono mb-1">Compiled prompt</p>
+                    <Textarea
+                      value={v.compiled_prompt}
+                      onChange={(e) =>
+                        updateVariant(i, { compiled_prompt: e.target.value })
+                      }
+                      rows={6}
+                      className="font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <p className="label-mono mb-1">Negative</p>
+                    <Textarea
+                      value={v.negative_prompt}
+                      onChange={(e) =>
+                        updateVariant(i, { negative_prompt: e.target.value })
+                      }
+                      rows={2}
+                      className="font-mono text-xs"
+                    />
+                  </div>
+                  {supportsAudio && (
+                    <div>
+                      <p className="label-mono mb-1">Audio</p>
+                      <Textarea
+                        value={v.audio_prompt ?? ""}
+                        onChange={(e) =>
+                          updateVariant(i, { audio_prompt: e.target.value || null })
+                        }
+                        rows={2}
+                        className="font-mono text-xs"
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <DialogFooter className="mt-2">
+          <Button variant="outline" onClick={onClose} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={submit}
+            disabled={
+              submitting ||
+              loading ||
+              !variants ||
+              variants.length === 0 ||
+              variants.some((v) => !v.compiled_prompt.trim())
+            }
+          >
+            {submitting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="h-3.5 w-3.5" />
+            )}
+            Generate all variants
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

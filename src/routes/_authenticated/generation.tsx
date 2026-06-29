@@ -148,6 +148,8 @@ type AssetRow = {
   error_message: string | null;
   created_at: string;
   render_tier: "draft" | "final";
+  ab_group_id: string | null;
+  variant_label: string | null;
 };
 
 const searchSchema = z.object({
@@ -288,7 +290,7 @@ function GenerationBoard() {
       const { data: a } = await supabase
         .from("assets")
         .select(
-          "id, shot_id, brief_id, type, tool_used, model_id, prompt_used, negative_used, audio_used, seed_used, status, version, file_url, cost_estimate, duration_seconds, voice_id, source_text, notes, is_selected, error_message, created_at, render_tier",
+          "id, shot_id, brief_id, type, tool_used, model_id, prompt_used, negative_used, audio_used, seed_used, status, version, file_url, cost_estimate, duration_seconds, voice_id, source_text, notes, is_selected, error_message, created_at, render_tier, ab_group_id, variant_label",
         )
         .in("shot_id", shotIds)
         .order("version", { ascending: true });
@@ -300,7 +302,7 @@ function GenerationBoard() {
       const { data: b } = await supabase
         .from("assets")
         .select(
-          "id, shot_id, brief_id, type, tool_used, model_id, prompt_used, negative_used, audio_used, seed_used, status, version, file_url, cost_estimate, duration_seconds, voice_id, source_text, notes, is_selected, error_message, created_at, render_tier",
+          "id, shot_id, brief_id, type, tool_used, model_id, prompt_used, negative_used, audio_used, seed_used, status, version, file_url, cost_estimate, duration_seconds, voice_id, source_text, notes, is_selected, error_message, created_at, render_tier, ab_group_id, variant_label",
         )
         .eq("brief_id", briefId)
         .is("shot_id", null)
@@ -577,6 +579,44 @@ function GenerationBoard() {
     await reloadBoard();
   };
 
+  // Persist the prompt of a winning A/B variant into the prompt library so it
+  // can be reused on future shots (tagged with the model it was tuned for).
+  const savePromptToLibrary = async (asset: AssetRow) => {
+    if (!asset.prompt_used || !asset.prompt_used.trim()) {
+      toast.error("This take has no compiled prompt to save.");
+      return;
+    }
+    const { data: userData } = await supabase.auth.getUser();
+    const uid = userData?.user?.id;
+    if (!uid) {
+      toast.error("Not signed in.");
+      return;
+    }
+    const brandId = selected?.angle?.brief?.brand?.id ?? null;
+    const title = `${asset.tool_used ?? asset.model_id ?? "Prompt"} · A/B winner${asset.variant_label ? ` · ${asset.variant_label}` : ""}`;
+    const { error } = await supabase.from("prompt_library").insert({
+      user_id: uid,
+      title,
+      category: "generation_prompt",
+      prompt_text: asset.prompt_used,
+      notes: [
+        asset.negative_used ? `Negative: ${asset.negative_used}` : null,
+        asset.seed_used != null ? `Seed: ${asset.seed_used}` : null,
+        asset.variant_label ? `A/B label: ${asset.variant_label}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n") || null,
+      tool: asset.tool_used ?? asset.model_id ?? null,
+      performance_tag: "winner",
+      source_brand_id: brandId,
+    } as never);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Saved prompt to library.");
+  };
+
   // ---- UI ---------------------------------------------------------------
 
   return (
@@ -803,6 +843,7 @@ function GenerationBoard() {
                   onRenderFinal={(a) => renderFinalFromAsset(shot, a)}
                   onSelectTake={(assetId) => setSelectedTake(shot.id, assetId)}
                   onOpenDetail={(a) => setDetailOpen(a)}
+                  onSavePromptToLibrary={(a) => savePromptToLibrary(a)}
                 />
               ))
             )}
@@ -917,6 +958,7 @@ function ShotPanel({
   onRenderFinal,
   onSelectTake,
   onOpenDetail,
+  onSavePromptToLibrary,
 }: {
   shot: ShotRow;
   assets: AssetRow[];
@@ -926,9 +968,36 @@ function ShotPanel({
   onRenderFinal: (asset: AssetRow) => void;
   onSelectTake: (assetId: string) => void;
   onOpenDetail: (a: AssetRow) => void;
+  onSavePromptToLibrary: (a: AssetRow) => void;
 }) {
   const selected = assets.find((a) => a.is_selected && a.type === "clip");
   const selectedIsDraft = selected ? selected.render_tier !== "final" : false;
+
+  // Partition clip assets into A/B groups and solo takes.
+  const clipAssets = assets.filter((a) => a.type === "clip");
+  const nonClipAssets = assets.filter((a) => a.type !== "clip");
+  const abGroupsMap = new Map<string, AssetRow[]>();
+  const soloClips: AssetRow[] = [];
+  for (const a of clipAssets) {
+    if (a.ab_group_id) {
+      const arr = abGroupsMap.get(a.ab_group_id) ?? [];
+      arr.push(a);
+      abGroupsMap.set(a.ab_group_id, arr);
+    } else {
+      soloClips.push(a);
+    }
+  }
+  const abGroups = Array.from(abGroupsMap.entries())
+    .map(([id, list]) => ({
+      id,
+      assets: list.slice().sort((x, y) => (x.version ?? 0) - (y.version ?? 0)),
+      createdAt: list.reduce(
+        (min, x) => (x.created_at < min ? x.created_at : min),
+        list[0]?.created_at ?? "",
+      ),
+    }))
+    .sort((x, y) => (x.createdAt < y.createdAt ? -1 : 1));
+
   return (
     <article className="border border-border bg-card rounded-[3px] p-4">
       <header className="flex items-start gap-4 mb-4">
@@ -1014,7 +1083,7 @@ function ShotPanel({
             </div>
           )}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {assets.map((a) => (
+            {[...soloClips, ...nonClipAssets].map((a) => (
               <VersionCard
                 key={a.id}
                 asset={a}
@@ -1024,6 +1093,21 @@ function ShotPanel({
               />
             ))}
           </div>
+          {abGroups.length > 0 && (
+            <div className="mt-4 space-y-3">
+              {abGroups.map((g) => (
+                <AbGroupRow
+                  key={g.id}
+                  group={g.assets}
+                  signedUrls={signedUrls}
+                  onSelectTake={onSelectTake}
+                  onOpenDetail={onOpenDetail}
+                  onRenderFinal={onRenderFinal}
+                  onSavePromptToLibrary={onSavePromptToLibrary}
+                />
+              ))}
+            </div>
+          )}
           <VersionDiffStrip assets={assets} />
         </>
       )}
@@ -1207,6 +1291,115 @@ function VersionCard({
             </span>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ============== A/B prompt comparison row ==============
+
+function AbGroupRow({
+  group,
+  signedUrls,
+  onSelectTake,
+  onOpenDetail,
+  onRenderFinal,
+  onSavePromptToLibrary,
+}: {
+  group: AssetRow[];
+  signedUrls: Record<string, string>;
+  onSelectTake: (assetId: string) => void;
+  onOpenDetail: (a: AssetRow) => void;
+  onRenderFinal: (a: AssetRow) => void;
+  onSavePromptToLibrary: (a: AssetRow) => void;
+}) {
+  if (group.length === 0) return null;
+  const winner = group.find((a) => a.is_selected) ?? null;
+  const winnerIsDraft = winner ? winner.render_tier !== "final" : false;
+  return (
+    <div className="border border-foreground/30 rounded-[3px] bg-background p-3">
+      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+        <p className="label-mono inline-flex items-center gap-2">
+          <span className="inline-block px-1.5 py-0.5 bg-foreground text-background rounded-[2px] text-[9px]">
+            A/B
+          </span>
+          Prompt test · {group.length} variant{group.length === 1 ? "" : "s"}
+          {winner?.variant_label && (
+            <span className="text-[var(--color-rec)]">
+              · winner: {winner.variant_label}
+            </span>
+          )}
+        </p>
+        <div className="flex items-center gap-2">
+          {winner && winnerIsDraft && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => onRenderFinal(winner)}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Render winner as final
+            </Button>
+          )}
+          {winner && winner.prompt_used && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => onSavePromptToLibrary(winner)}
+            >
+              <Upload className="h-3.5 w-3.5" />
+              Save prompt
+            </Button>
+          )}
+        </div>
+      </div>
+      <div className={cn(
+        "grid gap-3",
+        group.length === 2 ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1 md:grid-cols-3",
+      )}>
+        {group.map((a) => (
+          <div
+            key={a.id}
+            className={cn(
+              "border rounded-[3px] bg-card overflow-hidden flex flex-col",
+              a.is_selected
+                ? "border-[var(--color-rec)] ring-1 ring-[var(--color-rec)]/40"
+                : "border-border",
+            )}
+          >
+            <div className="px-2.5 py-1.5 border-b border-border flex items-center justify-between gap-2 bg-background">
+              <span className="font-mono text-[10px] uppercase tracking-wider text-foreground truncate">
+                {a.variant_label || "variant"}
+              </span>
+              <span
+                className={cn(
+                  "font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-[2px] border",
+                  a.render_tier === "final"
+                    ? "bg-foreground text-background border-foreground"
+                    : "bg-background text-muted-foreground border-border",
+                )}
+              >
+                {a.render_tier === "final" ? "Final" : "Draft"}
+              </span>
+            </div>
+            <VersionCard
+              asset={a}
+              signedUrls={signedUrls}
+              onSelectTake={() => onSelectTake(a.id)}
+              onOpenDetail={() => onOpenDetail(a)}
+            />
+            {a.prompt_used && (
+              <div className="px-2.5 py-2 border-t border-border bg-background">
+                <p className="label-mono mb-1">Prompt</p>
+                <p className="font-mono text-[11px] text-foreground/80 line-clamp-4 whitespace-pre-wrap">
+                  {a.prompt_used}
+                </p>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
