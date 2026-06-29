@@ -800,6 +800,7 @@ function ShotPanel({
   signedUrls,
   onAddManual,
   onGenerate,
+  onRenderFinal,
   onSelectTake,
   onOpenDetail,
 }: {
@@ -808,9 +809,12 @@ function ShotPanel({
   signedUrls: Record<string, string>;
   onAddManual: () => void;
   onGenerate: () => void;
+  onRenderFinal: (asset: AssetRow) => void;
   onSelectTake: (assetId: string) => void;
   onOpenDetail: (a: AssetRow) => void;
 }) {
+  const selected = assets.find((a) => a.is_selected && a.type === "clip");
+  const selectedIsDraft = selected ? selected.render_tier !== "final" : false;
   return (
     <article className="border border-border bg-card rounded-[3px] p-4">
       <header className="flex items-start gap-4 mb-4">
@@ -877,6 +881,24 @@ function ShotPanel({
         </div>
       ) : (
         <>
+          {selected && selectedIsDraft && (
+            <div className="mb-3 flex items-center justify-between gap-3 border border-dashed border-foreground/40 bg-background rounded-[3px] px-3 py-2">
+              <p className="text-xs text-muted-foreground">
+                Selected take is a{" "}
+                <span className="font-mono uppercase text-foreground">draft</span> —
+                render final?
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onRenderFinal(selected)}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Render final
+              </Button>
+            </div>
+          )}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {assets.map((a) => (
               <VersionCard
