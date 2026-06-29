@@ -965,6 +965,19 @@ function VersionCard({
         <span className="absolute top-1.5 right-1.5 font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 border border-foreground bg-background/90 rounded-[2px]">
           v{asset.version ?? 1}
         </span>
+        {asset.type === "clip" && (
+          <span
+            className={cn(
+              "absolute bottom-1.5 left-1.5 font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-[2px] border",
+              asset.render_tier === "final"
+                ? "bg-foreground text-background border-foreground"
+                : "bg-background/80 text-muted-foreground border-border",
+            )}
+            title={asset.render_tier === "final" ? "Flagship render" : "Cheap iteration"}
+          >
+            {asset.render_tier === "final" ? "Final" : "Draft"}
+          </span>
+        )}
       </button>
       <div className="p-2.5 flex flex-col gap-1.5 text-xs">
         <div className="flex items-center justify-between gap-2 min-h-[18px]">
