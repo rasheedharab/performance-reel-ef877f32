@@ -1458,6 +1458,23 @@ function ShotFormDialog({
               />
             </FormField>
           </div>
+
+          <PromptSlotsSection
+            open={slotsOpen}
+            onToggle={() => setSlotsOpen((v) => !v)}
+            prefilled={prefilled}
+            hasBible={!!styleBible}
+            values={{
+              subject, subjectTokens, action, setting, lighting, lens,
+              styleGrade, mood, dialogue, sfx, ambient, negativePrompt,
+              seed, promptWordTarget,
+            }}
+            setters={{
+              setSubject, setSubjectTokens, setAction, setSetting, setLighting,
+              setLens, setStyleGrade, setMood, setDialogue, setSfx, setAmbient,
+              setNegativePrompt, setSeed, setPromptWordTarget,
+            }}
+          />
         </div>
 
         <DialogFooter>
