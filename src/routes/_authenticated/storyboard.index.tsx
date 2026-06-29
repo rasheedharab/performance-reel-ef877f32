@@ -1190,7 +1190,23 @@ function ShotRowCard({
         >
           <X className="h-3 w-3" /> Remove
         </button>
+        <button
+          onClick={onCompile}
+          disabled={compiling || !shot.assigned_tool}
+          title={!shot.assigned_tool ? "Pick a target model first" : "Compile prompt for this model"}
+          className="label-mono text-muted-foreground hover:text-foreground inline-flex items-center gap-1 disabled:opacity-40"
+        >
+          {compiling ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <Wand2 className="h-3 w-3" />
+          )}
+          {compiling ? "Compiling…" : hasCompiled ? "Recompile" : "Compile"}
+        </button>
       </div>
+    </div>
+
+    <CompiledPromptPanel shot={shot} stale={!!compiledStale} />
     </article>
   );
 }
