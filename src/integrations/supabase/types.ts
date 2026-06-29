@@ -85,6 +85,7 @@ export type Database = {
           notes: string | null
           prompt_used: string | null
           reference_image_url: string | null
+          render_tier: Database["public"]["Enums"]["render_tier"]
           seed_used: number | null
           shot_id: string | null
           source_text: string | null
@@ -113,6 +114,7 @@ export type Database = {
           notes?: string | null
           prompt_used?: string | null
           reference_image_url?: string | null
+          render_tier?: Database["public"]["Enums"]["render_tier"]
           seed_used?: number | null
           shot_id?: string | null
           source_text?: string | null
@@ -141,6 +143,7 @@ export type Database = {
           notes?: string | null
           prompt_used?: string | null
           reference_image_url?: string | null
+          render_tier?: Database["public"]["Enums"]["render_tier"]
           seed_used?: number | null
           shot_id?: string | null
           source_text?: string | null
@@ -1307,6 +1310,7 @@ export type Database = {
         | "iterate_body"
         | "iterate_offer"
         | "kill"
+      render_tier: "draft" | "final"
       script_status: "draft" | "approved" | "archived"
       shot_generation_method: "text-to-video" | "image-to-video"
       test_cell_status: "planned" | "live" | "paused" | "winner" | "killed"
@@ -1468,6 +1472,7 @@ export const Constants = {
         "iterate_offer",
         "kill",
       ],
+      render_tier: ["draft", "final"],
       script_status: ["draft", "approved", "archived"],
       shot_generation_method: ["text-to-video", "image-to-video"],
       test_cell_status: ["planned", "live", "paused", "winner", "killed"],
