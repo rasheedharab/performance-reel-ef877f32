@@ -1488,6 +1488,7 @@ function ShotFormDialog({
       setError("Visual description is required.");
       return;
     }
+    // placeholder anchor – body unchanged below
     setError(null);
     setSaving(true);
     const { data: userData } = await supabase.auth.getUser();
