@@ -1088,6 +1088,7 @@ function ShotRowCard({
   onEdit,
   onDuplicate,
   onRemove,
+  onAbTest,
 }: {
   shot: ShotRow;
   index: number;
@@ -1100,6 +1101,7 @@ function ShotRowCard({
   onEdit: () => void;
   onDuplicate: () => void;
   onRemove: () => void;
+  onAbTest: () => void;
 }) {
   const longShot = (shot.duration_seconds ?? 0) > 10;
   const refUrl = shot.reference_image_url ? imageUrls[shot.reference_image_url] : null;
