@@ -1065,6 +1065,32 @@ function ShotFormDialog({
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Prompt slots
+  const [slotsOpen, setSlotsOpen] = useState(true);
+  const [subject, setSubject] = useState("");
+  const [subjectTokens, setSubjectTokens] = useState("");
+  const [action, setAction] = useState("");
+  const [setting, setSetting] = useState("");
+  const [lighting, setLighting] = useState("");
+  const [lens, setLens] = useState("");
+  const [styleGrade, setStyleGrade] = useState("");
+  const [mood, setMood] = useState("");
+  const [dialogue, setDialogue] = useState("");
+  const [sfx, setSfx] = useState("");
+  const [ambient, setAmbient] = useState("");
+  const [negativePrompt, setNegativePrompt] = useState("");
+  const [seed, setSeed] = useState<string>("");
+  const [promptWordTarget, setPromptWordTarget] = useState<number>(60);
+  const [prefilled, setPrefilled] = useState<Set<string>>(new Set());
+
+  // Style bible from current script's brand
+  const styleBible = useMemo(() => {
+    const sb = script.angle?.brief?.brand?.style_bibles;
+    if (!sb) return null;
+    if (Array.isArray(sb)) return sb[0] ?? null;
+    return sb;
+  }, [script]);
+
   // Convert motion slider (0-100) to a label
   const motionLabel = motion < 25 ? "Subtle" : motion < 60 ? "Moderate" : motion < 85 ? "High" : "Dynamic";
 
@@ -1088,6 +1114,21 @@ function ShotFormDialog({
       setCaptionText(existing.caption_text ?? "");
       setAudioNote(existing.audio_note ?? "");
       setReferenceNotes(existing.reference_notes ?? "");
+      setSubject(existing.subject ?? "");
+      setSubjectTokens(existing.subject_tokens ?? "");
+      setAction(existing.action ?? "");
+      setSetting(existing.setting ?? "");
+      setLighting(existing.lighting ?? "");
+      setLens(existing.lens ?? "");
+      setStyleGrade(existing.style_grade ?? "");
+      setMood(existing.mood ?? "");
+      setDialogue(existing.dialogue ?? "");
+      setSfx(existing.sfx ?? "");
+      setAmbient(existing.ambient ?? "");
+      setNegativePrompt(existing.negative_prompt ?? "");
+      setSeed(existing.seed != null ? String(existing.seed) : "");
+      setPromptWordTarget(existing.prompt_word_target ?? 60);
+      setPrefilled(new Set());
     } else {
       setVisual("");
       setCamera("");
@@ -1100,9 +1141,34 @@ function ShotFormDialog({
       setCaptionText("");
       setAudioNote("");
       setReferenceNotes("");
+      // Prefill prompt slots from the brand's Style Bible
+      const sb = styleBible;
+      const pre = new Set<string>();
+      setSubject("");
+      setAction("");
+      setSetting("");
+      setMood("");
+      setDialogue("");
+      setSfx("");
+      setAmbient("");
+      if (sb?.subject_tokens) { setSubjectTokens(sb.subject_tokens); pre.add("subject_tokens"); }
+      else setSubjectTokens("");
+      const grade = [sb?.film_look, sb?.color_grade].filter(Boolean).join(", ");
+      if (grade) { setStyleGrade(grade); pre.add("style_grade"); }
+      else setStyleGrade("");
+      if (sb?.lighting_signature) { setLighting(sb.lighting_signature); pre.add("lighting"); }
+      else setLighting("");
+      if (sb?.lens_feel) { setLens(sb.lens_feel); pre.add("lens"); }
+      else setLens("");
+      if (sb?.default_negative) { setNegativePrompt(sb.default_negative); pre.add("negative_prompt"); }
+      else setNegativePrompt("");
+      if (sb?.locked_seed != null) { setSeed(String(sb.locked_seed)); pre.add("seed"); }
+      else setSeed("");
+      setPromptWordTarget(60);
+      setPrefilled(pre);
     }
     setError(null);
-  }, [open, existing]);
+  }, [open, existing, styleBible]);
 
   // When method is image-to-video, ensure asset URLs are resolved
   useEffect(() => {
@@ -1163,6 +1229,20 @@ function ShotFormDialog({
       caption_text: captionText.trim() || null,
       audio_note: audioNote.trim() || null,
       reference_notes: referenceNotes.trim() || null,
+      subject: subject.trim() || null,
+      subject_tokens: subjectTokens.trim() || null,
+      action: action.trim() || null,
+      setting: setting.trim() || null,
+      lighting: lighting.trim() || null,
+      lens: lens.trim() || null,
+      style_grade: styleGrade.trim() || null,
+      mood: mood.trim() || null,
+      dialogue: dialogue.trim() || null,
+      sfx: sfx.trim() || null,
+      ambient: ambient.trim() || null,
+      negative_prompt: negativePrompt.trim() || null,
+      seed: seed.trim() === "" ? null : Number(seed),
+      prompt_word_target: promptWordTarget || 60,
     };
     const { error: err } = existing
       ? await supabase.from("shots").update(payload).eq("id", existing.id)
