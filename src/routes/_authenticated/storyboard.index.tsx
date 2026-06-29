@@ -292,6 +292,11 @@ function StoryboardWorkspace() {
   const [aiDrafts, setAiDrafts] = useState<DraftShot[] | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
 
+  // Prompt-compiler state
+  const [compilingIds, setCompilingIds] = useState<Set<string>>(new Set());
+  const [recompileTool, setRecompileTool] = useState<string>("");
+  const [recompileAllRunning, setRecompileAllRunning] = useState(false);
+
   // signed URLs cache for both brief product assets and shot reference images
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
 
