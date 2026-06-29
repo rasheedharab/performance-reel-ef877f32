@@ -312,7 +312,7 @@ function StoryboardWorkspace() {
       const { data } = await supabase
         .from("scripts")
         .select(
-          "id, archetype, hook, status, duration_seconds, target_duration, on_screen_text, vo_script, desire_beat, body, proof_beat, cta, angle:angles(id, title, brief:briefs(id, project_name, product_asset_urls, product_name, product_description, brand:brands(id, name, fonts, primary_color, secondary_color, no_go_list)))",
+          "id, archetype, hook, status, duration_seconds, target_duration, on_screen_text, vo_script, desire_beat, body, proof_beat, cta, angle:angles(id, title, brief:briefs(id, project_name, product_asset_urls, product_name, product_description, brand:brands(id, name, fonts, primary_color, secondary_color, no_go_list, style_bibles(id, film_look, color_grade, lighting_signature, lens_feel, motion_feel, subject_tokens, default_negative, locked_seed))))",
         )
         .eq("id", scriptParam)
         .maybeSingle();
@@ -325,7 +325,7 @@ function StoryboardWorkspace() {
     const { data } = await supabase
       .from("shots")
       .select(
-        "id, script_id, shot_number, visual_description, camera_move, motion_intensity, duration_seconds, audio_note, assigned_tool, reference_notes, generation_method, reference_image_url, tool_reason, caption_text",
+        "id, script_id, shot_number, visual_description, camera_move, motion_intensity, duration_seconds, audio_note, assigned_tool, reference_notes, generation_method, reference_image_url, tool_reason, caption_text, subject, subject_tokens, action, setting, lighting, lens, style_grade, mood, dialogue, sfx, ambient, negative_prompt, seed, prompt_word_target",
       )
       .eq("script_id", scriptId)
       .order("shot_number", { ascending: true })
