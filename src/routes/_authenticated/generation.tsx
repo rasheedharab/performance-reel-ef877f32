@@ -1898,6 +1898,8 @@ function GenerateClipDialog({
   briefId,
   brandLockedSeed,
   existingVersionCount,
+  prefill,
+  lockTier,
   onClose,
   onSubmitted,
 }: {
@@ -1905,6 +1907,15 @@ function GenerateClipDialog({
   briefId: string | null;
   brandLockedSeed: number | null;
   existingVersionCount: number;
+  // Pre-populated from a sibling asset when promoting a draft → final.
+  prefill?: {
+    prompt: string;
+    negative: string | null;
+    audio: string | null;
+    seed: number | null;
+    familyKey?: string;
+  } | null;
+  lockTier?: RenderTier;
   onClose: () => void;
   onSubmitted: () => void;
 }) {
@@ -1912,28 +1923,37 @@ function GenerateClipDialog({
     shot.generation_method === "image-to-video" ? "image-to-video" : "text-to-video";
   const [method, setMethod] = useState(initialMethod);
 
-  // Pick the model best matching the shot's storyboard assigned_tool if possible.
-  const initialModelId = useMemo(() => {
+  // Pick the family best matching the shot's storyboard assigned_tool if possible.
+  const initialFamilyKey = useMemo(() => {
+    if (prefill?.familyKey) {
+      const f = MODEL_FAMILIES.find((x) => x.key === prefill.familyKey);
+      if (f) return f.key;
+    }
     const matchTool = shot.assigned_tool ?? "";
     const m =
-      CLIP_MODELS.find(
+      MODEL_FAMILIES.find(
         (x) => x.method === initialMethod && x.compileTool === matchTool,
-      ) ?? CLIP_MODELS.find((x) => x.method === initialMethod);
-    return m?.id ?? CLIP_MODELS[0].id;
-  }, [shot.assigned_tool, initialMethod]);
+      ) ?? MODEL_FAMILIES.find((x) => x.method === initialMethod);
+    return (m ?? MODEL_FAMILIES[0]).key;
+  }, [shot.assigned_tool, initialMethod, prefill?.familyKey]);
 
-  const [modelId, setModelId] = useState<string>(initialModelId);
-  const availableModels = CLIP_MODELS.filter((m) => m.method === method);
-  const selectedModel: ClipModel =
-    availableModels.find((m) => m.id === modelId) ?? availableModels[0];
+  const [familyKey, setFamilyKey] = useState<string>(initialFamilyKey);
+  const [tier, setTier] = useState<RenderTier>(lockTier ?? "draft");
+
+  const availableFamilies = MODEL_FAMILIES.filter((f) => f.method === method);
+  const selectedFamily: ModelFamily =
+    availableFamilies.find((f) => f.key === familyKey) ?? availableFamilies[0];
+  const selectedVariant: TierVariant =
+    tier === "final" ? selectedFamily.final : selectedFamily.draft;
 
   // Editable compiled prompt fields. We populate on mount + on model change via
   // compile_prompt; user can refine before spending credits.
   const [compiling, setCompiling] = useState(false);
-  const [compiledPrompt, setCompiledPrompt] = useState("");
-  const [negativePrompt, setNegativePrompt] = useState("");
-  const [audioPrompt, setAudioPrompt] = useState("");
+  const [compiledPrompt, setCompiledPrompt] = useState(prefill?.prompt ?? "");
+  const [negativePrompt, setNegativePrompt] = useState(prefill?.negative ?? "");
+  const [audioPrompt, setAudioPrompt] = useState(prefill?.audio ?? "");
   const [seed, setSeed] = useState<string>(() => {
+    if (prefill && prefill.seed != null) return String(prefill.seed);
     const s = shot.seed ?? brandLockedSeed;
     return s != null ? String(s) : "";
   });
