@@ -148,6 +148,8 @@ type AssetRow = {
   error_message: string | null;
   created_at: string;
   render_tier: "draft" | "final";
+  ab_group_id: string | null;
+  variant_label: string | null;
 };
 
 const searchSchema = z.object({
