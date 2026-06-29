@@ -147,6 +147,7 @@ type AssetRow = {
   is_selected: boolean;
   error_message: string | null;
   created_at: string;
+  render_tier: "draft" | "final";
 };
 
 const searchSchema = z.object({
@@ -190,7 +191,17 @@ function GenerationBoard() {
 
   const [manualOpen, setManualOpen] = useState<{ shot: ShotRow } | null>(null);
   const [audioOpen, setAudioOpen] = useState<{ type: AssetType } | null>(null);
-  const [generateOpen, setGenerateOpen] = useState<{ shot: ShotRow } | null>(null);
+  const [generateOpen, setGenerateOpen] = useState<{
+    shot: ShotRow;
+    prefill?: {
+      prompt: string;
+      negative: string | null;
+      audio: string | null;
+      seed: number | null;
+      familyKey?: string;
+    } | null;
+    lockTier?: RenderTier;
+  } | null>(null);
   const [voGenOpen, setVoGenOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState<AssetRow | null>(null);
 
@@ -277,7 +288,7 @@ function GenerationBoard() {
       const { data: a } = await supabase
         .from("assets")
         .select(
-          "id, shot_id, brief_id, type, tool_used, model_id, prompt_used, negative_used, audio_used, seed_used, status, version, file_url, cost_estimate, duration_seconds, voice_id, source_text, notes, is_selected, error_message, created_at",
+          "id, shot_id, brief_id, type, tool_used, model_id, prompt_used, negative_used, audio_used, seed_used, status, version, file_url, cost_estimate, duration_seconds, voice_id, source_text, notes, is_selected, error_message, created_at, render_tier",
         )
         .in("shot_id", shotIds)
         .order("version", { ascending: true });
@@ -289,7 +300,7 @@ function GenerationBoard() {
       const { data: b } = await supabase
         .from("assets")
         .select(
-          "id, shot_id, brief_id, type, tool_used, model_id, prompt_used, negative_used, audio_used, seed_used, status, version, file_url, cost_estimate, duration_seconds, voice_id, source_text, notes, is_selected, error_message, created_at",
+          "id, shot_id, brief_id, type, tool_used, model_id, prompt_used, negative_used, audio_used, seed_used, status, version, file_url, cost_estimate, duration_seconds, voice_id, source_text, notes, is_selected, error_message, created_at, render_tier",
         )
         .eq("brief_id", briefId)
         .is("shot_id", null)
@@ -417,6 +428,109 @@ function GenerationBoard() {
       ),
     [assets],
   );
+
+  // Split spend by tier (clips only — voiceovers etc. are tier-agnostic).
+  const tierSpend = useMemo(() => {
+    let draft = 0;
+    let final = 0;
+    for (const a of assets ?? []) {
+      if (a.type !== "clip") continue;
+      const c = a.cost_estimate ? Number(a.cost_estimate) : 0;
+      if (a.render_tier === "final") final += c;
+      else draft += c;
+    }
+    return { draft, final };
+  }, [assets]);
+
+  // Shots whose currently-selected take is still a draft → candidates for promotion.
+  const draftSelected = useMemo(() => {
+    const out: { shot: ShotRow; asset: AssetRow }[] = [];
+    for (const sh of shots ?? []) {
+      const list = assetsByShot.get(sh.id) ?? [];
+      const sel = list.find((a) => a.is_selected && a.type === "clip");
+      if (sel && sel.render_tier !== "final") out.push({ shot: sh, asset: sel });
+    }
+    return out;
+  }, [shots, assetsByShot]);
+
+  const finalSelectedCount = useMemo(() => {
+    let n = 0;
+    for (const sh of shots ?? []) {
+      const list = assetsByShot.get(sh.id) ?? [];
+      const sel = list.find((a) => a.is_selected && a.type === "clip");
+      if (sel && sel.render_tier === "final") n += 1;
+    }
+    return n;
+  }, [shots, assetsByShot]);
+
+  // Open the Generate dialog pre-populated to re-run an existing draft asset as final.
+  const renderFinalFromAsset = (shot: ShotRow, asset: AssetRow) => {
+    const family = getFamilyByModelId(asset.model_id);
+    setGenerateOpen({
+      shot,
+      lockTier: "final",
+      prefill: {
+        prompt: asset.prompt_used ?? "",
+        negative: asset.negative_used ?? null,
+        audio: asset.audio_used ?? null,
+        seed: asset.seed_used ?? null,
+        familyKey: family?.key,
+      },
+    });
+  };
+
+  // Promote every selected-draft take to a final-tier render in one batch.
+  // Reuses the exact compiled_prompt / negative / audio / seed already on the
+  // approved draft asset — only the model_id swaps to the flagship variant.
+  const batchRenderFinal = async () => {
+    if (draftSelected.length === 0) return;
+    const toastId = toast.loading(
+      `Queuing ${draftSelected.length} final render${draftSelected.length === 1 ? "" : "s"}…`,
+    );
+    let queued = 0;
+    let failed = 0;
+    for (const { shot, asset } of draftSelected) {
+      const family = getFamilyByModelId(asset.model_id);
+      if (!family) {
+        failed += 1;
+        continue;
+      }
+      const dur = shot.duration_seconds ?? asset.duration_seconds ?? 8;
+      const existing = assetsByShot.get(shot.id) ?? [];
+      const method =
+        (shot.generation_method as "text-to-video" | "image-to-video" | null) ??
+        "text-to-video";
+      const { error } = await supabase.functions.invoke("generate-clip", {
+        body: {
+          shot_id: shot.id,
+          brief_id: briefId,
+          prompt: asset.prompt_used ?? "",
+          negative_prompt: asset.negative_used ?? null,
+          audio_prompt: family.supportsAudio ? asset.audio_used ?? null : null,
+          seed: asset.seed_used ?? null,
+          generation_method: method,
+          reference_image_url:
+            method === "image-to-video" ? shot.reference_image_url ?? null : null,
+          duration_seconds: dur,
+          aspect_ratio: "9:16",
+          model_id: family.final.id,
+          tool_used: `${family.label} · ${family.final.label}`,
+          render_tier: "final",
+          cost_estimate: estimateCost(family.final, dur),
+          version: existing.length + 1,
+        },
+      });
+      if (error) failed += 1;
+      else queued += 1;
+    }
+    toast.dismiss(toastId);
+    if (failed === 0) {
+      toast.success(`Queued ${queued} final render${queued === 1 ? "" : "s"}.`);
+    } else {
+      toast.error(`Queued ${queued}, failed ${failed}.`);
+    }
+    await reloadBoard();
+  };
 
   const setSelectedTake = async (shotId: string, assetId: string) => {
     if (!assets) return;
@@ -572,7 +686,7 @@ function GenerationBoard() {
       ) : (
         <>
           {/* Progress strip */}
-          <div className="border border-border rounded-[3px] bg-card p-4 mb-6 grid md:grid-cols-2 gap-4">
+          <div className="border border-border rounded-[3px] bg-card p-4 mb-6 grid md:grid-cols-3 gap-4">
             <div>
               <p className="label-mono mb-2">Selected takes</p>
               <div className="flex items-baseline gap-2">
@@ -583,27 +697,88 @@ function GenerationBoard() {
                   of {shots?.length ?? 0} shots
                 </span>
               </div>
-              <div className="mt-2 h-1.5 bg-background border border-border rounded-[2px] overflow-hidden">
+              <div className="mt-2 flex items-center gap-3 text-[10px] font-mono text-muted-foreground">
+                <span>
+                  <span className="text-foreground font-medium">{finalSelectedCount}</span> final
+                </span>
+                <span>
+                  <span className="text-foreground font-medium">{draftSelected.length}</span> draft
+                </span>
+              </div>
+              <div className="mt-2 h-1.5 bg-background border border-border rounded-[2px] overflow-hidden flex">
                 <div
                   className="h-full bg-foreground transition-all"
                   style={{
                     width: shots && shots.length > 0
-                      ? `${(selectedTakeCount / shots.length) * 100}%`
+                      ? `${(finalSelectedCount / shots.length) * 100}%`
+                      : "0%",
+                  }}
+                />
+                <div
+                  className="h-full bg-foreground/30 transition-all"
+                  style={{
+                    width: shots && shots.length > 0
+                      ? `${(draftSelected.length / shots.length) * 100}%`
                       : "0%",
                   }}
                 />
               </div>
             </div>
             <div>
-              <p className="label-mono mb-2">Estimated cost</p>
+              <p className="label-mono mb-2">Spend by tier</p>
               <div className="flex items-baseline gap-2">
                 <span className="font-display text-2xl font-bold">
                   ${totalCost.toFixed(2)}
                 </span>
                 <span className="text-muted-foreground text-sm">
-                  across {(assets ?? []).length} assets
+                  total
                 </span>
               </div>
+              <div className="mt-2 flex items-center gap-3 text-[10px] font-mono text-muted-foreground">
+                <span>
+                  draft <span className="text-foreground">${tierSpend.draft.toFixed(2)}</span>
+                </span>
+                <span>
+                  final <span className="text-foreground">${tierSpend.final.toFixed(2)}</span>
+                </span>
+              </div>
+            </div>
+            <div>
+              <p className="label-mono mb-2">Promote to final</p>
+              {draftSelected.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  All selected takes are final renders.
+                </p>
+              ) : (
+                <>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    {draftSelected.length} selected{" "}
+                    {draftSelected.length === 1 ? "take is" : "takes are"} still draft.
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const estimate = draftSelected.reduce((sum, { shot, asset }) => {
+                        const fam = getFamilyByModelId(asset.model_id);
+                        const dur = shot.duration_seconds ?? asset.duration_seconds ?? 8;
+                        return sum + (fam ? estimateCost(fam.final, dur) : 0);
+                      }, 0);
+                      const ok = window.confirm(
+                        `Render ${draftSelected.length} selected take${
+                          draftSelected.length === 1 ? "" : "s"
+                        } as final?\n\nEstimated cost: ~$${estimate.toFixed(2)}.\nEach uses the same compiled prompt, negative, and seed — only the model swaps to the flagship variant.`,
+                      );
+                      if (!ok) return;
+                      void batchRenderFinal();
+                    }}
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Render all selected as final
+                  </Button>
+                </>
+              )}
             </div>
           </div>
 
@@ -625,6 +800,7 @@ function GenerationBoard() {
                   signedUrls={signedUrls}
                   onAddManual={() => setManualOpen({ shot })}
                   onGenerate={() => setGenerateOpen({ shot })}
+                  onRenderFinal={(a) => renderFinalFromAsset(shot, a)}
                   onSelectTake={(assetId) => setSelectedTake(shot.id, assetId)}
                   onOpenDetail={(a) => setDetailOpen(a)}
                 />
@@ -683,6 +859,8 @@ function GenerationBoard() {
           existingVersionCount={
             (assetsByShot.get(generateOpen.shot.id) ?? []).length
           }
+          prefill={generateOpen.prefill ?? null}
+          lockTier={generateOpen.lockTier}
           onClose={() => setGenerateOpen(null)}
           onSubmitted={async () => {
             setGenerateOpen(null);
@@ -736,6 +914,7 @@ function ShotPanel({
   signedUrls,
   onAddManual,
   onGenerate,
+  onRenderFinal,
   onSelectTake,
   onOpenDetail,
 }: {
@@ -744,9 +923,12 @@ function ShotPanel({
   signedUrls: Record<string, string>;
   onAddManual: () => void;
   onGenerate: () => void;
+  onRenderFinal: (asset: AssetRow) => void;
   onSelectTake: (assetId: string) => void;
   onOpenDetail: (a: AssetRow) => void;
 }) {
+  const selected = assets.find((a) => a.is_selected && a.type === "clip");
+  const selectedIsDraft = selected ? selected.render_tier !== "final" : false;
   return (
     <article className="border border-border bg-card rounded-[3px] p-4">
       <header className="flex items-start gap-4 mb-4">
@@ -813,6 +995,24 @@ function ShotPanel({
         </div>
       ) : (
         <>
+          {selected && selectedIsDraft && (
+            <div className="mb-3 flex items-center justify-between gap-3 border border-dashed border-foreground/40 bg-background rounded-[3px] px-3 py-2">
+              <p className="text-xs text-muted-foreground">
+                Selected take is a{" "}
+                <span className="font-mono uppercase text-foreground">draft</span> —
+                render final?
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onRenderFinal(selected)}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Render final
+              </Button>
+            </div>
+          )}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {assets.map((a) => (
               <VersionCard
@@ -964,6 +1164,19 @@ function VersionCard({
         <span className="absolute top-1.5 right-1.5 font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 border border-foreground bg-background/90 rounded-[2px]">
           v{asset.version ?? 1}
         </span>
+        {asset.type === "clip" && (
+          <span
+            className={cn(
+              "absolute bottom-1.5 left-1.5 font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-[2px] border",
+              asset.render_tier === "final"
+                ? "bg-foreground text-background border-foreground"
+                : "bg-background/80 text-muted-foreground border-border",
+            )}
+            title={asset.render_tier === "final" ? "Flagship render" : "Cheap iteration"}
+          >
+            {asset.render_tier === "final" ? "Final" : "Draft"}
+          </span>
+        )}
       </button>
       <div className="p-2.5 flex flex-col gap-1.5 text-xs">
         <div className="flex items-center justify-between gap-2 min-h-[18px]">
@@ -1722,37 +1935,142 @@ function AssetDetailDialog({
 
 // ============== Generate clip dialog (fal.ai) ==============
 
-// Each CLIP_MODEL maps a fal model id to:
-//   • the storyboard `assigned_tool` semantic name used by compile_prompt
-//   • whether the model accepts a separate audio cue line (Veo)
-const CLIP_MODELS = [
-  {
-    id: "fal-ai/veo3/fast",
-    label: "Veo 3 Fast",
-    compileTool: "Veo 3.1",
-    method: "text-to-video" as const,
-    cost: 0.4,
-    supportsAudio: true,
-  },
-  {
-    id: "fal-ai/kling-video/v2.1/standard/text-to-video",
-    label: "Kling 2.1 (T2V)",
-    compileTool: "Kling 3.0",
-    method: "text-to-video" as const,
-    cost: 0.3,
-    supportsAudio: false,
-  },
-  {
-    id: "fal-ai/kling-video/v2.1/standard/image-to-video",
-    label: "Kling 2.1 (I2V)",
-    compileTool: "Kling 3.0",
-    method: "image-to-video" as const,
-    cost: 0.35,
-    supportsAudio: false,
-  },
-] as const;
+// Two-tier model family map. Each family pairs a CHEAP "draft" variant
+// (fast / lite / turbo) with the FINAL flagship model. Cost-per-second is
+// approximate — the user sees the live estimate before they spend.
+// NOTE: fal.ai model slugs marked `placeholder` should be confirmed against
+// the fal.ai docs before going live; they're set to the closest known route
+// so the UI is functional today.
+type TierVariant = {
+  id: string;
+  label: string;
+  costPerSecond: number; // USD/sec, approximate
+};
+type ModelFamily = {
+  key: string;
+  label: string;
+  compileTool: string; // storyboard `assigned_tool` value used by compile_prompt
+  method: "text-to-video" | "image-to-video";
+  supportsAudio: boolean;
+  draft: TierVariant;
+  final: TierVariant;
+};
 
-type ClipModel = (typeof CLIP_MODELS)[number];
+const MODEL_FAMILIES: ModelFamily[] = [
+  {
+    key: "veo-3-1-t2v",
+    label: "Veo 3.1",
+    compileTool: "Veo 3.1",
+    method: "text-to-video",
+    supportsAudio: true,
+    draft: { id: "fal-ai/veo3/fast", label: "Veo 3.1 Fast", costPerSecond: 0.05 },
+    final: { id: "fal-ai/veo3", label: "Veo 3.1 Quality", costPerSecond: 0.15 },
+  },
+  {
+    key: "kling-3-t2v",
+    label: "Kling 3.0",
+    compileTool: "Kling 3.0",
+    method: "text-to-video",
+    supportsAudio: false,
+    draft: {
+      id: "fal-ai/kling-video/v2.1/standard/text-to-video",
+      label: "Kling Turbo (T2V)",
+      costPerSecond: 0.04,
+    },
+    final: {
+      id: "fal-ai/kling-video/v2.1/master/text-to-video",
+      label: "Kling 3.0 4K (T2V)",
+      costPerSecond: 0.12,
+    },
+  },
+  {
+    key: "kling-3-i2v",
+    label: "Kling 3.0 (I2V)",
+    compileTool: "Kling 3.0",
+    method: "image-to-video",
+    supportsAudio: false,
+    draft: {
+      id: "fal-ai/kling-video/v2.1/standard/image-to-video",
+      label: "Kling Turbo (I2V)",
+      costPerSecond: 0.05,
+    },
+    final: {
+      id: "fal-ai/kling-video/v2.1/master/image-to-video",
+      label: "Kling 3.0 4K (I2V)",
+      costPerSecond: 0.13,
+    },
+  },
+  {
+    key: "runway-gen-4-t2v",
+    label: "Runway Gen-4.5",
+    compileTool: "Runway Gen-4.5",
+    method: "text-to-video",
+    supportsAudio: false,
+    draft: {
+      id: "fal-ai/runway-gen4/turbo", // placeholder — confirm slug
+      label: "Gen-4 Turbo",
+      costPerSecond: 0.05,
+    },
+    final: {
+      id: "fal-ai/runway-gen4", // placeholder — confirm slug
+      label: "Gen-4.5",
+      costPerSecond: 0.15,
+    },
+  },
+  {
+    key: "runway-gen-4-i2v",
+    label: "Runway Gen-4.5 (I2V)",
+    compileTool: "Runway Gen-4.5",
+    method: "image-to-video",
+    supportsAudio: false,
+    draft: {
+      id: "fal-ai/runway-gen4/turbo/image-to-video", // placeholder
+      label: "Gen-4 Turbo (I2V)",
+      costPerSecond: 0.05,
+    },
+    final: {
+      id: "fal-ai/runway-gen4/image-to-video", // placeholder
+      label: "Gen-4.5 (I2V)",
+      costPerSecond: 0.15,
+    },
+  },
+  {
+    key: "luma-ray3-i2v",
+    label: "Luma Ray3",
+    compileTool: "Luma Ray3",
+    method: "image-to-video",
+    supportsAudio: false,
+    draft: {
+      id: "fal-ai/luma-dream-machine/ray-3/fast", // placeholder
+      label: "Ray3 Fast",
+      costPerSecond: 0.04,
+    },
+    final: {
+      id: "fal-ai/luma-dream-machine/ray-3", // placeholder — HDR variant
+      label: "Ray3 HDR",
+      costPerSecond: 0.12,
+    },
+  },
+];
+
+type RenderTier = "draft" | "final";
+
+function getFamilyByModelId(modelId: string | null | undefined): ModelFamily | null {
+  if (!modelId) return null;
+  return (
+    MODEL_FAMILIES.find(
+      (f) => f.draft.id === modelId || f.final.id === modelId,
+    ) ?? null
+  );
+}
+function getTierForModelId(modelId: string | null | undefined): RenderTier | null {
+  const f = getFamilyByModelId(modelId);
+  if (!f) return null;
+  return f.final.id === modelId ? "final" : "draft";
+}
+function estimateCost(variant: TierVariant, durationSeconds: number) {
+  return Math.max(0, variant.costPerSecond * Math.max(1, durationSeconds || 8));
+}
 
 function buildCompilePayload(shot: ShotRow, compileTool: string) {
   return {
@@ -1792,6 +2110,8 @@ function GenerateClipDialog({
   briefId,
   brandLockedSeed,
   existingVersionCount,
+  prefill,
+  lockTier,
   onClose,
   onSubmitted,
 }: {
@@ -1799,6 +2119,15 @@ function GenerateClipDialog({
   briefId: string | null;
   brandLockedSeed: number | null;
   existingVersionCount: number;
+  // Pre-populated from a sibling asset when promoting a draft → final.
+  prefill?: {
+    prompt: string;
+    negative: string | null;
+    audio: string | null;
+    seed: number | null;
+    familyKey?: string;
+  } | null;
+  lockTier?: RenderTier;
   onClose: () => void;
   onSubmitted: () => void;
 }) {
@@ -1806,28 +2135,37 @@ function GenerateClipDialog({
     shot.generation_method === "image-to-video" ? "image-to-video" : "text-to-video";
   const [method, setMethod] = useState(initialMethod);
 
-  // Pick the model best matching the shot's storyboard assigned_tool if possible.
-  const initialModelId = useMemo(() => {
+  // Pick the family best matching the shot's storyboard assigned_tool if possible.
+  const initialFamilyKey = useMemo(() => {
+    if (prefill?.familyKey) {
+      const f = MODEL_FAMILIES.find((x) => x.key === prefill.familyKey);
+      if (f) return f.key;
+    }
     const matchTool = shot.assigned_tool ?? "";
     const m =
-      CLIP_MODELS.find(
+      MODEL_FAMILIES.find(
         (x) => x.method === initialMethod && x.compileTool === matchTool,
-      ) ?? CLIP_MODELS.find((x) => x.method === initialMethod);
-    return m?.id ?? CLIP_MODELS[0].id;
-  }, [shot.assigned_tool, initialMethod]);
+      ) ?? MODEL_FAMILIES.find((x) => x.method === initialMethod);
+    return (m ?? MODEL_FAMILIES[0]).key;
+  }, [shot.assigned_tool, initialMethod, prefill?.familyKey]);
 
-  const [modelId, setModelId] = useState<string>(initialModelId);
-  const availableModels = CLIP_MODELS.filter((m) => m.method === method);
-  const selectedModel: ClipModel =
-    availableModels.find((m) => m.id === modelId) ?? availableModels[0];
+  const [familyKey, setFamilyKey] = useState<string>(initialFamilyKey);
+  const [tier, setTier] = useState<RenderTier>(lockTier ?? "draft");
+
+  const availableFamilies = MODEL_FAMILIES.filter((f) => f.method === method);
+  const selectedFamily: ModelFamily =
+    availableFamilies.find((f) => f.key === familyKey) ?? availableFamilies[0];
+  const selectedVariant: TierVariant =
+    tier === "final" ? selectedFamily.final : selectedFamily.draft;
 
   // Editable compiled prompt fields. We populate on mount + on model change via
   // compile_prompt; user can refine before spending credits.
   const [compiling, setCompiling] = useState(false);
-  const [compiledPrompt, setCompiledPrompt] = useState("");
-  const [negativePrompt, setNegativePrompt] = useState("");
-  const [audioPrompt, setAudioPrompt] = useState("");
+  const [compiledPrompt, setCompiledPrompt] = useState(prefill?.prompt ?? "");
+  const [negativePrompt, setNegativePrompt] = useState(prefill?.negative ?? "");
+  const [audioPrompt, setAudioPrompt] = useState(prefill?.audio ?? "");
   const [seed, setSeed] = useState<string>(() => {
+    if (prefill && prefill.seed != null) return String(prefill.seed);
     const s = shot.seed ?? brandLockedSeed;
     return s != null ? String(s) : "";
   });
@@ -1841,7 +2179,7 @@ function GenerateClipDialog({
 
   // Pull-down or compile from slots for this target model.
   const ensureCompiled = async (forceRecompile = false) => {
-    const tool = selectedModel.compileTool;
+    const tool = selectedFamily.compileTool;
     const isFresh =
       !!shot.compiled_prompt &&
       shot.compiled_for_tool === tool &&
@@ -1850,7 +2188,7 @@ function GenerateClipDialog({
       // Hydrate from the stored compiled output.
       setCompiledPrompt(shot.compiled_prompt ?? "");
       setNegativePrompt(shot.compiled_negative ?? "");
-      setAudioPrompt(selectedModel.supportsAudio ? (shot.compiled_audio ?? "") : "");
+      setAudioPrompt(selectedFamily.supportsAudio ? (shot.compiled_audio ?? "") : "");
       setWarnings([]);
       return;
     }
@@ -1874,7 +2212,7 @@ function GenerateClipDialog({
         : [];
       setCompiledPrompt(cp);
       setNegativePrompt(np);
-      setAudioPrompt(selectedModel.supportsAudio ? apStr : "");
+      setAudioPrompt(selectedFamily.supportsAudio ? apStr : "");
       setWarnings(warns);
       if (!seed && seedFromAi != null) setSeed(String(seedFromAi));
 
@@ -1902,7 +2240,7 @@ function GenerateClipDialog({
   useEffect(() => {
     void ensureCompiled(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modelId]);
+  }, [familyKey]);
 
   const wordCount = compiledPrompt.trim().split(/\s+/).filter(Boolean).length;
   const wordTarget = shot.prompt_word_target ?? 60;
@@ -1949,7 +2287,7 @@ function GenerateClipDialog({
           prompt: compiledPrompt.trim(),
           negative_prompt: negativePrompt.trim() || null,
           audio_prompt:
-            selectedModel.supportsAudio && audioPrompt.trim()
+            selectedFamily.supportsAudio && audioPrompt.trim()
               ? audioPrompt.trim()
               : null,
           seed: seedNum != null ? Math.floor(seedNum) : null,
@@ -1958,8 +2296,10 @@ function GenerateClipDialog({
             method === "image-to-video" ? referenceUrl.trim() : null,
           duration_seconds: duration,
           aspect_ratio: aspect,
-          model_id: selectedModel.id,
-          tool_used: selectedModel.label,
+          model_id: selectedVariant.id,
+          tool_used: `${selectedFamily.label} · ${selectedVariant.label}`,
+          render_tier: tier,
+          cost_estimate: estimateCost(selectedVariant, duration),
           version: existingVersionCount + 1,
         },
         headers: { Authorization: `Bearer ${token}` },
@@ -2011,7 +2351,7 @@ function GenerateClipDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Method + model */}
+        {/* Method */}
         <div className="flex gap-2 flex-wrap">
           {(["text-to-video", "image-to-video"] as const).map((m) => (
             <button
@@ -2019,8 +2359,8 @@ function GenerateClipDialog({
               type="button"
               onClick={() => {
                 setMethod(m);
-                const next = CLIP_MODELS.find((x) => x.method === m);
-                if (next) setModelId(next.id);
+                const next = MODEL_FAMILIES.find((x) => x.method === m);
+                if (next) setFamilyKey(next.key);
               }}
               className={cn(
                 "label-mono px-2 py-1 border rounded-[2px]",
@@ -2036,13 +2376,13 @@ function GenerateClipDialog({
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <p className="label-mono mb-1">Model</p>
-            <Select value={modelId} onValueChange={setModelId}>
+            <p className="label-mono mb-1">Model family</p>
+            <Select value={familyKey} onValueChange={setFamilyKey}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {availableModels.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>
-                    {m.label} · ~${m.cost.toFixed(2)}
+                {availableFamilies.map((f) => (
+                  <SelectItem key={f.key} value={f.key}>
+                    {f.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -2051,9 +2391,46 @@ function GenerateClipDialog({
           <div>
             <p className="label-mono mb-1">Compiled for</p>
             <div className="h-9 px-2 flex items-center border border-border rounded-[3px] bg-background font-mono text-xs">
-              {selectedModel.compileTool}
+              {selectedFamily.compileTool}
             </div>
           </div>
+        </div>
+
+        {/* Tier toggle */}
+        <div className="border border-border rounded-[3px] p-3 bg-background">
+          <p className="label-mono mb-2">Render tier</p>
+          <div className="grid grid-cols-2 gap-2">
+            {(["draft", "final"] as const).map((t) => {
+              const v = t === "draft" ? selectedFamily.draft : selectedFamily.final;
+              const active = tier === t;
+              const disabled = lockTier != null && lockTier !== t;
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => setTier(t)}
+                  className={cn(
+                    "text-left p-2 border rounded-[2px] transition-colors",
+                    active
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border hover:border-foreground/50",
+                    disabled && "opacity-50 cursor-not-allowed",
+                  )}
+                >
+                  <div className="label-mono">
+                    {t === "draft" ? "Draft · cheap iteration" : "Final · flagship render"}
+                  </div>
+                  <div className="font-mono text-[10px] mt-1 opacity-80">
+                    {v.label} · ~${estimateCost(v, duration).toFixed(2)} / {duration}s
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-2 font-mono">
+            model_id: {selectedVariant.id}
+          </p>
         </div>
 
         {/* Anchor image — required & blocking for I2V */}
@@ -2118,7 +2495,7 @@ function GenerateClipDialog({
             />
           </div>
 
-          {selectedModel.supportsAudio && (
+          {selectedFamily.supportsAudio && (
             <div>
               <p className="label-mono mb-1">Audio prompt (Veo)</p>
               <Textarea
@@ -2179,7 +2556,11 @@ function GenerateClipDialog({
         </div>
 
         <div className="border border-border rounded-[2px] bg-background p-3 text-xs text-muted-foreground">
-          About <span className="font-mono text-foreground">~${selectedModel.cost.toFixed(2)}</span> in API credits. You'll be charged by fal.ai when the job runs.
+          About{" "}
+          <span className="font-mono text-foreground">
+            ~${estimateCost(selectedVariant, duration).toFixed(2)}
+          </span>{" "}
+          in API credits ({tier} tier · {selectedVariant.label}). You'll be charged by fal.ai when the job runs.
         </div>
 
         <DialogFooter>
