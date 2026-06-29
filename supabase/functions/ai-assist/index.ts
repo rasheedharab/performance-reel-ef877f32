@@ -351,6 +351,8 @@ Return ONLY this JSON shape (no other text):
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  // (compile_prompt task registered below — placed before serve handler entry)
+
   try {
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!apiKey) {
