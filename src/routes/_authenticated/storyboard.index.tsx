@@ -349,6 +349,120 @@ function StoryboardWorkspace() {
     if (scriptParam) loadShots(scriptParam);
   }, [scriptParam]);
 
+  const compileOne = async (
+    shot: ShotRow,
+    overrideTool?: string,
+  ): Promise<{ ok: boolean; warnings?: string[] }> => {
+    const tool = (overrideTool || shot.assigned_tool || "").trim();
+    if (!tool) {
+      toast.error("Set a target model on this shot first.");
+      return { ok: false };
+    }
+    setCompilingIds((prev) => {
+      const n = new Set(prev);
+      n.add(shot.id);
+      return n;
+    });
+    try {
+      const payload = {
+        assigned_tool: tool,
+        subject: shot.subject,
+        subject_tokens: shot.subject_tokens,
+        action: shot.action,
+        setting: shot.setting,
+        lighting: shot.lighting,
+        lens: shot.lens,
+        style_grade: shot.style_grade,
+        mood: shot.mood,
+        dialogue: shot.dialogue,
+        sfx: shot.sfx,
+        ambient: shot.ambient,
+        negative_prompt: shot.negative_prompt,
+        seed: shot.seed,
+        camera_move: shot.camera_move,
+        motion_intensity: shot.motion_intensity,
+        duration_seconds: shot.duration_seconds,
+        generation_method: shot.generation_method,
+        has_anchor_image: !!shot.reference_image_url,
+        prompt_word_target: shot.prompt_word_target ?? 60,
+      };
+      const { data, error } = await supabase.functions.invoke("ai-assist", {
+        body: { task: "compile_prompt", payload },
+      });
+      if (error) throw new Error(error.message);
+      const result = (data as { result?: Record<string, unknown> } | null)?.result;
+      if (!result || typeof result !== "object") throw new Error("Empty AI response");
+      const compiled_prompt = String(result.compiled_prompt ?? "").trim();
+      const compiled_negative = String(result.negative_prompt ?? "").trim();
+      const audioRaw = result.audio_prompt;
+      const compiled_audio =
+        typeof audioRaw === "string" && audioRaw.trim() ? audioRaw.trim() : null;
+      const warnings = Array.isArray(result.warnings)
+        ? (result.warnings as unknown[]).filter((w) => typeof w === "string").map(String)
+        : [];
+      const { error: dbErr } = await supabase
+        .from("shots")
+        .update({
+          compiled_prompt: compiled_prompt || null,
+          compiled_negative: compiled_negative || null,
+          compiled_audio,
+          compiled_for_tool: tool,
+          compiled_at: new Date().toISOString(),
+          // Persist tool override if the user requested a recompile-for-X
+          ...(overrideTool && overrideTool !== shot.assigned_tool
+            ? { assigned_tool: overrideTool }
+            : {}),
+        })
+        .eq("id", shot.id);
+      if (dbErr) throw new Error(dbErr.message);
+      return { ok: true, warnings };
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Compile failed";
+      toast.error(msg);
+      return { ok: false };
+    } finally {
+      setCompilingIds((prev) => {
+        const n = new Set(prev);
+        n.delete(shot.id);
+        return n;
+      });
+    }
+  };
+
+  const compileShot = async (shot: ShotRow) => {
+    const r = await compileOne(shot);
+    if (r.ok) {
+      await loadShots(shot.script_id);
+      if (r.warnings && r.warnings.length > 0) {
+        toast.warning(`Compiled with ${r.warnings.length} warning(s).`);
+      } else {
+        toast.success("Prompt compiled.");
+      }
+    }
+  };
+
+  const recompileAll = async () => {
+    if (!shots || shots.length === 0) return;
+    const tool = recompileTool.trim();
+    if (!tool) {
+      toast.error("Pick a target model first.");
+      return;
+    }
+    setRecompileAllRunning(true);
+    let okCount = 0;
+    let warnCount = 0;
+    for (const s of shots) {
+      const r = await compileOne(s, tool);
+      if (r.ok) {
+        okCount += 1;
+        warnCount += r.warnings?.length ?? 0;
+      }
+    }
+    setRecompileAllRunning(false);
+    if (selectedScript) await loadShots(selectedScript.id);
+    toast.success(`Recompiled ${okCount}/${shots.length} shots for ${tool}${warnCount ? ` · ${warnCount} warnings` : ""}.`);
+  };
+
   const productAssetPaths = useMemo(() => {
     const a = selectedScript?.angle?.brief?.product_asset_urls as unknown;
     if (!a) return [] as string[];
