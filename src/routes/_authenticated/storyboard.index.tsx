@@ -1519,6 +1519,213 @@ function FormField({
 }
 
 /* ============================================================
+   PROMPT SLOTS
+   ============================================================ */
+
+type SlotValues = {
+  subject: string; subjectTokens: string; action: string; setting: string;
+  lighting: string; lens: string; styleGrade: string; mood: string;
+  dialogue: string; sfx: string; ambient: string; negativePrompt: string;
+  seed: string; promptWordTarget: number;
+};
+
+type SlotSetters = {
+  setSubject: (v: string) => void;
+  setSubjectTokens: (v: string) => void;
+  setAction: (v: string) => void;
+  setSetting: (v: string) => void;
+  setLighting: (v: string) => void;
+  setLens: (v: string) => void;
+  setStyleGrade: (v: string) => void;
+  setMood: (v: string) => void;
+  setDialogue: (v: string) => void;
+  setSfx: (v: string) => void;
+  setAmbient: (v: string) => void;
+  setNegativePrompt: (v: string) => void;
+  setSeed: (v: string) => void;
+  setPromptWordTarget: (v: number) => void;
+};
+
+function SlotField({
+  label,
+  hint,
+  fromBible,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  fromBible?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-1.5">
+        <label className="label-mono">{label}</label>
+        {fromBible && (
+          <span className="inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 border border-border rounded-[2px] text-muted-foreground">
+            <Sparkles className="h-2.5 w-2.5" />
+            from Style Bible
+          </span>
+        )}
+      </div>
+      {children}
+      {hint && <p className="text-[11px] text-muted-foreground mt-1 italic">{hint}</p>}
+    </div>
+  );
+}
+
+function PromptSlotsSection({
+  open,
+  onToggle,
+  prefilled,
+  hasBible,
+  values,
+  setters,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  prefilled: Set<string>;
+  hasBible: boolean;
+  values: SlotValues;
+  setters: SlotSetters;
+}) {
+  return (
+    <div className="border border-border rounded-[3px] bg-background">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between px-4 py-3 border-b border-border"
+      >
+        <span className="flex items-center gap-2">
+          <span className="label-mono">Prompt slots</span>
+          {hasBible && (
+            <span className="inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 border border-border rounded-[2px] text-muted-foreground">
+              <Sparkles className="h-2.5 w-2.5" /> Style Bible linked
+            </span>
+          )}
+        </span>
+        {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+      </button>
+      {open && (
+        <div className="p-4 space-y-5">
+          <p className="text-xs text-muted-foreground italic">
+            Structured slots the compiler will use. One action per shot. Specific focal lengths and motion verbs beat adjectives. Don't stack contradictory style cues — keep it tight.
+          </p>
+
+          <div className="grid grid-cols-2 gap-4">
+            <SlotField label="Subject" hint='Who/what is in frame, e.g. "barista, late 20s, navy apron"'>
+              <Input value={values.subject} onChange={(e) => setters.setSubject(e.target.value)} />
+            </SlotField>
+            <SlotField
+              label="Subject tokens"
+              hint="Locked recurring descriptors reused verbatim across shots."
+              fromBible={prefilled.has("subject_tokens")}
+            >
+              <Input
+                value={values.subjectTokens}
+                onChange={(e) => setters.setSubjectTokens(e.target.value)}
+              />
+            </SlotField>
+          </div>
+
+          <SlotField label="Action" hint='ONE verb-driven motion, e.g. "pours espresso into a glass"'>
+            <Input value={values.action} onChange={(e) => setters.setAction(e.target.value)} />
+          </SlotField>
+
+          <div className="grid grid-cols-2 gap-4">
+            <SlotField label="Setting" hint='Where, e.g. "morning kitchen, marble counter"'>
+              <Input value={values.setting} onChange={(e) => setters.setSetting(e.target.value)} />
+            </SlotField>
+            <SlotField label="Mood" hint='One mood word/phrase, e.g. "intimate, slow morning"'>
+              <Input value={values.mood} onChange={(e) => setters.setMood(e.target.value)} />
+            </SlotField>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <SlotField
+              label="Lighting"
+              hint='Specific direction + temperature, e.g. "soft side-light, 3500K"'
+              fromBible={prefilled.has("lighting")}
+            >
+              <Input value={values.lighting} onChange={(e) => setters.setLighting(e.target.value)} />
+            </SlotField>
+            <SlotField
+              label="Lens"
+              hint='Shot size + focal length, e.g. "medium close-up, 85mm"'
+              fromBible={prefilled.has("lens")}
+            >
+              <Input value={values.lens} onChange={(e) => setters.setLens(e.target.value)} />
+            </SlotField>
+          </div>
+
+          <SlotField
+            label="Style / grade"
+            hint='Film look + color grade, e.g. "filmic 35mm grain, warm teal-orange"'
+            fromBible={prefilled.has("style_grade")}
+          >
+            <Input value={values.styleGrade} onChange={(e) => setters.setStyleGrade(e.target.value)} />
+          </SlotField>
+
+          <div className="border-t border-border pt-4">
+            <p className="label-mono mb-3">Audio</p>
+            <div className="space-y-4">
+              <SlotField label="Dialogue" hint="Spoken line for this shot, if any.">
+                <Input value={values.dialogue} onChange={(e) => setters.setDialogue(e.target.value)} />
+              </SlotField>
+              <div className="grid grid-cols-2 gap-4">
+                <SlotField label="SFX" hint='e.g. "espresso steam hiss, ceramic clink"'>
+                  <Input value={values.sfx} onChange={(e) => setters.setSfx(e.target.value)} />
+                </SlotField>
+                <SlotField label="Ambient" hint='e.g. "quiet café morning, soft rain outside"'>
+                  <Input value={values.ambient} onChange={(e) => setters.setAmbient(e.target.value)} />
+                </SlotField>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-border pt-4">
+            <p className="label-mono mb-3">Negatives & seed</p>
+            <div className="space-y-4">
+              <SlotField
+                label="Negative prompt"
+                hint="Things to suppress — artifacts, contradictions, brand no-gos."
+                fromBible={prefilled.has("negative_prompt")}
+              >
+                <Textarea
+                  rows={2}
+                  value={values.negativePrompt}
+                  onChange={(e) => setters.setNegativePrompt(e.target.value)}
+                />
+              </SlotField>
+              <div className="grid grid-cols-2 gap-4">
+                <SlotField
+                  label="Seed"
+                  hint="Optional fixed seed for consistency across takes."
+                  fromBible={prefilled.has("seed")}
+                >
+                  <Input
+                    type="number"
+                    value={values.seed}
+                    onChange={(e) => setters.setSeed(e.target.value)}
+                  />
+                </SlotField>
+                <SlotField label="Prompt word target" hint="Target length for the compiled prompt.">
+                  <Input
+                    type="number"
+                    value={values.promptWordTarget}
+                    onChange={(e) => setters.setPromptWordTarget(Number(e.target.value) || 60)}
+                  />
+                </SlotField>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
    AI SHOTLIST REVIEW
    ============================================================ */
 
