@@ -579,6 +579,47 @@ function GenerationBoard() {
     await reloadBoard();
   };
 
+  // Persist the prompt of a winning A/B variant into the prompt library so it
+  // can be reused on future shots (tagged with the model it was tuned for).
+  const savePromptToLibrary = async (asset: AssetRow) => {
+    if (!asset.prompt_used || !asset.prompt_used.trim()) {
+      toast.error("This take has no compiled prompt to save.");
+      return;
+    }
+    const { data: userData } = await supabase.auth.getUser();
+    const uid = userData?.user?.id;
+    if (!uid) {
+      toast.error("Not signed in.");
+      return;
+    }
+    const brandId =
+      selected?.angle?.brief?.brand?.id ??
+      selected?.angle?.brief?.brand_id ??
+      null;
+    const title = `${asset.tool_used ?? asset.model_id ?? "Prompt"} · A/B winner${asset.variant_label ? ` · ${asset.variant_label}` : ""}`;
+    const { error } = await supabase.from("prompt_library").insert({
+      user_id: uid,
+      title,
+      category: "generation_prompt",
+      prompt_text: asset.prompt_used,
+      notes: [
+        asset.negative_used ? `Negative: ${asset.negative_used}` : null,
+        asset.seed_used != null ? `Seed: ${asset.seed_used}` : null,
+        asset.variant_label ? `A/B label: ${asset.variant_label}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n") || null,
+      tool: asset.tool_used ?? asset.model_id ?? null,
+      performance_tag: "winner",
+      source_brand_id: brandId,
+    } as never);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Saved prompt to library.");
+  };
+
   // ---- UI ---------------------------------------------------------------
 
   return (
