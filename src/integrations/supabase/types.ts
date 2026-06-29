@@ -69,6 +69,7 @@ export type Database = {
       }
       assets: {
         Row: {
+          ab_group_id: string | null
           audio_used: string | null
           brief_id: string | null
           cost_estimate: number | null
@@ -94,10 +95,12 @@ export type Database = {
           type: Database["public"]["Enums"]["asset_type"]
           updated_at: string
           user_id: string
+          variant_label: string | null
           version: number | null
           voice_id: string | null
         }
         Insert: {
+          ab_group_id?: string | null
           audio_used?: string | null
           brief_id?: string | null
           cost_estimate?: number | null
@@ -123,10 +126,12 @@ export type Database = {
           type: Database["public"]["Enums"]["asset_type"]
           updated_at?: string
           user_id: string
+          variant_label?: string | null
           version?: number | null
           voice_id?: string | null
         }
         Update: {
+          ab_group_id?: string | null
           audio_used?: string | null
           brief_id?: string | null
           cost_estimate?: number | null
@@ -152,6 +157,7 @@ export type Database = {
           type?: Database["public"]["Enums"]["asset_type"]
           updated_at?: string
           user_id?: string
+          variant_label?: string | null
           version?: number | null
           voice_id?: string | null
         }
