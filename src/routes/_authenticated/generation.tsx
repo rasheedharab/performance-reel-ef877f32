@@ -191,7 +191,17 @@ function GenerationBoard() {
 
   const [manualOpen, setManualOpen] = useState<{ shot: ShotRow } | null>(null);
   const [audioOpen, setAudioOpen] = useState<{ type: AssetType } | null>(null);
-  const [generateOpen, setGenerateOpen] = useState<{ shot: ShotRow } | null>(null);
+  const [generateOpen, setGenerateOpen] = useState<{
+    shot: ShotRow;
+    prefill?: {
+      prompt: string;
+      negative: string | null;
+      audio: string | null;
+      seed: number | null;
+      familyKey?: string;
+    } | null;
+    lockTier?: RenderTier;
+  } | null>(null);
   const [voGenOpen, setVoGenOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState<AssetRow | null>(null);
 
@@ -419,6 +429,56 @@ function GenerationBoard() {
     [assets],
   );
 
+  // Split spend by tier (clips only — voiceovers etc. are tier-agnostic).
+  const tierSpend = useMemo(() => {
+    let draft = 0;
+    let final = 0;
+    for (const a of assets ?? []) {
+      if (a.type !== "clip") continue;
+      const c = a.cost_estimate ? Number(a.cost_estimate) : 0;
+      if (a.render_tier === "final") final += c;
+      else draft += c;
+    }
+    return { draft, final };
+  }, [assets]);
+
+  // Shots whose currently-selected take is still a draft → candidates for promotion.
+  const draftSelected = useMemo(() => {
+    const out: { shot: ShotRow; asset: AssetRow }[] = [];
+    for (const sh of shots ?? []) {
+      const list = assetsByShot.get(sh.id) ?? [];
+      const sel = list.find((a) => a.is_selected && a.type === "clip");
+      if (sel && sel.render_tier !== "final") out.push({ shot: sh, asset: sel });
+    }
+    return out;
+  }, [shots, assetsByShot]);
+
+  const finalSelectedCount = useMemo(() => {
+    let n = 0;
+    for (const sh of shots ?? []) {
+      const list = assetsByShot.get(sh.id) ?? [];
+      const sel = list.find((a) => a.is_selected && a.type === "clip");
+      if (sel && sel.render_tier === "final") n += 1;
+    }
+    return n;
+  }, [shots, assetsByShot]);
+
+  // Open the Generate dialog pre-populated to re-run an existing draft asset as final.
+  const renderFinalFromAsset = (shot: ShotRow, asset: AssetRow) => {
+    const family = getFamilyByModelId(asset.model_id);
+    setGenerateOpen({
+      shot,
+      lockTier: "final",
+      prefill: {
+        prompt: asset.prompt_used ?? "",
+        negative: asset.negative_used ?? null,
+        audio: asset.audio_used ?? null,
+        seed: asset.seed_used ?? null,
+        familyKey: family?.key,
+      },
+    });
+  };
+
   const setSelectedTake = async (shotId: string, assetId: string) => {
     if (!assets) return;
     const shotAssets = assetsByShot.get(shotId) ?? [];
@@ -626,6 +686,7 @@ function GenerationBoard() {
                   signedUrls={signedUrls}
                   onAddManual={() => setManualOpen({ shot })}
                   onGenerate={() => setGenerateOpen({ shot })}
+                  onRenderFinal={(a) => renderFinalFromAsset(shot, a)}
                   onSelectTake={(assetId) => setSelectedTake(shot.id, assetId)}
                   onOpenDetail={(a) => setDetailOpen(a)}
                 />
@@ -684,6 +745,8 @@ function GenerationBoard() {
           existingVersionCount={
             (assetsByShot.get(generateOpen.shot.id) ?? []).length
           }
+          prefill={generateOpen.prefill ?? null}
+          lockTier={generateOpen.lockTier}
           onClose={() => setGenerateOpen(null)}
           onSubmitted={async () => {
             setGenerateOpen(null);
