@@ -286,6 +286,7 @@ function StoryboardWorkspace() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<ShotRow | null>(null);
+  const [abShot, setAbShot] = useState<ShotRow | null>(null);
   const [guideOpen, setGuideOpen] = useState(true);
 
   // AI shot-list draft state
