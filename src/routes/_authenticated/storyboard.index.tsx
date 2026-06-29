@@ -1921,6 +1921,86 @@ function FormField({
   );
 }
 
+function CompileResultView({
+  result,
+  target,
+}: {
+  result: {
+    compiled_prompt: string;
+    negative_prompt: string;
+    audio_prompt: string | null;
+    seed: number | null;
+    warnings: string[];
+    for_tool: string;
+  };
+  target: number;
+}) {
+  const wc = result.compiled_prompt.trim().split(/\s+/).filter(Boolean).length;
+  const wcState = wc <= target ? "good" : wc <= 90 ? "warn" : "bad";
+  const wcColor =
+    wcState === "good"
+      ? "text-emerald-700 border-emerald-700/40 bg-emerald-700/10"
+      : wcState === "warn"
+      ? "text-amber-700 border-amber-700/40 bg-amber-700/10"
+      : "text-[var(--color-rec)] border-[var(--color-rec)]/40 bg-[var(--color-rec)]/10";
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 flex-wrap">
+        {result.for_tool && (
+          <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 border border-border rounded-[2px] text-muted-foreground">
+            for {result.for_tool}
+          </span>
+        )}
+        <span className={cn(
+          "font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 border rounded-[2px]",
+          wcColor,
+        )}>
+          {wc}/{target} words
+        </span>
+        {result.seed != null && (
+          <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 border border-border rounded-[2px] text-muted-foreground">
+            seed · {result.seed}
+          </span>
+        )}
+      </div>
+      <div>
+        <p className="label-mono mb-1">Prompt</p>
+        <pre className="font-mono text-xs leading-relaxed whitespace-pre-wrap bg-card border border-border rounded-[2px] p-3">
+          {result.compiled_prompt}
+        </pre>
+      </div>
+      {result.audio_prompt && (
+        <div>
+          <p className="label-mono mb-1">Audio</p>
+          <pre className="font-mono text-xs whitespace-pre-wrap bg-card border border-border rounded-[2px] p-2">
+            {result.audio_prompt}
+          </pre>
+        </div>
+      )}
+      {result.negative_prompt && (
+        <div>
+          <p className="label-mono mb-1">Negative</p>
+          <pre className="font-mono text-xs whitespace-pre-wrap bg-card border border-border rounded-[2px] p-2 text-muted-foreground">
+            {result.negative_prompt}
+          </pre>
+        </div>
+      )}
+      {result.warnings.length > 0 && (
+        <div className="border border-[var(--color-rec)]/40 bg-[var(--color-rec)]/5 rounded-[2px] p-3">
+          <p className="label-mono mb-1 inline-flex items-center gap-1.5 text-[var(--color-rec)]">
+            <AlertTriangle className="h-3 w-3" /> Warnings
+          </p>
+          <ul className="list-disc pl-5 space-y-1">
+            {result.warnings.map((w, i) => (
+              <li key={i} className="text-xs text-[var(--color-rec)]">{w}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ============================================================
    PROMPT SLOTS
    ============================================================ */
