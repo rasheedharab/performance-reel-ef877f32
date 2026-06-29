@@ -130,6 +130,30 @@ type ScriptFull = ScriptLite & {
                 primary_color: string | null;
                 secondary_color: string | null;
                 no_go_list: string | null;
+                style_bibles:
+                  | {
+                      id: string;
+                      film_look: string | null;
+                      color_grade: string | null;
+                      lighting_signature: string | null;
+                      lens_feel: string | null;
+                      motion_feel: string | null;
+                      subject_tokens: string | null;
+                      default_negative: string | null;
+                      locked_seed: number | null;
+                    }
+                  | null
+                  | Array<{
+                      id: string;
+                      film_look: string | null;
+                      color_grade: string | null;
+                      lighting_signature: string | null;
+                      lens_feel: string | null;
+                      motion_feel: string | null;
+                      subject_tokens: string | null;
+                      default_negative: string | null;
+                      locked_seed: number | null;
+                    }>;
               })
             | null;
         })
@@ -152,6 +176,20 @@ type ShotRow = {
   reference_image_url: string | null;
   tool_reason: string | null;
   caption_text: string | null;
+  subject: string | null;
+  subject_tokens: string | null;
+  action: string | null;
+  setting: string | null;
+  lighting: string | null;
+  lens: string | null;
+  style_grade: string | null;
+  mood: string | null;
+  dialogue: string | null;
+  sfx: string | null;
+  ambient: string | null;
+  negative_prompt: string | null;
+  seed: number | null;
+  prompt_word_target: number | null;
 };
 
 type DraftShot = {
