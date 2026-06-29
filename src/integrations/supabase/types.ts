@@ -1005,57 +1005,99 @@ export type Database = {
       }
       shots: {
         Row: {
+          action: string | null
+          ambient: string | null
           assigned_tool: string | null
           audio_note: string | null
           camera_move: string | null
           caption_text: string | null
           created_at: string
+          dialogue: string | null
           duration_seconds: number | null
           generation_method: Database["public"]["Enums"]["shot_generation_method"]
           id: string
+          lens: string | null
+          lighting: string | null
+          mood: string | null
           motion_intensity: string | null
+          negative_prompt: string | null
+          prompt_word_target: number
           reference_image_url: string | null
           reference_notes: string | null
           script_id: string
+          seed: number | null
+          setting: string | null
+          sfx: string | null
           shot_number: number | null
+          style_grade: string | null
+          subject: string | null
+          subject_tokens: string | null
           tool_reason: string | null
           updated_at: string
           user_id: string
           visual_description: string | null
         }
         Insert: {
+          action?: string | null
+          ambient?: string | null
           assigned_tool?: string | null
           audio_note?: string | null
           camera_move?: string | null
           caption_text?: string | null
           created_at?: string
+          dialogue?: string | null
           duration_seconds?: number | null
           generation_method?: Database["public"]["Enums"]["shot_generation_method"]
           id?: string
+          lens?: string | null
+          lighting?: string | null
+          mood?: string | null
           motion_intensity?: string | null
+          negative_prompt?: string | null
+          prompt_word_target?: number
           reference_image_url?: string | null
           reference_notes?: string | null
           script_id: string
+          seed?: number | null
+          setting?: string | null
+          sfx?: string | null
           shot_number?: number | null
+          style_grade?: string | null
+          subject?: string | null
+          subject_tokens?: string | null
           tool_reason?: string | null
           updated_at?: string
           user_id: string
           visual_description?: string | null
         }
         Update: {
+          action?: string | null
+          ambient?: string | null
           assigned_tool?: string | null
           audio_note?: string | null
           camera_move?: string | null
           caption_text?: string | null
           created_at?: string
+          dialogue?: string | null
           duration_seconds?: number | null
           generation_method?: Database["public"]["Enums"]["shot_generation_method"]
           id?: string
+          lens?: string | null
+          lighting?: string | null
+          mood?: string | null
           motion_intensity?: string | null
+          negative_prompt?: string | null
+          prompt_word_target?: number
           reference_image_url?: string | null
           reference_notes?: string | null
           script_id?: string
+          seed?: number | null
+          setting?: string | null
+          sfx?: string | null
           shot_number?: number | null
+          style_grade?: string | null
+          subject?: string | null
+          subject_tokens?: string | null
           tool_reason?: string | null
           updated_at?: string
           user_id?: string
@@ -1067,6 +1109,65 @@ export type Database = {
             columns: ["script_id"]
             isOneToOne: false
             referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      style_bibles: {
+        Row: {
+          brand_id: string
+          color_grade: string | null
+          created_at: string
+          default_negative: string | null
+          film_look: string | null
+          id: string
+          lens_feel: string | null
+          lighting_signature: string | null
+          locked_seed: number | null
+          motion_feel: string | null
+          notes: string | null
+          subject_tokens: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          brand_id: string
+          color_grade?: string | null
+          created_at?: string
+          default_negative?: string | null
+          film_look?: string | null
+          id?: string
+          lens_feel?: string | null
+          lighting_signature?: string | null
+          locked_seed?: number | null
+          motion_feel?: string | null
+          notes?: string | null
+          subject_tokens?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          brand_id?: string
+          color_grade?: string | null
+          created_at?: string
+          default_negative?: string | null
+          film_look?: string | null
+          id?: string
+          lens_feel?: string | null
+          lighting_signature?: string | null
+          locked_seed?: number | null
+          motion_feel?: string | null
+          notes?: string | null
+          subject_tokens?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "style_bibles_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: true
+            referencedRelation: "brands"
             referencedColumns: ["id"]
           },
         ]
