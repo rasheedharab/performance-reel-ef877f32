@@ -330,7 +330,7 @@ function StoryboardWorkspace() {
     const { data } = await supabase
       .from("shots")
       .select(
-        "id, script_id, shot_number, visual_description, camera_move, motion_intensity, duration_seconds, audio_note, assigned_tool, reference_notes, generation_method, reference_image_url, tool_reason, caption_text, subject, subject_tokens, action, setting, lighting, lens, style_grade, mood, dialogue, sfx, ambient, negative_prompt, seed, prompt_word_target",
+        "id, script_id, shot_number, visual_description, camera_move, motion_intensity, duration_seconds, audio_note, assigned_tool, reference_notes, generation_method, reference_image_url, tool_reason, caption_text, subject, subject_tokens, action, setting, lighting, lens, style_grade, mood, dialogue, sfx, ambient, negative_prompt, seed, prompt_word_target, compiled_prompt, compiled_negative, compiled_audio, compiled_for_tool, compiled_at",
       )
       .eq("script_id", scriptId)
       .order("shot_number", { ascending: true })
