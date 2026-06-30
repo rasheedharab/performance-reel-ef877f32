@@ -421,12 +421,12 @@ function ScriptsWorkspace() {
       </div>
 
       {!selectedAngle ? (
-        <div className="border border-dashed border-border rounded-[3px] bg-card/50 p-16 text-center">
-          <p className="label-mono mb-3">No angle selected</p>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Pick an approved angle above to start scripting.
-          </p>
-        </div>
+        <ScriptsOverview
+          rows={overview}
+          brandFilter={overviewBrandFilter}
+          onBrandFilter={setOverviewBrandFilter}
+          onPick={(angleId) => navigate({ search: { angle: angleId } })}
+        />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
           {/* LEFT context */}
