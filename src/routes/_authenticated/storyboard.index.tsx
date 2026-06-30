@@ -212,6 +212,7 @@ type DraftShot = {
   tool_reason: string;
   caption_text: string;
   audio_note: string;
+  needs_generated_anchor: boolean;
 };
 
 const MOTION_OPTIONS = ["Subtle", "Moderate", "Dynamic"] as const;
