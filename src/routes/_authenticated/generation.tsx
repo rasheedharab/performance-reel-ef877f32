@@ -3,6 +3,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
 import {
   Check,
+  ChevronDown,
+  ChevronRight,
   Film,
   Loader2,
   Music,
@@ -1015,6 +1017,139 @@ function GenerationBoard() {
 
 // ============== Shot panel ==============
 
+function ShotDetailsPanel({ shot }: { shot: ShotRow }) {
+  const storyboardFields: Array<[string, unknown]> = [
+    ["Visual description", shot.visual_description],
+    ["Subject", shot.subject],
+    ["Subject tokens", shot.subject_tokens],
+    ["Action", shot.action],
+    ["Setting", shot.setting],
+    ["Lighting", shot.lighting],
+    ["Lens", shot.lens],
+    ["Style / grade", shot.style_grade],
+    ["Mood", shot.mood],
+    ["Camera move", shot.camera_move],
+    ["Motion intensity", shot.motion_intensity],
+    ["Dialogue", shot.dialogue],
+    ["SFX", shot.sfx],
+    ["Ambient", shot.ambient],
+    ["Negative prompt", shot.negative_prompt],
+    ["Seed", shot.seed],
+    ["Duration (s)", shot.duration_seconds],
+    ["Word target", shot.prompt_word_target],
+    ["Generation method", shot.generation_method],
+    ["Assigned tool", shot.assigned_tool],
+  ];
+  const hasCompiled = !!shot.compiled_prompt;
+  return (
+    <div className="mb-4 border border-border bg-background rounded-[3px] p-4 space-y-4">
+      <div>
+        <p className="label-mono text-muted-foreground mb-2">
+          Storyboard fields
+        </p>
+        <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-xs">
+          {storyboardFields.map(([label, val]) => {
+            const display =
+              val === null || val === undefined || val === ""
+                ? null
+                : Array.isArray(val)
+                  ? val.join(", ")
+                  : String(val);
+            return (
+              <div
+                key={label}
+                className="flex flex-col gap-0.5 border-b border-border/50 pb-1"
+              >
+                <dt className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                  {label}
+                </dt>
+                <dd
+                  className={cn(
+                    "leading-snug break-words",
+                    !display && "italic text-muted-foreground",
+                  )}
+                >
+                  {display ?? "—"}
+                </dd>
+              </div>
+            );
+          })}
+        </dl>
+      </div>
+      {shot.reference_image_url && (
+        <div>
+          <p className="label-mono text-muted-foreground mb-2">
+            Reference image (image-to-video anchor)
+          </p>
+          <a
+            href={shot.reference_image_url}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-block border border-border rounded-[2px] overflow-hidden hover:border-foreground"
+          >
+            <img
+              src={shot.reference_image_url}
+              alt="Reference"
+              className="h-24 w-auto object-cover"
+            />
+          </a>
+        </div>
+      )}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <p className="label-mono text-muted-foreground">
+            What will be sent to the model
+          </p>
+          {hasCompiled ? (
+            <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border border-border rounded-[2px] bg-card">
+              compiled for {shot.compiled_for_tool ?? "—"}
+            </span>
+          ) : (
+            <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border border-dashed border-border rounded-[2px] text-muted-foreground">
+              not compiled yet
+            </span>
+          )}
+        </div>
+        {hasCompiled ? (
+          <div className="space-y-3">
+            <PromptBlock label="Prompt" value={shot.compiled_prompt} />
+            <PromptBlock
+              label="Negative prompt"
+              value={shot.compiled_negative}
+            />
+            <PromptBlock label="Audio prompt" value={shot.compiled_audio} />
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground italic">
+            Open the Storyboard for this shot and run "Compile prompt" to
+            preview the exact text that will be sent to the video model.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PromptBlock({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | null | undefined;
+}) {
+  if (!value) return null;
+  return (
+    <div>
+      <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+        {label}
+      </p>
+      <pre className="text-xs font-sans whitespace-pre-wrap leading-snug border border-border bg-card rounded-[2px] p-2">
+        {value}
+      </pre>
+    </div>
+  );
+}
+
 function ShotPanel({
   shot,
   assets,
@@ -1064,6 +1199,8 @@ function ShotPanel({
     }))
     .sort((x, y) => (x.createdAt < y.createdAt ? -1 : 1));
 
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
   return (
     <article className="border border-border bg-card rounded-[3px] p-4">
       <header className="flex items-start gap-4 mb-4">
@@ -1095,6 +1232,18 @@ function ShotPanel({
             <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border border-border rounded-[2px] bg-background">
               target {shot.duration_seconds ?? 0}s
             </span>
+            <button
+              type="button"
+              onClick={() => setDetailsOpen((v) => !v)}
+              className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border border-border rounded-[2px] bg-background hover:bg-foreground hover:text-background inline-flex items-center gap-1"
+            >
+              {detailsOpen ? (
+                <ChevronDown className="h-3 w-3" />
+              ) : (
+                <ChevronRight className="h-3 w-3" />
+              )}
+              {detailsOpen ? "Hide details" : "Show details"}
+            </button>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -1123,6 +1272,8 @@ function ShotPanel({
           </Button>
         </div>
       </header>
+
+      {detailsOpen && <ShotDetailsPanel shot={shot} />}
 
       {assets.length === 0 ? (
         <div className="border border-dashed border-border rounded-[3px] p-6 text-center">
