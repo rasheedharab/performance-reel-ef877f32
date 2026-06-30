@@ -210,6 +210,71 @@ function GenerationBoard() {
   // signed URL cache for storage-path file_urls
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
 
+  // Overview stats: per-script aggregates for the cards grid
+  type OverviewStat = {
+    shotCount: number;
+    assetCount: number;
+    selectedCount: number;
+    queued: number;
+    processing: number;
+    failed: number;
+    finalCount: number;
+    totalCost: number;
+  };
+  const [overviewStats, setOverviewStats] = useState<Record<string, OverviewStat>>({});
+  const [brandFilter, setBrandFilter] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const [{ data: shotRows }, { data: assetRows }] = await Promise.all([
+        supabase.from("shots").select("id, script_id"),
+        supabase
+          .from("assets")
+          .select("shot_id, status, is_selected, cost_estimate, render_tier"),
+      ]);
+      const shotToScript = new Map<string, string>();
+      for (const r of (shotRows ?? []) as Array<{ id: string; script_id: string | null }>) {
+        if (r.script_id) shotToScript.set(r.id, r.script_id);
+      }
+      const stats: Record<string, OverviewStat> = {};
+      const ensure = (k: string) =>
+        (stats[k] = stats[k] ?? {
+          shotCount: 0,
+          assetCount: 0,
+          selectedCount: 0,
+          queued: 0,
+          processing: 0,
+          failed: 0,
+          finalCount: 0,
+          totalCost: 0,
+        });
+      for (const r of (shotRows ?? []) as Array<{ id: string; script_id: string | null }>) {
+        if (!r.script_id) continue;
+        ensure(r.script_id).shotCount += 1;
+      }
+      for (const a of (assetRows ?? []) as Array<{
+        shot_id: string | null;
+        status: AssetStatus | null;
+        is_selected: boolean | null;
+        cost_estimate: number | null;
+        render_tier: "draft" | "final" | null;
+      }>) {
+        if (!a.shot_id) continue;
+        const sid = shotToScript.get(a.shot_id);
+        if (!sid) continue;
+        const s = ensure(sid);
+        s.assetCount += 1;
+        if (a.is_selected) s.selectedCount += 1;
+        if (a.status === "queued") s.queued += 1;
+        if (a.status === "processing") s.processing += 1;
+        if (a.status === "failed") s.failed += 1;
+        if (a.render_tier === "final") s.finalCount += 1;
+        s.totalCost += a.cost_estimate ?? 0;
+      }
+      setOverviewStats(stats);
+    })();
+  }, [assets]); // refresh when current script's assets change
+
   useEffect(() => {
     (async () => {
       const { data } = await supabase
