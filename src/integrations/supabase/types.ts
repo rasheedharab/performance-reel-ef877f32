@@ -766,6 +766,157 @@ export type Database = {
           },
         ]
       }
+      frames: {
+        Row: {
+          actual_cost: number | null
+          aspect_ratio: string | null
+          brand_id: string | null
+          brief_id: string | null
+          cost_estimate: number | null
+          cost_source: string | null
+          created_at: string
+          error_message: string | null
+          file_url: string | null
+          id: string
+          image_prompt: string | null
+          is_selected: boolean
+          job_id: string | null
+          model_id: string | null
+          negative_prompt: string | null
+          purpose: Database["public"]["Enums"]["frame_purpose"]
+          reference_image_urls: Json
+          seed: number | null
+          shot_id: string | null
+          status: Database["public"]["Enums"]["frame_status"]
+          updated_at: string
+          usage_meta: Json | null
+          user_id: string
+          version: number
+        }
+        Insert: {
+          actual_cost?: number | null
+          aspect_ratio?: string | null
+          brand_id?: string | null
+          brief_id?: string | null
+          cost_estimate?: number | null
+          cost_source?: string | null
+          created_at?: string
+          error_message?: string | null
+          file_url?: string | null
+          id?: string
+          image_prompt?: string | null
+          is_selected?: boolean
+          job_id?: string | null
+          model_id?: string | null
+          negative_prompt?: string | null
+          purpose?: Database["public"]["Enums"]["frame_purpose"]
+          reference_image_urls?: Json
+          seed?: number | null
+          shot_id?: string | null
+          status?: Database["public"]["Enums"]["frame_status"]
+          updated_at?: string
+          usage_meta?: Json | null
+          user_id: string
+          version?: number
+        }
+        Update: {
+          actual_cost?: number | null
+          aspect_ratio?: string | null
+          brand_id?: string | null
+          brief_id?: string | null
+          cost_estimate?: number | null
+          cost_source?: string | null
+          created_at?: string
+          error_message?: string | null
+          file_url?: string | null
+          id?: string
+          image_prompt?: string | null
+          is_selected?: boolean
+          job_id?: string | null
+          model_id?: string | null
+          negative_prompt?: string | null
+          purpose?: Database["public"]["Enums"]["frame_purpose"]
+          reference_image_urls?: Json
+          seed?: number | null
+          shot_id?: string | null
+          status?: Database["public"]["Enums"]["frame_status"]
+          updated_at?: string
+          usage_meta?: Json | null
+          user_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "frames_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "frames_brief_id_fkey"
+            columns: ["brief_id"]
+            isOneToOne: false
+            referencedRelation: "briefs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "frames_shot_id_fkey"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "shots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      image_model_tiers: {
+        Row: {
+          created_at: string
+          description: string | null
+          draft_cost: number | null
+          draft_model_id: string | null
+          final_cost: number | null
+          final_model_id: string
+          id: string
+          job_type: string
+          label: string
+          sort_order: number
+          supports_reference: boolean
+          supports_text_in_image: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          draft_cost?: number | null
+          draft_model_id?: string | null
+          final_cost?: number | null
+          final_model_id: string
+          id?: string
+          job_type: string
+          label: string
+          sort_order?: number
+          supports_reference?: boolean
+          supports_text_in_image?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          draft_cost?: number | null
+          draft_model_id?: string | null
+          final_cost?: number | null
+          final_model_id?: string
+          id?: string
+          job_type?: string
+          label?: string
+          sort_order?: number
+          supports_reference?: boolean
+          supports_text_in_image?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       metrics: {
         Row: {
           action_taken: Database["public"]["Enums"]["metric_action"]
@@ -1411,6 +1562,13 @@ export type Database = {
       campaign_type: "advantage_plus" | "manual_abo" | "manual_cbo"
       deliverable_aspect: "9:16" | "4:5" | "1:1"
       deliverable_placement: "reels" | "feed" | "stories"
+      frame_purpose:
+        | "anchor_frame"
+        | "hero_shot"
+        | "establishing"
+        | "character"
+        | "style_ref"
+      frame_status: "queued" | "generating" | "review" | "approved" | "rejected"
       library_category:
         | "generation_prompt"
         | "script_template"
@@ -1571,6 +1729,14 @@ export const Constants = {
       campaign_type: ["advantage_plus", "manual_abo", "manual_cbo"],
       deliverable_aspect: ["9:16", "4:5", "1:1"],
       deliverable_placement: ["reels", "feed", "stories"],
+      frame_purpose: [
+        "anchor_frame",
+        "hero_shot",
+        "establishing",
+        "character",
+        "style_ref",
+      ],
+      frame_status: ["queued", "generating", "review", "approved", "rejected"],
       library_category: [
         "generation_prompt",
         "script_template",
