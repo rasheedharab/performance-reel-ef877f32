@@ -514,6 +514,7 @@ function ScriptsWorkspace() {
                   <Sparkles className="h-4 w-4" />
                   Draft script
                 </Button>
+                <CostHint usd={0.03} />
                 <Button
                   size="sm"
                   onClick={() => {
