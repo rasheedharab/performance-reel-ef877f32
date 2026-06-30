@@ -42,6 +42,41 @@ export function elevenlabsActualCost(chars: number): number {
   return Math.round(chars * ELEVENLABS_USD_PER_CHAR * 10000) / 10000;
 }
 
+// fal.ai image generation: cost per image, keyed by model_id prefix match.
+// Source: fal.ai model pricing pages (2025). Update as pricing changes.
+const FAL_IMAGE_PER_IMAGE: Array<{ match: RegExp; usdPerImage: number; label: string }> = [
+  { match: /flux-2\/pro/i, usdPerImage: 0.05, label: "Flux 2 Pro" },
+  { match: /flux-2\/flash/i, usdPerImage: 0.01, label: "Flux 2 Flash" },
+  { match: /flux-pro\/kontext/i, usdPerImage: 0.04, label: "Flux Kontext (edit)" },
+  { match: /flux-pro/i, usdPerImage: 0.05, label: "Flux Pro" },
+  { match: /flux\/dev/i, usdPerImage: 0.025, label: "Flux Dev" },
+  { match: /flux/i, usdPerImage: 0.03, label: "Flux" },
+  { match: /ideogram\/v3/i, usdPerImage: 0.04, label: "Ideogram V3" },
+  { match: /ideogram/i, usdPerImage: 0.04, label: "Ideogram" },
+  { match: /seedream\/v4\.5-lite|seedream\/v4\.5\/lite|seedream.*lite/i, usdPerImage: 0.01, label: "Seedream 4.5 Lite" },
+  { match: /seedream\/v4\.5\/edit|seedream.*edit/i, usdPerImage: 0.04, label: "Seedream 4.5 Edit" },
+  { match: /seedream\/v4\.5/i, usdPerImage: 0.03, label: "Seedream 4.5" },
+  { match: /seedream/i, usdPerImage: 0.03, label: "Seedream" },
+  { match: /imagen4|imagen-4/i, usdPerImage: 0.04, label: "Imagen 4" },
+  { match: /recraft/i, usdPerImage: 0.04, label: "Recraft" },
+];
+
+export function falImageActualCost(modelId: string, images = 1): {
+  cost: number;
+  rate: number;
+  matched: string;
+} | null {
+  if (!modelId) return null;
+  const n = Math.max(1, images);
+  for (const row of FAL_IMAGE_PER_IMAGE) {
+    if (row.match.test(modelId)) {
+      const cost = Math.round(row.usdPerImage * n * 10000) / 10000;
+      return { cost, rate: row.usdPerImage, matched: row.label };
+    }
+  }
+  return null;
+}
+
 // Anthropic pricing per 1M tokens (USD). Update as Anthropic publishes new prices.
 const ANTHROPIC_PRICING: Record<string, { input: number; output: number }> = {
   // Claude 4 family

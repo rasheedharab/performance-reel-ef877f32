@@ -450,6 +450,84 @@ Return ONLY this JSON shape (no other text):
   return { system, user };
 };
 
+TASKS.compile_image_prompt = (p) => {
+  const s = (k: string) => {
+    const v = p[k];
+    return v == null || v === "" ? "—" : String(v);
+  };
+  const aspect = String(p.aspect_ratio ?? "9:16");
+  const hasRefs =
+    Boolean(p.has_product_reference) ||
+    (Array.isArray(p.reference_image_urls) && (p.reference_image_urls as unknown[]).length > 0);
+  const purpose = String(p.purpose ?? "anchor_frame");
+  const wordTarget = Number(p.prompt_word_target) > 0 ? Number(p.prompt_word_target) : 70;
+
+  const sb = (p.style_bible ?? {}) as Record<string, unknown>;
+  const sbS = (k: string) => {
+    const v = sb[k];
+    return v == null || v === "" ? "—" : String(v);
+  };
+
+  const system =
+    "You are a senior photography director compiling a STILL IMAGE generation prompt for a text-to-image model. " +
+    "This is NOT a video prompt — describe a single frozen frame. No motion verbs, no camera moves, no 'pans', 'tracks', 'orbits'. " +
+    "Lead with the photographic genre (e.g. product photography, editorial portrait, documentary still, food photography, packshot). " +
+    "Specify ONE light source explicitly (e.g. 'single softbox camera-left', 'golden hour rim light from window'). " +
+    "Use cinematographic / photographic language: focal length in mm, aperture, film stock or sensor look, color grade. " +
+    "Reuse subject_tokens VERBATIM for character/product consistency. " +
+    "Carry the brand Style Bible's film_look, color_grade, lighting_signature, and lens_feel. " +
+    "For product/hero shots, lean photographic and accurate — avoid stylized, painterly, or illustrated descriptors. " +
+    "Avoid clichés: 'hyperrealistic', '8K', '4K', 'ultra detailed', 'masterpiece', 'award winning', 'trending on artstation'. " +
+    "Build a clean negative_prompt: dedupe, comma-separated, merge brand default_negative with shot negative_prompt and image-specific anti-patterns " +
+    "(e.g. 'extra fingers, deformed hands, text artifacts, watermark, low-res, jpeg artifacts, plastic skin, oversaturated, distorted product label'). " +
+    "Suggest a model family from this set ONLY: flux_pro, flux_flash, ideogram_v3, seedream_v45, seedream_lite, imagen4, flux_kontext_edit. " +
+    "Pick based on the job: product hero -> flux_pro; lifestyle volume -> seedream_v45; in-image text/packaging -> ideogram_v3; faces -> imagen4; edit ref image -> flux_kontext_edit. " +
+    "Flag warnings for: over-length, motion language detected, multiple subjects competing, product shot with no reference, contradictory lighting cues. " +
+    "Return ONLY valid JSON in the exact shape requested. No preamble, no markdown fences.";
+
+  const user = `Compile a single optimized TEXT-TO-IMAGE prompt for a still frame.
+
+PURPOSE: ${purpose}   (anchor_frame = the first frame of an image-to-video shot; treat as a packshot/still)
+ASPECT RATIO: ${aspect}
+HAS PRODUCT REFERENCE IMAGE: ${hasRefs ? "true" : "false"}
+PROMPT WORD TARGET: ~${wordTarget} (hard cap 100)
+
+SHOT SLOTS (from storyboard)
+- subject: ${s("subject")}
+- subject_tokens (reuse verbatim): ${s("subject_tokens")}
+- setting: ${s("setting")}
+- lighting: ${s("lighting")}
+- lens: ${s("lens")}
+- style_grade: ${s("style_grade")}
+- mood: ${s("mood")}
+- negative_prompt (raw): ${s("negative_prompt")}
+
+BRAND STYLE BIBLE
+- film_look: ${sbS("film_look")}
+- color_grade: ${sbS("color_grade")}
+- lighting_signature: ${sbS("lighting_signature")}
+- lens_feel: ${sbS("lens_feel")}
+- subject_tokens (brand-locked): ${sbS("subject_tokens")}
+- default_negative: ${sbS("default_negative")}
+
+REQUIREMENTS
+- compiled_image_prompt: ONE photographic still-image prompt, within ${wordTarget} words (hard cap 100). No motion language.
+- negative_prompt: clean, deduped, comma-separated. Merge brand default_negative + shot negative_prompt + still-image anti-patterns.
+- suggested_model_family: one of [flux_pro, flux_flash, ideogram_v3, seedream_v45, seedream_lite, imagen4, flux_kontext_edit].
+- word_count: integer word count of compiled_image_prompt.
+- warnings: array of short strings; empty array if none.
+
+Return ONLY this JSON shape (no other text):
+{
+  "compiled_image_prompt": "the final still-image prompt",
+  "negative_prompt": "clean, deduped, comma-separated; empty string if none",
+  "suggested_model_family": "flux_pro",
+  "word_count": 0,
+  "warnings": []
+}`;
+  return { system, user };
+};
+
 TASKS.prompt_variants = (p) => {
   const s = (k: string) => {
     const v = p[k];
