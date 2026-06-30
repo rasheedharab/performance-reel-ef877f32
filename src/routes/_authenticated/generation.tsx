@@ -1726,9 +1726,16 @@ function VersionCard({
               {asset.is_selected ? "Final take" : "Use this take"}
             </span>
           </label>
-          {asset.cost_estimate != null && (
-            <span className="font-mono text-[10px] text-muted-foreground">
-              ${Number(asset.cost_estimate).toFixed(2)}
+          {(asset.actual_cost != null || asset.cost_estimate != null) && (
+            <span
+              className="font-mono text-[10px] text-muted-foreground"
+              title={asset.cost_source ?? (asset.actual_cost != null ? "Actual provider spend" : "Estimated spend")}
+            >
+              {asset.actual_cost != null ? (
+                <>${Number(asset.actual_cost).toFixed(3)}</>
+              ) : (
+                <>~${Number(asset.cost_estimate).toFixed(2)}</>
+              )}
             </span>
           )}
         </div>
