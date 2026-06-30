@@ -1075,6 +1075,191 @@ function StoryboardWorkspace() {
    TIMING STRIP
    ============================================================ */
 
+/* ============================================================
+   STORYBOARDS OVERVIEW (cards + brand filter, no script selected)
+   ============================================================ */
+
+function StoryboardsOverview({
+  scripts,
+  stats,
+  brandFilter,
+  onBrandFilter,
+  onPick,
+}: {
+  scripts: ScriptLite[] | null;
+  stats: Record<string, { shotCount: number; totalDur: number; compiledCount: number }>;
+  brandFilter: string | null;
+  onBrandFilter: (id: string | null) => void;
+  onPick: (id: string) => void;
+}) {
+  const brands = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; count: number }>();
+    for (const s of scripts ?? []) {
+      const b = s.angle?.brief?.brand;
+      if (!b) continue;
+      const cur = map.get(b.id) ?? { id: b.id, name: b.name, count: 0 };
+      cur.count += 1;
+      map.set(b.id, cur);
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [scripts]);
+
+  const visible = useMemo(() => {
+    const list = (scripts ?? []).filter((s) =>
+      brandFilter ? s.angle?.brief?.brand?.id === brandFilter : true,
+    );
+    const rank = (st: string) => (st === "approved" ? 0 : st === "draft" ? 1 : 2);
+    return [...list].sort((a, b) => {
+      const r = rank(a.status) - rank(b.status);
+      if (r !== 0) return r;
+      const ac = stats[a.id]?.shotCount ?? 0;
+      const bc = stats[b.id]?.shotCount ?? 0;
+      return bc - ac;
+    });
+  }, [scripts, brandFilter, stats]);
+
+  if (scripts === null) {
+    return <div className="border border-border rounded-[3px] bg-card animate-pulse h-64" />;
+  }
+
+  if (scripts.length === 0) {
+    return (
+      <div className="border border-dashed border-border rounded-[3px] bg-card/50 p-16 text-center">
+        <p className="label-mono mb-3">No scripts yet</p>
+        <p className="text-sm text-muted-foreground max-w-md mx-auto">
+          Approve a script in the Scripts module to start storyboarding.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* Brand filter chips */}
+      {brands.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="label-mono mr-1">Brand</span>
+          <button
+            onClick={() => onBrandFilter(null)}
+            className={cn(
+              "font-mono text-[10px] uppercase tracking-wider px-2.5 py-1 border rounded-[2px] transition-colors",
+              brandFilter === null
+                ? "bg-foreground text-background border-foreground"
+                : "bg-background text-foreground/70 border-border hover:border-foreground/40",
+            )}
+          >
+            All · {scripts.length}
+          </button>
+          {brands.map((b) => (
+            <button
+              key={b.id}
+              onClick={() => onBrandFilter(b.id)}
+              className={cn(
+                "font-mono text-[10px] uppercase tracking-wider px-2.5 py-1 border rounded-[2px] transition-colors",
+                brandFilter === b.id
+                  ? "bg-foreground text-background border-foreground"
+                  : "bg-background text-foreground/70 border-border hover:border-foreground/40",
+              )}
+            >
+              {b.name} · {b.count}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <p className="label-mono text-muted-foreground">
+        {visible.length} storyboard{visible.length === 1 ? "" : "s"}
+      </p>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {visible.map((s) => {
+          const st = stats[s.id] ?? { shotCount: 0, totalDur: 0, compiledCount: 0 };
+          const brand = s.angle?.brief?.brand?.name ?? "—";
+          const project = s.angle?.brief?.project_name ?? "—";
+          const angle = s.angle?.title ?? "—";
+          const hook = s.hook?.split("\n")[0] || "Untitled script";
+          const empty = st.shotCount === 0;
+          return (
+            <button
+              key={s.id}
+              onClick={() => onPick(s.id)}
+              className="text-left border border-border bg-card rounded-[3px] p-4 hover:border-foreground/40 hover:shadow-sm transition-all flex flex-col gap-3"
+            >
+              {/* Top row: brand + status */}
+              <div className="flex items-center justify-between gap-2">
+                <span className="label-mono truncate">{brand}</span>
+                <span
+                  className={cn(
+                    "font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border rounded-[2px] shrink-0",
+                    s.status === "approved"
+                      ? "bg-foreground text-background border-foreground"
+                      : s.status === "archived"
+                        ? "bg-background text-muted-foreground border-border"
+                        : "bg-background text-foreground/80 border-border",
+                  )}
+                >
+                  {s.status}
+                </span>
+              </div>
+
+              {/* Brief / Angle path */}
+              <p className="text-xs text-muted-foreground truncate">
+                {project} <span className="opacity-50">›</span> {angle}
+              </p>
+
+              {/* Hook */}
+              <p className="font-display text-base font-bold leading-snug line-clamp-2">
+                {hook}
+              </p>
+
+              {/* Chips */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                {s.archetype && (
+                  <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border border-border rounded-[2px]">
+                    {s.archetype}
+                  </span>
+                )}
+                <span
+                  className={cn(
+                    "font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border rounded-[2px]",
+                    empty
+                      ? "bg-background text-muted-foreground border-border"
+                      : "bg-background text-foreground/80 border-border",
+                  )}
+                >
+                  {st.shotCount} shot{st.shotCount === 1 ? "" : "s"}
+                </span>
+                {st.shotCount > 0 && (
+                  <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border border-border rounded-[2px] bg-background text-foreground/80">
+                    {st.totalDur}s
+                  </span>
+                )}
+                {st.shotCount > 0 && (
+                  <span
+                    className={cn(
+                      "font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border rounded-[2px]",
+                      st.compiledCount === st.shotCount
+                        ? "bg-foreground text-background border-foreground"
+                        : "bg-background text-muted-foreground border-border",
+                    )}
+                  >
+                    {st.compiledCount}/{st.shotCount} compiled
+                  </span>
+                )}
+                {empty && (
+                  <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border border-dashed border-border rounded-[2px] text-muted-foreground">
+                    Not started
+                  </span>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function TimingStrip({
   total,
   target,
