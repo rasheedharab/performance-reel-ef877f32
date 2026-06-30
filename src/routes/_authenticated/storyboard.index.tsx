@@ -1419,6 +1419,11 @@ function ShotRowCard({
           </span>
           <GenChip method={shot.generation_method} />
           <ToolChip tool={shot.assigned_tool} />
+          {needsAnchor && (
+            <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border border-[var(--color-rec)] text-[var(--color-rec)] bg-[var(--color-rec)]/10 rounded-[2px]">
+              <Sparkles className="h-3 w-3" /> Generate anchor
+            </span>
+          )}
         </div>
         {shot.caption_text && (
           <p className="label-mono mt-2 text-foreground/70">
