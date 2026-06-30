@@ -689,6 +689,7 @@ function PerformancePage() {
           },
         },
       });
+      if (await handleInsufficientCredits(error, data)) return false;
       if (error) throw new Error(error.message);
       const payload = data as { result?: unknown; error?: string };
       if (payload?.error) {
