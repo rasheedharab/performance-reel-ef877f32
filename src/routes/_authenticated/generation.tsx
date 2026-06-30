@@ -782,12 +782,13 @@ function GenerationBoard() {
       </div>
 
       {!selected ? (
-        <div className="border border-dashed border-border rounded-[3px] bg-card/50 p-16 text-center">
-          <p className="label-mono mb-3">No storyboard selected</p>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Pick a storyboard above to start tracking takes.
-          </p>
-        </div>
+        <GenerationOverview
+          scripts={scripts}
+          stats={overviewStats}
+          brandFilter={brandFilter}
+          onBrandFilter={setBrandFilter}
+          onPick={(id) => navigate({ search: { script: id } })}
+        />
       ) : (
         <>
           {/* Progress strip */}
