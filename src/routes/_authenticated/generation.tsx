@@ -142,6 +142,9 @@ type AssetRow = {
   version: number | null;
   file_url: string | null;
   cost_estimate: number | null;
+  actual_cost: number | null;
+  cost_source: string | null;
+  usage_meta: Record<string, unknown> | null;
   duration_seconds: number | null;
   voice_id: string | null;
   source_text: string | null;
