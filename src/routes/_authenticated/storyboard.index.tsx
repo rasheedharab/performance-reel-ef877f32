@@ -696,6 +696,7 @@ function StoryboardWorkspace() {
       const { data, error } = await supabase.functions.invoke("ai-assist", {
         body: { task: "build_shotlist", payload },
       });
+      if (await handleInsufficientCredits(error, data)) return;
       if (error) throw new Error(error.message);
       const err = (data as { error?: string } | null)?.error;
       if (err) throw new Error(err);
