@@ -270,6 +270,9 @@ function AnglesWorkspace() {
   const [search, setSearch] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
 
+  const [overview, setOverview] = useState<AngleOverviewRow[] | null>(null);
+  const [overviewBrandFilter, setOverviewBrandFilter] = useState<string>("all");
+
   const [selectedBrief, setSelectedBrief] = useState<BriefFull | null>(null);
   const [angles, setAngles] = useState<AngleRow[] | null>(null);
 
@@ -293,6 +296,25 @@ function AnglesWorkspace() {
       setBriefs((data as unknown as BriefLite[]) ?? []);
     })();
   }, []);
+
+  // Load all angles for the overview grid (when no brief is selected)
+  useEffect(() => {
+    if (briefParam) return;
+    let alive = true;
+    (async () => {
+      const { data } = await supabase
+        .from("angles")
+        .select(
+          "id, brief_id, title, entry_point, target_segment, hook_seed, description, status, priority, brief:briefs(id, project_name, status, brand:brands(id, name))",
+        )
+        .order("status", { ascending: true })
+        .order("priority", { ascending: true });
+      if (alive) setOverview((data as unknown as AngleOverviewRow[]) ?? []);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [briefParam]);
 
   // Load full brief when selected
   useEffect(() => {
