@@ -1430,6 +1430,34 @@ function ShotRowCard({
             on-screen · {shot.caption_text}
           </p>
         )}
+
+        {isI2V && (
+          <div className="mt-3 border-t border-border pt-3">
+            {!shot.reference_image_url ? (
+              <div className="border border-dashed border-[var(--color-rec)]/50 bg-[var(--color-rec)]/5 rounded-[2px] p-3">
+                <p className="label-mono text-[var(--color-rec)] mb-1">Anchor frame required</p>
+                <p className="text-xs text-muted-foreground mb-2 leading-snug">
+                  This shot is image-to-video. Upload a frame in Edit, pick one from the brief, or generate one in the Studio.
+                </p>
+                <button
+                  type="button"
+                  onClick={onOpenStudio}
+                  className="label-mono inline-flex items-center gap-1 px-2 py-1 border border-foreground rounded-[2px] hover:bg-foreground hover:text-background"
+                >
+                  <Sparkles className="h-3 w-3" /> Open Image Studio
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={onOpenStudio}
+                className="label-mono inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
+              >
+                <Sparkles className="h-3 w-3" /> Refine anchor in Studio
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col items-end gap-1.5 shrink-0">
