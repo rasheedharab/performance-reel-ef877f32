@@ -1353,6 +1353,7 @@ function ShotRowCard({
   onDuplicate,
   onRemove,
   onAbTest,
+  onOpenStudio,
 }: {
   shot: ShotRow;
   index: number;
