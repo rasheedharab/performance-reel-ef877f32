@@ -395,7 +395,7 @@ function TopUpPanel({ profile, onDone }: { profile: Profile; onDone: () => void 
       const { data, error } = await supabase.rpc("admin_topup_credit", {
         p_user_id: profile.id,
         p_amount: n,
-        p_note: note || null,
+        p_note: note || undefined,
       });
       if (error) throw error;
       return data?.[0];
