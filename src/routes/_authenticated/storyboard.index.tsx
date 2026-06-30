@@ -427,7 +427,7 @@ function StoryboardWorkspace() {
       const { data, error } = await supabase.functions.invoke("ai-assist", {
         body: { task: "compile_prompt", payload },
       });
-      if (await handleInsufficientCredits(error, data)) return;
+      if (await handleInsufficientCredits(error, data)) return { ok: false };
       if (error) throw new Error(error.message);
       const result = (data as { result?: Record<string, unknown> } | null)?.result;
       if (!result || typeof result !== "object") throw new Error("Empty AI response");
