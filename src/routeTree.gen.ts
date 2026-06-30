@@ -11,7 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
-import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedWalletRouteImport } from './routes/_authenticated/wallet'
 import { Route as AuthenticatedQaRouteImport } from './routes/_authenticated/qa'
 import { Route as AuthenticatedPerformanceRouteImport } from './routes/_authenticated/performance'
@@ -20,6 +20,7 @@ import { Route as AuthenticatedLaunchRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedGenerationRouteImport } from './routes/_authenticated/generation'
 import { Route as AuthenticatedEditRoomRouteImport } from './routes/_authenticated/edit-room'
 import { Route as AuthenticatedDeliverablesRouteImport } from './routes/_authenticated/deliverables'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedStoryboardIndexRouteImport } from './routes/_authenticated/storyboard.index'
 import { Route as AuthenticatedScriptsIndexRouteImport } from './routes/_authenticated/scripts.index'
@@ -45,10 +46,10 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
+const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AuthenticatedRouteRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedWalletRoute = AuthenticatedWalletRouteImport.update({
   id: '/wallet',
@@ -92,6 +93,11 @@ const AuthenticatedDeliverablesRoute =
     path: '/deliverables',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -180,9 +186,10 @@ const AuthenticatedAdminUsersUserIdRoute =
   } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof AuthenticatedIndexRoute
+  '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/dashboard': typeof AuthenticatedDashboardRoute
   '/deliverables': typeof AuthenticatedDeliverablesRoute
   '/edit-room': typeof AuthenticatedEditRoomRoute
   '/generation': typeof AuthenticatedGenerationRoute
@@ -207,7 +214,9 @@ export interface FileRoutesByFullPath {
   '/briefs/$briefId/': typeof AuthenticatedBriefsBriefIdIndexRoute
 }
 export interface FileRoutesByTo {
+  '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
   '/deliverables': typeof AuthenticatedDeliverablesRoute
   '/edit-room': typeof AuthenticatedEditRoomRoute
   '/generation': typeof AuthenticatedGenerationRoute
@@ -216,7 +225,6 @@ export interface FileRoutesByTo {
   '/performance': typeof AuthenticatedPerformanceRoute
   '/qa': typeof AuthenticatedQaRoute
   '/wallet': typeof AuthenticatedWalletRoute
-  '/': typeof AuthenticatedIndexRoute
   '/brands/new': typeof AuthenticatedBrandsNewRoute
   '/briefs/new': typeof AuthenticatedBriefsNewRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -234,9 +242,11 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/deliverables': typeof AuthenticatedDeliverablesRoute
   '/_authenticated/edit-room': typeof AuthenticatedEditRoomRoute
   '/_authenticated/generation': typeof AuthenticatedGenerationRoute
@@ -245,7 +255,6 @@ export interface FileRoutesById {
   '/_authenticated/performance': typeof AuthenticatedPerformanceRoute
   '/_authenticated/qa': typeof AuthenticatedQaRoute
   '/_authenticated/wallet': typeof AuthenticatedWalletRoute
-  '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/brands/new': typeof AuthenticatedBrandsNewRoute
   '/_authenticated/briefs/new': typeof AuthenticatedBriefsNewRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -267,6 +276,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/admin'
+    | '/dashboard'
     | '/deliverables'
     | '/edit-room'
     | '/generation'
@@ -291,7 +301,9 @@ export interface FileRouteTypes {
     | '/briefs/$briefId/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/'
     | '/auth'
+    | '/dashboard'
     | '/deliverables'
     | '/edit-room'
     | '/generation'
@@ -300,7 +312,6 @@ export interface FileRouteTypes {
     | '/performance'
     | '/qa'
     | '/wallet'
-    | '/'
     | '/brands/new'
     | '/briefs/new'
     | '/admin'
@@ -317,9 +328,11 @@ export interface FileRouteTypes {
     | '/briefs/$briefId'
   id:
     | '__root__'
+    | '/'
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/admin'
+    | '/_authenticated/dashboard'
     | '/_authenticated/deliverables'
     | '/_authenticated/edit-room'
     | '/_authenticated/generation'
@@ -328,7 +341,6 @@ export interface FileRouteTypes {
     | '/_authenticated/performance'
     | '/_authenticated/qa'
     | '/_authenticated/wallet'
-    | '/_authenticated/'
     | '/_authenticated/brands/new'
     | '/_authenticated/briefs/new'
     | '/_authenticated/admin/'
@@ -346,6 +358,7 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
 }
@@ -366,12 +379,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/': {
-      id: '/_authenticated/'
+    '/': {
+      id: '/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof AuthenticatedIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/wallet': {
       id: '/_authenticated/wallet'
@@ -427,6 +440,13 @@ declare module '@tanstack/react-router' {
       path: '/deliverables'
       fullPath: '/deliverables'
       preLoaderRoute: typeof AuthenticatedDeliverablesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin': {
@@ -554,6 +574,7 @@ const AuthenticatedAdminRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDeliverablesRoute: typeof AuthenticatedDeliverablesRoute
   AuthenticatedEditRoomRoute: typeof AuthenticatedEditRoomRoute
   AuthenticatedGenerationRoute: typeof AuthenticatedGenerationRoute
@@ -562,7 +583,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPerformanceRoute: typeof AuthenticatedPerformanceRoute
   AuthenticatedQaRoute: typeof AuthenticatedQaRoute
   AuthenticatedWalletRoute: typeof AuthenticatedWalletRoute
-  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedBrandsNewRoute: typeof AuthenticatedBrandsNewRoute
   AuthenticatedBriefsNewRoute: typeof AuthenticatedBriefsNewRoute
   AuthenticatedAnglesIndexRoute: typeof AuthenticatedAnglesIndexRoute
@@ -578,6 +598,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDeliverablesRoute: AuthenticatedDeliverablesRoute,
   AuthenticatedEditRoomRoute: AuthenticatedEditRoomRoute,
   AuthenticatedGenerationRoute: AuthenticatedGenerationRoute,
@@ -586,7 +607,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPerformanceRoute: AuthenticatedPerformanceRoute,
   AuthenticatedQaRoute: AuthenticatedQaRoute,
   AuthenticatedWalletRoute: AuthenticatedWalletRoute,
-  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedBrandsNewRoute: AuthenticatedBrandsNewRoute,
   AuthenticatedBriefsNewRoute: AuthenticatedBriefsNewRoute,
   AuthenticatedAnglesIndexRoute: AuthenticatedAnglesIndexRoute,
@@ -604,9 +624,20 @@ const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
