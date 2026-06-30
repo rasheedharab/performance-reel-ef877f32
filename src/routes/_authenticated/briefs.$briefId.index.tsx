@@ -166,7 +166,7 @@ function BriefDetailPage() {
 
   if (!brief) {
     return (
-      <div className="px-8 py-20 flex items-center justify-center text-muted-foreground">
+      <div className="px-4 sm:px-8 py-12 sm:py-20 flex items-center justify-center text-muted-foreground">
         <Loader2 className="h-5 w-5 animate-spin" />
       </div>
     );

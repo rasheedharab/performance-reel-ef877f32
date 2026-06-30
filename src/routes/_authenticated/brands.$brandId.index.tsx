@@ -105,14 +105,14 @@ function BrandDetailPage() {
 
   if (brand === null) {
     return (
-      <div className="px-8 py-20 flex items-center justify-center text-muted-foreground">
+      <div className="px-4 sm:px-8 py-12 sm:py-20 flex items-center justify-center text-muted-foreground">
         <Loader2 className="h-5 w-5 animate-spin" />
       </div>
     );
   }
   if (brand === "missing") {
     return (
-      <div className="px-8 py-20 text-center">
+      <div className="px-4 sm:px-8 py-12 sm:py-20 text-center">
         <p className="label-mono mb-3">Not found</p>
         <p className="text-sm text-muted-foreground mb-6">
           That brand doesn't exist or you don't have access.
@@ -130,7 +130,7 @@ function BrandDetailPage() {
     : [];
 
   return (
-    <div className="max-w-3xl mx-auto px-8 py-10">
+    <div className="max-w-3xl mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
       <Link
         to="/brands"
         className="label-mono inline-flex items-center gap-1.5 mb-6 hover:text-foreground"

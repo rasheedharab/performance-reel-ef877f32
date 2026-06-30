@@ -905,7 +905,7 @@ function CutEditor({ cutId, briefParam }: { cutId: string; briefParam: string | 
 
   if (!cut) {
     return (
-      <div className="px-8 py-20 text-center">
+      <div className="px-4 sm:px-8 py-12 sm:py-20 text-center">
         <Loader2 className="h-5 w-5 animate-spin inline-block text-muted-foreground" />
       </div>
     );
