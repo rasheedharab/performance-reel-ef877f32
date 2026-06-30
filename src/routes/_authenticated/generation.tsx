@@ -3251,6 +3251,18 @@ function GenerateClipDialog({
           generation_method: method,
           reference_image_url:
             method === "image-to-video" ? referenceUrl.trim() : null,
+          frame_id:
+            method === "image-to-video" && referenceUrl.trim()
+              ? await (async () => {
+                  const { data: fr } = await supabase
+                    .from("frames")
+                    .select("id")
+                    .eq("shot_id", shot.id)
+                    .eq("is_selected", true)
+                    .maybeSingle();
+                  return (fr as { id?: string } | null)?.id ?? null;
+                })()
+              : null,
           duration_seconds: duration,
           aspect_ratio: aspect,
           model_id: selectedVariant.id,
