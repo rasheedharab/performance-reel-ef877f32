@@ -1809,6 +1809,203 @@ function ManualAddDialog({
   );
 }
 
+/* ============================================================
+   GENERATION OVERVIEW (cards + brand filter, no script selected)
+   ============================================================ */
+
+type GenOverviewStat = {
+  shotCount: number;
+  assetCount: number;
+  selectedCount: number;
+  queued: number;
+  processing: number;
+  failed: number;
+  finalCount: number;
+  totalCost: number;
+};
+
+function GenerationOverview({
+  scripts,
+  stats,
+  brandFilter,
+  onBrandFilter,
+  onPick,
+}: {
+  scripts: ScriptLite[] | null;
+  stats: Record<string, GenOverviewStat>;
+  brandFilter: string | null;
+  onBrandFilter: (id: string | null) => void;
+  onPick: (id: string) => void;
+}) {
+  const brands = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; count: number }>();
+    for (const s of scripts ?? []) {
+      const b = s.angle?.brief?.brand;
+      if (!b) continue;
+      const cur = map.get(b.id) ?? { id: b.id, name: b.name, count: 0 };
+      cur.count += 1;
+      map.set(b.id, cur);
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [scripts]);
+
+  const visible = useMemo(() => {
+    const list = (scripts ?? []).filter((s) =>
+      brandFilter ? s.angle?.brief?.brand?.id === brandFilter : true,
+    );
+    return [...list].sort((a, b) => {
+      const sa = stats[a.id];
+      const sb = stats[b.id];
+      const aActive = (sa?.queued ?? 0) + (sa?.processing ?? 0);
+      const bActive = (sb?.queued ?? 0) + (sb?.processing ?? 0);
+      if (aActive !== bActive) return bActive - aActive;
+      return (sb?.assetCount ?? 0) - (sa?.assetCount ?? 0);
+    });
+  }, [scripts, brandFilter, stats]);
+
+  if (scripts === null) {
+    return <div className="border border-border rounded-[3px] bg-card animate-pulse h-64" />;
+  }
+
+  if (scripts.length === 0) {
+    return (
+      <div className="border border-dashed border-border rounded-[3px] bg-card/50 p-16 text-center">
+        <p className="label-mono mb-3">No storyboards yet</p>
+        <p className="text-sm text-muted-foreground max-w-md mx-auto">
+          Build a storyboard to start tracking takes here.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      {brands.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="label-mono mr-1">Brand</span>
+          <button
+            onClick={() => onBrandFilter(null)}
+            className={cn(
+              "font-mono text-[10px] uppercase tracking-wider px-2.5 py-1 border rounded-[2px] transition-colors",
+              brandFilter === null
+                ? "bg-foreground text-background border-foreground"
+                : "bg-background text-foreground/70 border-border hover:border-foreground/40",
+            )}
+          >
+            All · {scripts.length}
+          </button>
+          {brands.map((b) => (
+            <button
+              key={b.id}
+              onClick={() => onBrandFilter(b.id)}
+              className={cn(
+                "font-mono text-[10px] uppercase tracking-wider px-2.5 py-1 border rounded-[2px] transition-colors",
+                brandFilter === b.id
+                  ? "bg-foreground text-background border-foreground"
+                  : "bg-background text-foreground/70 border-border hover:border-foreground/40",
+              )}
+            >
+              {b.name} · {b.count}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <p className="label-mono text-muted-foreground">
+        {visible.length} storyboard{visible.length === 1 ? "" : "s"}
+      </p>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {visible.map((s) => {
+          const st = stats[s.id] ?? {
+            shotCount: 0,
+            assetCount: 0,
+            selectedCount: 0,
+            queued: 0,
+            processing: 0,
+            failed: 0,
+            finalCount: 0,
+            totalCost: 0,
+          };
+          const brand = s.angle?.brief?.brand?.name ?? "—";
+          const project = s.angle?.brief?.project_name ?? "—";
+          const angle = s.angle?.title ?? "—";
+          const hook = s.hook?.split("\n")[0] || "Untitled script";
+          const inFlight = st.queued + st.processing;
+          const complete =
+            st.shotCount > 0 && st.selectedCount >= st.shotCount;
+          const noShots = st.shotCount === 0;
+          return (
+            <button
+              key={s.id}
+              onClick={() => onPick(s.id)}
+              className="text-left border border-border bg-card rounded-[3px] p-4 hover:border-foreground/40 hover:shadow-sm transition-all flex flex-col gap-3"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="label-mono truncate">{brand}</span>
+                {inFlight > 0 ? (
+                  <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border border-[var(--color-rec)]/40 bg-[var(--color-rec)]/10 text-[var(--color-rec)] rounded-[2px] shrink-0">
+                    {inFlight} in flight
+                  </span>
+                ) : complete ? (
+                  <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border border-foreground bg-foreground text-background rounded-[2px] shrink-0">
+                    Complete
+                  </span>
+                ) : noShots ? (
+                  <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border border-dashed border-border text-muted-foreground rounded-[2px] shrink-0">
+                    Not started
+                  </span>
+                ) : (
+                  <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border border-border text-foreground/80 rounded-[2px] shrink-0">
+                    In progress
+                  </span>
+                )}
+              </div>
+
+              <p className="text-xs text-muted-foreground truncate">
+                {project} <span className="opacity-50">›</span> {angle}
+              </p>
+
+              <p className="font-display text-base font-bold leading-snug line-clamp-2">
+                {hook}
+              </p>
+
+              <div className="flex flex-wrap items-center gap-1.5">
+                {s.archetype && (
+                  <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border border-border rounded-[2px]">
+                    {s.archetype}
+                  </span>
+                )}
+                <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border border-border rounded-[2px] bg-background text-foreground/80">
+                  {st.selectedCount}/{st.shotCount} picked
+                </span>
+                <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border border-border rounded-[2px] bg-background text-foreground/80">
+                  {st.assetCount} take{st.assetCount === 1 ? "" : "s"}
+                </span>
+                {st.finalCount > 0 && (
+                  <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border border-foreground bg-foreground text-background rounded-[2px]">
+                    {st.finalCount} final
+                  </span>
+                )}
+                {st.failed > 0 && (
+                  <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border border-[var(--color-rec)]/40 bg-[var(--color-rec)]/10 text-[var(--color-rec)] rounded-[2px]">
+                    {st.failed} failed
+                  </span>
+                )}
+                {st.totalCost > 0 && (
+                  <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border border-border rounded-[2px] bg-background text-foreground/80">
+                    ${st.totalCost.toFixed(2)}
+                  </span>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ============== Audio add dialog ==============
 
 function AudioAddDialog({
