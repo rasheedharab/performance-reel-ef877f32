@@ -30,7 +30,6 @@ import {
   Rocket,
   LineChart,
   Film,
-  ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -1163,7 +1162,3 @@ function LandingPage() {
     </div>
   );
 }
-
-// Keep imports referenced (lint hint) — used inside Features icons section.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const _icons = { ShieldCheck };
