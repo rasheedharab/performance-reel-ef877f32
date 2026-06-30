@@ -146,10 +146,21 @@ Deno.serve(async (req) => {
     purpose,
     version,
     cost_estimate,
+    mode,
+    instruction,
   } = body as Record<string, unknown>;
 
-  if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
-    return json({ error: "prompt is required" }, 400);
+  const isEdit = mode === "edit";
+  // In edit mode, `instruction` carries the user's natural-language change
+  // ("place on seamless white", "warm grade") and replaces prompt.
+  const promptText =
+    isEdit && typeof instruction === "string" && instruction.trim()
+      ? instruction.trim()
+      : typeof prompt === "string"
+      ? prompt
+      : "";
+  if (!promptText.trim()) {
+    return json({ error: "prompt or instruction is required" }, 400);
   }
   if (!model_id || typeof model_id !== "string") {
     return json({ error: "model_id is required" }, 400);
@@ -177,7 +188,7 @@ Deno.serve(async (req) => {
       brief_id: typeof brief_id === "string" ? brief_id : null,
       brand_id: typeof brand_id === "string" ? brand_id : null,
       purpose: purposeVal,
-      image_prompt: prompt,
+      image_prompt: promptText,
       negative_prompt: negative,
       model_id,
       aspect_ratio: aspect,
@@ -200,7 +211,7 @@ Deno.serve(async (req) => {
   const frameId = inserted.id as string;
 
   try {
-    const input = buildFalInput(model_id, prompt.trim(), negative, aspect, seedNum, refs);
+    const input = buildFalInput(model_id, promptText.trim(), negative, aspect, seedNum, refs);
 
     // Submit job. fal.ai image endpoints accept either /fal.run (sync) or
     // queue.fal.run (async). We use the queue for consistent behavior with
