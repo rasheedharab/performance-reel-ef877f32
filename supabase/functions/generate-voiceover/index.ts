@@ -5,6 +5,7 @@
 // Secrets: ELEVENLABS_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { elevenlabsActualCost, ELEVENLABS_USD_PER_CHAR } from "../_shared/pricing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -100,7 +101,8 @@ Deno.serve(async (req) => {
       return json({ error: up.error.message }, 500);
     }
 
-    const cost = Math.round(source_text.length * COST_PER_CHAR * 100) / 100;
+    const chars = source_text.length;
+    const cost = elevenlabsActualCost(chars);
 
     const { data: inserted, error: insErr } = await admin
       .from("assets")
@@ -116,6 +118,15 @@ Deno.serve(async (req) => {
         tool_used: finalLabel,
         model_id: finalModel,
         cost_estimate: cost,
+        actual_cost: cost,
+        cost_source: `ElevenLabs · ${chars} chars @ $${ELEVENLABS_USD_PER_CHAR}/char`,
+        usage_meta: {
+          provider: "elevenlabs",
+          model_id: finalModel,
+          voice_id: finalVoice,
+          character_count: chars,
+          rate_per_char: ELEVENLABS_USD_PER_CHAR,
+        },
         is_selected: false,
       })
       .select("id")
