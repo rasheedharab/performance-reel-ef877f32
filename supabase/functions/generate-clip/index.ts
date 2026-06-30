@@ -6,6 +6,12 @@
 // Secrets: FAL_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import {
+  reserveCredit,
+  refundCredit,
+  insufficientCreditsResponse,
+} from "../_shared/billing.ts";
+import { falActualCost } from "../_shared/pricing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -109,6 +115,9 @@ Deno.serve(async (req) => {
       ab_group_id,
       variant_label,
       frame_id,
+      entity_type,
+      entity_id,
+      brand_id,
     } = body as Record<string, unknown>;
 
     if (!shot_id || typeof shot_id !== "string")
@@ -146,6 +155,33 @@ Deno.serve(async (req) => {
         ? cost_estimate
         : defaults.cost;
 
+    // ---- Reserve credits BEFORE calling fal.ai ----
+    const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    // Best estimate of actual USD spend (used for the hold).
+    const priced = falActualCost(finalModelId, finalDuration);
+    const estimatedUsd = priced?.cost ?? finalCost;
+
+    const reservation = await reserveCredit(admin, {
+      user_id: userId,
+      estimated_usd: estimatedUsd,
+      operation: "video_generation",
+      model_id: finalModelId,
+      entity_type:
+        typeof entity_type === "string" ? entity_type : (shot_id ? "shot" : "none"),
+      entity_id:
+        typeof entity_id === "string" && entity_id ? entity_id : (shot_id as string),
+      brand_id: typeof brand_id === "string" ? brand_id : null,
+      brief_id: typeof brief_id === "string" ? brief_id : null,
+    });
+    if (!reservation.ok) {
+      const status = reservation.code === "insufficient_credits" ? 402 : 403;
+      return json(insufficientCreditsResponse(reservation), status);
+    }
+    const reservationId = reservation.ledger_id;
+
     // Submit to fal queue
     const falInput = buildFalInput(
       method,
@@ -173,18 +209,15 @@ Deno.serve(async (req) => {
     if (!falRes.ok) {
       const errText = await falRes.text();
       console.error("fal submit failed", falRes.status, errText);
+      await refundCredit(admin, reservationId);
       return json({ error: `fal.ai submit failed (${falRes.status})`, detail: errText }, 502);
     }
     const falData = await falRes.json();
     const jobId: string | undefined = falData?.request_id;
     if (!jobId) {
+      await refundCredit(admin, reservationId);
       return json({ error: "fal.ai did not return a request_id", detail: falData }, 502);
     }
-
-    // Admin client for the insert
-    const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
 
     const assetVersion =
       typeof version === "number" && version > 0 ? Math.floor(version) : 1;
@@ -221,16 +254,25 @@ Deno.serve(async (req) => {
             ? variant_label.trim()
             : null,
         frame_id: typeof frame_id === "string" && frame_id ? frame_id : null,
+        usage_meta: { reservation_ledger_id: reservationId },
       })
       .select("id")
       .single();
 
     if (insErr) {
       console.error("asset insert failed", insErr);
+      await refundCredit(admin, reservationId);
       return json({ error: insErr.message }, 500);
     }
 
-    return json({ asset_id: inserted.id, job_id: jobId, model_id: finalModelId });
+    return json({
+      asset_id: inserted.id,
+      job_id: jobId,
+      model_id: finalModelId,
+      reservation_ledger_id: reservationId,
+      charged_amount: reservation.charged_amount,
+      currency: reservation.currency,
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("generate-clip error", msg);
