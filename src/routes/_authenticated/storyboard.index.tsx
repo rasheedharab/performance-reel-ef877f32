@@ -714,6 +714,10 @@ function StoryboardWorkspace() {
           tool_reason: String(o.tool_reason ?? ""),
           caption_text: String(o.caption_text ?? ""),
           audio_note: String(o.audio_note ?? ""),
+          needs_generated_anchor:
+            o.needs_generated_anchor === true ||
+            (gm === "image-to-video" && o.needs_generated_anchor !== false &&
+              productAssetPaths.length === 0),
         };
       });
       setAiDrafts(drafts);
@@ -757,6 +761,7 @@ function StoryboardWorkspace() {
       tool_reason: d.tool_reason.trim() || null,
       caption_text: d.caption_text.trim() || null,
       audio_note: d.audio_note.trim() || null,
+      needs_generated_anchor: d.needs_generated_anchor === true,
     }));
     const { error } = await supabase.from("shots").insert(rows);
     if (error) { toast.error(error.message); return; }
