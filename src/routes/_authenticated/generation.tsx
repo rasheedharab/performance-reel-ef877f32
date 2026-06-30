@@ -2931,6 +2931,29 @@ function GenerateClipDialog({
       }
       const errPayload = (data as { error?: string } | null)?.error;
       if (errPayload) throw new Error(errPayload);
+      // Record a revision tied to this generation request.
+      try {
+        const { data: ures } = await supabase.auth.getUser();
+        const uid = ures.user?.id;
+        if (uid) {
+          await supabase.from("shot_prompt_revisions").insert({
+            shot_id: shot.id,
+            user_id: uid,
+            source: "generate",
+            compiled_for_tool: `${selectedFamily.label} · ${selectedVariant.label}`,
+            compiled_prompt: compiledPrompt.trim() || null,
+            compiled_negative: negativePrompt.trim() || null,
+            compiled_audio:
+              selectedFamily.supportsAudio && audioPrompt.trim()
+                ? audioPrompt.trim()
+                : null,
+            seed: seedNum != null ? Math.floor(seedNum) : null,
+            note: `${tier} render · ${duration}s`,
+          });
+        }
+      } catch {
+        // Non-fatal.
+      }
       toast.success("Generation queued");
       onSubmitted();
     } catch (e) {
