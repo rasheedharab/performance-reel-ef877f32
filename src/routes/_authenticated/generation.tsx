@@ -1149,6 +1149,12 @@ function ShotDetailsPanel({ shot }: { shot: ShotRow }) {
           </p>
         )}
       </div>
+      <div>
+        <p className="label-mono text-muted-foreground mb-2">
+          Prompt revision history
+        </p>
+        <PromptHistoryPanel shotId={shot.id} />
+      </div>
     </div>
   );
 }
