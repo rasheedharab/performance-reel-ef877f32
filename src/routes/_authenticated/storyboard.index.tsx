@@ -785,10 +785,10 @@ function StoryboardWorkspace() {
   };
 
   return (
-    <div className="px-8 py-10 max-w-7xl mx-auto">
+    <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10 max-w-7xl mx-auto">
       <div className="mb-8">
         <p className="label-mono mb-2">Phase 03 · Pre-production</p>
-        <h1 className="font-display text-4xl font-bold tracking-tight">Storyboard</h1>
+        <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Storyboard</h1>
         <p className="text-muted-foreground text-sm mt-2 max-w-xl">
           Translate the script into a shot sequence, with each shot routed to the right tool.
         </p>
@@ -1999,7 +1999,7 @@ function ShotFormDialog({
             />
           </FormField>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField label="Camera move">
               <Select value={camera || undefined} onValueChange={setCamera}>
                 <SelectTrigger>
@@ -2066,7 +2066,7 @@ function ShotFormDialog({
                 {productAssets.length > 0 && (
                   <>
                     <p className="text-xs text-muted-foreground mb-2">From the brief:</p>
-                    <div className="grid grid-cols-4 gap-2 mb-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
                       {productAssets.map((path) => {
                         const url = imageUrls[path];
                         const isSelected = referenceImageUrl === path;
@@ -2132,7 +2132,7 @@ function ShotFormDialog({
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4 border-t border-border pt-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-border pt-5">
             <FormField label="Assigned tool">
               <Select value={assignedTool || undefined} onValueChange={setAssignedTool}>
                 <SelectTrigger>
@@ -2163,7 +2163,7 @@ function ShotFormDialog({
             />
           </FormField>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField label="Audio note">
               <Textarea
                 value={audioNote}
@@ -2454,7 +2454,7 @@ function PromptSlotsSection({
             Structured slots the compiler will use. One action per shot. Specific focal lengths and motion verbs beat adjectives. Don't stack contradictory style cues — keep it tight.
           </p>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <SlotField label="Subject" hint='Who/what is in frame, e.g. "barista, late 20s, navy apron"'>
               <Input value={values.subject} onChange={(e) => setters.setSubject(e.target.value)} />
             </SlotField>
@@ -2474,7 +2474,7 @@ function PromptSlotsSection({
             <Input value={values.action} onChange={(e) => setters.setAction(e.target.value)} />
           </SlotField>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <SlotField label="Setting" hint='Where, e.g. "morning kitchen, marble counter"'>
               <Input value={values.setting} onChange={(e) => setters.setSetting(e.target.value)} />
             </SlotField>
@@ -2483,7 +2483,7 @@ function PromptSlotsSection({
             </SlotField>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <SlotField
               label="Lighting"
               hint='Specific direction + temperature, e.g. "soft side-light, 3500K"'
@@ -2514,7 +2514,7 @@ function PromptSlotsSection({
               <SlotField label="Dialogue" hint="Spoken line for this shot, if any.">
                 <Input value={values.dialogue} onChange={(e) => setters.setDialogue(e.target.value)} />
               </SlotField>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <SlotField label="SFX" hint='e.g. "espresso steam hiss, ceramic clink"'>
                   <Input value={values.sfx} onChange={(e) => setters.setSfx(e.target.value)} />
                 </SlotField>
@@ -2539,7 +2539,7 @@ function PromptSlotsSection({
                   onChange={(e) => setters.setNegativePrompt(e.target.value)}
                 />
               </SlotField>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <SlotField
                   label="Seed"
                   hint="Optional fixed seed for consistency across takes."

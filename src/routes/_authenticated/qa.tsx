@@ -300,10 +300,10 @@ function QaPage() {
 
   if (!selectedBrief) {
     return (
-      <div className="container max-w-7xl mx-auto px-6 py-10">
+      <div className="container max-w-7xl mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
         <div className="mb-8">
           <p className="label-mono mb-2">PHASE 7 · GATE</p>
-          <h1 className="font-display text-4xl font-bold tracking-tight">QA &amp; Compliance</h1>
+          <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">QA &amp; Compliance</h1>
           <p className="text-muted-foreground mt-2 max-w-2xl">
             Pre-launch sign-off. Each check pulls the brief's own requirement so you review against the actual rule, not a generic prompt.
           </p>
@@ -450,7 +450,7 @@ function QaReview({ brief, onBack }: { brief: BriefRow; onBack: () => void }) {
 
   if (loading || !qa) {
     return (
-      <div className="container max-w-5xl mx-auto px-6 py-10">
+      <div className="container max-w-5xl mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
         <p className="text-muted-foreground">Loading review…</p>
       </div>
     );
@@ -462,7 +462,7 @@ function QaReview({ brief, onBack }: { brief: BriefRow; onBack: () => void }) {
   const skippedBrand = CHECKS.filter((c) => c.group === "brand_spec" && !c.applicable(brief));
 
   return (
-    <div className="container max-w-5xl mx-auto px-6 py-10">
+    <div className="container max-w-5xl mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
       <button onClick={onBack} className="inline-flex items-center gap-1.5 label-mono text-muted-foreground hover:text-foreground mb-3">
         <ArrowLeft className="h-3 w-3" /> Back to brief select
       </button>
@@ -470,7 +470,7 @@ function QaReview({ brief, onBack }: { brief: BriefRow; onBack: () => void }) {
       <div className="flex items-start gap-4 flex-wrap mb-6">
         <div className="flex-1 min-w-0">
           <p className="label-mono mb-1">{brief.brand?.name ?? "—"} · {brief.project_name ?? "—"}</p>
-          <h1 className="font-display text-3xl font-bold tracking-tight">QA &amp; Compliance</h1>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight">QA &amp; Compliance</h1>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-mono text-[11px] uppercase tracking-wider px-2 py-0.5 border border-muted-foreground text-muted-foreground rounded-[2px]">

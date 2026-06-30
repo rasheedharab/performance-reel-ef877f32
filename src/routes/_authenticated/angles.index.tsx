@@ -533,10 +533,10 @@ function AnglesWorkspace() {
   };
 
   return (
-    <div className="px-8 py-10 max-w-7xl mx-auto">
+    <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10 max-w-7xl mx-auto">
       <div className="mb-8">
         <p className="label-mono mb-2">Phase 01 · Strategy</p>
-        <h1 className="font-display text-4xl font-bold tracking-tight">Angles</h1>
+        <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Angles</h1>
         <p className="text-muted-foreground text-sm mt-2 max-w-xl">
           Translate the brief into distinct entry points worth testing.
         </p>
@@ -1196,7 +1196,7 @@ function AngleFormDialog({
             />
           </Field>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Priority">
               <Input
                 type="number"
@@ -1312,7 +1312,7 @@ function AngleDetailDialog({
                   <p className="text-sm whitespace-pre-wrap">{angle.description}</p>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border">
                 <div>
                   <p className="label-mono mb-1">Priority</p>
                   <p className="font-mono text-sm">{angle.priority}</p>

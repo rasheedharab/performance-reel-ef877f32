@@ -621,7 +621,7 @@ export function ImageStudioDialog({
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <p className="label-mono mb-1.5">Tier</p>
                 <div className="flex gap-1">
@@ -692,7 +692,7 @@ export function ImageStudioDialog({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <p className="label-mono mb-1.5">Seed</p>
                 <Input
@@ -723,7 +723,7 @@ export function ImageStudioDialog({
               {briefProductPaths.length > 0 && (
                 <>
                   <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1.5">From the brief</p>
-                  <div className="grid grid-cols-5 gap-1.5 mb-3">
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 mb-3">
                     {briefProductPaths.map((path) => {
                       const url = imageUrls[path];
                       const sel = selectedRefs.includes(path);
@@ -835,7 +835,7 @@ export function ImageStudioDialog({
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {frames.map((frame) => {
                   const url = frame.file_url ? imageUrls[frame.file_url] : null;
                   const isSelected = frame.is_selected === true;

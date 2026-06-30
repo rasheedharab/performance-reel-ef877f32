@@ -583,7 +583,7 @@ export function BriefForm({
     <div className="px-8 py-10 max-w-3xl mx-auto pb-32">
       <div className="mb-10">
         <p className="label-mono mb-2">Project intake</p>
-        <h1 className="font-display text-4xl font-bold tracking-tight">
+        <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">
           {mode === "create" ? "New brief" : "Edit brief"}
         </h1>
         <p className="text-muted-foreground text-sm mt-2">

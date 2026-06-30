@@ -350,10 +350,10 @@ function ScriptsWorkspace() {
   }, [selectedAngle]);
 
   return (
-    <div className="px-8 py-10 max-w-7xl mx-auto">
+    <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10 max-w-7xl mx-auto">
       <div className="mb-8">
         <p className="label-mono mb-2">Phase 02 · Scripting</p>
-        <h1 className="font-display text-4xl font-bold tracking-tight">Scripts</h1>
+        <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Scripts</h1>
         <p className="text-muted-foreground text-sm mt-2 max-w-xl">
           Hook, problem, solution, proof, CTA — written for sound-off feeds.
         </p>
@@ -1010,7 +1010,7 @@ function ScriptFormDialog({
           </div>
 
           <div className="border-t border-border pt-5 space-y-5">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField label="Target duration (s)">
                 <Input
                   type="number"

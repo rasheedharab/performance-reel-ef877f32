@@ -503,10 +503,10 @@ function PerformancePage() {
   // ----- Brief / no campaign picker -----
   if (!selected) {
     return (
-      <div className="container max-w-7xl mx-auto px-6 py-10">
+      <div className="container max-w-7xl mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
         <div className="mb-8">
           <p className="label-mono mb-2">PHASE 9 · LEARN</p>
-          <h1 className="font-display text-4xl font-bold tracking-tight">
+          <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">
             Performance
           </h1>
           <p className="text-muted-foreground mt-2 max-w-2xl">
@@ -1057,7 +1057,7 @@ function PerformancePage() {
   }
 
   return (
-    <div className="container max-w-7xl mx-auto px-6 py-10">
+    <div className="container max-w-7xl mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
       <div className="mb-6">
         <button
           onClick={() => {
@@ -1073,7 +1073,7 @@ function PerformancePage() {
             <p className="label-mono mb-1">
               {brief?.brand?.name ?? "—"} · {brief?.project_name ?? "—"}
             </p>
-            <h1 className="font-display text-3xl font-bold tracking-tight flex items-center gap-3 flex-wrap">
+            <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-3 flex-wrap">
               {selected.meta_campaign_name ?? "Untitled campaign"}
               <span className="font-mono text-[11px] uppercase tracking-wider px-2 py-0.5 border border-foreground rounded-[2px]">
                 {brief?.objective ?? "—"}
@@ -1541,7 +1541,7 @@ function CellRow({
         {/* Funnel */}
         <div>
           <p className="label-mono mb-3">CREATIVE FUNNEL</p>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <FunnelStage
               label="HOOK"
               sub="3s view rate"

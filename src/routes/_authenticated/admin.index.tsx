@@ -92,10 +92,10 @@ function AdminOverviewPage() {
     (Number(overview?.total_charged_usd_equiv ?? 0)) - Number(overview?.total_consumed_usd ?? 0);
 
   return (
-    <div className="px-8 py-10 max-w-7xl mx-auto">
+    <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10 max-w-7xl mx-auto">
       <div className="mb-10">
         <p className="label-mono mb-2">Super Admin</p>
-        <h1 className="font-display text-4xl font-bold tracking-tight">Platform Overview</h1>
+        <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">Platform Overview</h1>
         <p className="text-muted-foreground text-sm mt-2">
           Real provider cost exposure, margin, and account-wide health.
         </p>

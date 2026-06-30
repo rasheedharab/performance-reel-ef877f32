@@ -230,11 +230,11 @@ function WalletPage() {
     wallet.balance.available < (wallet.profile.low_balance_threshold ?? 0);
 
   return (
-    <div className="max-w-6xl mx-auto px-8 py-10 space-y-6">
-      <header className="flex items-baseline justify-between gap-4">
+    <div className="max-w-6xl mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10 space-y-6">
+      <header className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-3 sm:gap-4">
         <div>
           <p className="label-mono text-[var(--color-rec)] mb-1">WALLET</p>
-          <h1 className="font-display text-3xl font-bold tracking-tight">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight">
             Wallet &amp; Usage
           </h1>
           <p className="text-sm text-muted-foreground mt-1">

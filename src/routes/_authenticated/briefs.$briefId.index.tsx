@@ -166,7 +166,7 @@ function BriefDetailPage() {
 
   if (!brief) {
     return (
-      <div className="px-8 py-20 flex items-center justify-center text-muted-foreground">
+      <div className="px-4 sm:px-8 py-12 sm:py-20 flex items-center justify-center text-muted-foreground">
         <Loader2 className="h-5 w-5 animate-spin" />
       </div>
     );
@@ -180,7 +180,7 @@ function BriefDetailPage() {
   const locked = brief.status === "locked";
 
   return (
-    <div className="px-8 py-10 max-w-4xl mx-auto pb-20">
+    <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10 max-w-4xl mx-auto pb-20">
       <button
         onClick={() => navigate({ to: "/briefs" })}
         className="inline-flex items-center gap-2 label-mono mb-6 hover:text-foreground transition-colors"
@@ -207,7 +207,7 @@ function BriefDetailPage() {
         </div>
         <div className="flex-1 min-w-0">
           <p className="label-mono mb-1">Creative brief</p>
-          <h1 className="font-display text-3xl font-bold tracking-tight leading-tight">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight leading-tight">
             {brief.project_name}
           </h1>
           {brand && (

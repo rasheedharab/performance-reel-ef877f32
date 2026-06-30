@@ -362,10 +362,10 @@ function DeliverablesPage() {
   // ---------- Render ----------
   if (!selectedCut) {
     return (
-      <div className="container max-w-6xl mx-auto px-6 py-10">
+      <div className="container max-w-6xl mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
         <div className="mb-8">
           <p className="label-mono mb-2">EXPORTS · PHASE 6</p>
-          <h1 className="font-display text-4xl font-bold tracking-tight mb-2">
+          <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight mb-2">
             Deliverables
           </h1>
           <p className="text-muted-foreground max-w-2xl">
@@ -409,7 +409,7 @@ function DeliverablesPage() {
   const captionsRequired = brief?.captions_required === true;
 
   return (
-    <div className="container max-w-7xl mx-auto px-6 py-10">
+    <div className="container max-w-7xl mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
       <div className="mb-6">
         <button
           onClick={() => setSelectedId(null)}
@@ -425,7 +425,7 @@ function DeliverablesPage() {
                 <> · {selectedCut.script.archetype}</>
               )}
             </p>
-            <h1 className="font-display text-3xl font-bold tracking-tight flex items-center gap-3 flex-wrap">
+            <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-3 flex-wrap">
               {selectedCut.name}
               <span className="font-mono text-[11px] uppercase tracking-wider px-2 py-0.5 border border-foreground rounded-[2px]">
                 v{selectedCut.version ?? 1}

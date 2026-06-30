@@ -371,10 +371,10 @@ function LaunchPage() {
   // ---------- Brief picker view ----------
   if (!selectedBrief) {
     return (
-      <div className="container max-w-7xl mx-auto px-6 py-10">
+      <div className="container max-w-7xl mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
         <div className="mb-8">
           <p className="label-mono mb-2">PHASE 8 · MEDIA</p>
-          <h1 className="font-display text-4xl font-bold tracking-tight">
+          <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">
             Launch & Tests
           </h1>
           <p className="text-muted-foreground mt-2 max-w-2xl">
@@ -618,7 +618,7 @@ function LaunchPage() {
     : "";
 
   return (
-    <div className="container max-w-7xl mx-auto px-6 py-10">
+    <div className="container max-w-7xl mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
       <div className="mb-6">
         <button
           onClick={() => {
@@ -635,7 +635,7 @@ function LaunchPage() {
               {selectedBrief.brand?.name ?? "—"} ·{" "}
               {selectedBrief.project_name ?? "—"}
             </p>
-            <h1 className="font-display text-3xl font-bold tracking-tight flex items-center gap-3 flex-wrap">
+            <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-3 flex-wrap">
               Launch plan
               {selectedBrief.objective && (
                 <span className="font-mono text-[11px] uppercase tracking-wider px-2 py-0.5 border border-foreground rounded-[2px]">

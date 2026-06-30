@@ -207,7 +207,7 @@ function AdminUserDetailPage() {
   const cur = profile?.display_currency ?? "USD";
 
   return (
-    <div className="px-8 py-10 max-w-7xl mx-auto">
+    <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10 max-w-7xl mx-auto">
       <Link
         to="/admin/users"
         className="inline-flex items-center gap-1 label-mono text-[10px] text-muted-foreground hover:text-foreground mb-4"
@@ -215,10 +215,10 @@ function AdminUserDetailPage() {
         <ArrowLeft className="h-3 w-3" /> Users
       </Link>
 
-      <div className="flex items-start justify-between gap-6 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-6 mb-6">
         <div>
           <p className="label-mono mb-2">User</p>
-          <h1 className="font-display text-3xl font-bold tracking-tight">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight">
             {profile?.full_name || profile?.email || userId.slice(0, 8)}
           </h1>
           <p className="text-muted-foreground text-sm mt-1">{profile?.email}</p>

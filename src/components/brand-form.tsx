@@ -330,7 +330,7 @@ export function BrandForm({
         <p className="label-mono mb-2">
           {mode === "create" ? "New brand" : "Editing"}
         </p>
-        <h1 className="font-display text-4xl font-bold tracking-tight">
+        <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">
           {mode === "create" ? "Set up a brand" : values.name || "Edit brand"}
         </h1>
       </div>
@@ -439,7 +439,7 @@ export function BrandForm({
       </Section>
 
       <Section label="Visual identity">
-        <div className="grid grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
           <ColorField
             label="Primary color"
             value={values.primary_color}
