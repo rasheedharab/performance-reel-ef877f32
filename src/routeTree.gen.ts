@@ -33,6 +33,7 @@ import { Route as AuthenticatedBrandsBrandIdIndexRouteImport } from './routes/_a
 import { Route as AuthenticatedAdminUsersIndexRouteImport } from './routes/_authenticated/admin.users.index'
 import { Route as AuthenticatedBriefsBriefIdEditRouteImport } from './routes/_authenticated/briefs.$briefId.edit'
 import { Route as AuthenticatedBrandsBrandIdEditRouteImport } from './routes/_authenticated/brands.$brandId.edit'
+import { Route as AuthenticatedAdminUsersUserIdRouteImport } from './routes/_authenticated/admin.users.$userId'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -165,6 +166,12 @@ const AuthenticatedBrandsBrandIdEditRoute =
     path: '/brands/$brandId/edit',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminUsersUserIdRoute =
+  AuthenticatedAdminUsersUserIdRouteImport.update({
+    id: '/users/$userId',
+    path: '/users/$userId',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -185,6 +192,7 @@ export interface FileRoutesByFullPath {
   '/briefs/': typeof AuthenticatedBriefsIndexRoute
   '/scripts/': typeof AuthenticatedScriptsIndexRoute
   '/storyboard/': typeof AuthenticatedStoryboardIndexRoute
+  '/admin/users/$userId': typeof AuthenticatedAdminUsersUserIdRoute
   '/brands/$brandId/edit': typeof AuthenticatedBrandsBrandIdEditRoute
   '/briefs/$briefId/edit': typeof AuthenticatedBriefsBriefIdEditRoute
   '/admin/users/': typeof AuthenticatedAdminUsersIndexRoute
@@ -209,6 +217,7 @@ export interface FileRoutesByTo {
   '/briefs': typeof AuthenticatedBriefsIndexRoute
   '/scripts': typeof AuthenticatedScriptsIndexRoute
   '/storyboard': typeof AuthenticatedStoryboardIndexRoute
+  '/admin/users/$userId': typeof AuthenticatedAdminUsersUserIdRoute
   '/brands/$brandId/edit': typeof AuthenticatedBrandsBrandIdEditRoute
   '/briefs/$briefId/edit': typeof AuthenticatedBriefsBriefIdEditRoute
   '/admin/users': typeof AuthenticatedAdminUsersIndexRoute
@@ -236,6 +245,7 @@ export interface FileRoutesById {
   '/_authenticated/briefs/': typeof AuthenticatedBriefsIndexRoute
   '/_authenticated/scripts/': typeof AuthenticatedScriptsIndexRoute
   '/_authenticated/storyboard/': typeof AuthenticatedStoryboardIndexRoute
+  '/_authenticated/admin/users/$userId': typeof AuthenticatedAdminUsersUserIdRoute
   '/_authenticated/brands/$brandId/edit': typeof AuthenticatedBrandsBrandIdEditRoute
   '/_authenticated/briefs/$briefId/edit': typeof AuthenticatedBriefsBriefIdEditRoute
   '/_authenticated/admin/users/': typeof AuthenticatedAdminUsersIndexRoute
@@ -263,6 +273,7 @@ export interface FileRouteTypes {
     | '/briefs/'
     | '/scripts/'
     | '/storyboard/'
+    | '/admin/users/$userId'
     | '/brands/$brandId/edit'
     | '/briefs/$briefId/edit'
     | '/admin/users/'
@@ -287,6 +298,7 @@ export interface FileRouteTypes {
     | '/briefs'
     | '/scripts'
     | '/storyboard'
+    | '/admin/users/$userId'
     | '/brands/$brandId/edit'
     | '/briefs/$briefId/edit'
     | '/admin/users'
@@ -313,6 +325,7 @@ export interface FileRouteTypes {
     | '/_authenticated/briefs/'
     | '/_authenticated/scripts/'
     | '/_authenticated/storyboard/'
+    | '/_authenticated/admin/users/$userId'
     | '/_authenticated/brands/$brandId/edit'
     | '/_authenticated/briefs/$briefId/edit'
     | '/_authenticated/admin/users/'
@@ -495,16 +508,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBrandsBrandIdEditRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/users/$userId': {
+      id: '/_authenticated/admin/users/$userId'
+      path: '/users/$userId'
+      fullPath: '/admin/users/$userId'
+      preLoaderRoute: typeof AuthenticatedAdminUsersUserIdRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
   }
 }
 
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+  AuthenticatedAdminUsersUserIdRoute: typeof AuthenticatedAdminUsersUserIdRoute
   AuthenticatedAdminUsersIndexRoute: typeof AuthenticatedAdminUsersIndexRoute
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+  AuthenticatedAdminUsersUserIdRoute: AuthenticatedAdminUsersUserIdRoute,
   AuthenticatedAdminUsersIndexRoute: AuthenticatedAdminUsersIndexRoute,
 }
 

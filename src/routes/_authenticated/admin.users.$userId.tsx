@@ -485,7 +485,7 @@ function SettingsPanel({ profile, onDone }: { profile: Profile; onDone: () => vo
       toast.success("Settings updated");
       onDone();
     },
-    onError: (e: Error) => toast.error(e.message),
+      onError: (e: Error) => toast.error(e.message),
   });
 
   return (
