@@ -603,12 +603,12 @@ function AnglesWorkspace() {
       </div>
 
       {!selectedBrief ? (
-        <div className="border border-dashed border-border rounded-[3px] bg-card/50 p-16 text-center">
-          <p className="label-mono mb-3">No brief selected</p>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Pick a locked brief above to start sketching angles.
-          </p>
-        </div>
+        <AnglesOverview
+          rows={overview}
+          brandFilter={overviewBrandFilter}
+          onBrandFilter={setOverviewBrandFilter}
+          onPick={(briefId) => navigate({ search: { brief: briefId } })}
+        />
       ) : (
         <>
           {selectedBrief.status === "draft" && (
