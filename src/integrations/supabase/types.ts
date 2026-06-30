@@ -1711,6 +1711,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      capture_credit: {
+        Args: { p_actual_usd: number; p_ledger_id: string }
+        Returns: undefined
+      }
       get_balance: {
         Args: { p_user_id: string }
         Returns: {
@@ -1726,6 +1730,25 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      refund_credit: { Args: { p_ledger_id: string }; Returns: undefined }
+      reserve_credit: {
+        Args: {
+          p_brand_id: string
+          p_brief_id: string
+          p_entity_id: string
+          p_entity_type: Database["public"]["Enums"]["ledger_entity_type"]
+          p_estimated_usd: number
+          p_model_id: string
+          p_operation: string
+          p_user_id: string
+        }
+        Returns: {
+          available_after: number
+          charged_amount: number
+          currency: Database["public"]["Enums"]["display_currency"]
+          ledger_id: string
+        }[]
       }
     }
     Enums: {
