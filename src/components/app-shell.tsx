@@ -15,7 +15,10 @@ import {
   LineChart,
   Library,
   LogOut,
+  Shield,
+  Users,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -42,10 +45,33 @@ const nav: NavItem[] = [
   { to: "/library", label: "Library", icon: Library },
 ];
 
+const adminNav: NavItem[] = [
+  { to: "/admin", label: "Overview", icon: Shield, exact: true },
+  { to: "/admin/users", label: "Users", icon: Users },
+];
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
-  const current = nav.find((n) => (n.exact ? pathname === n.to : pathname.startsWith(n.to))) ?? nav[0];
+
+  const { data: isSuperAdmin = false } = useQuery({
+    queryKey: ["me", "is_super_admin"],
+    queryFn: async () => {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) return false;
+      const { data } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", u.user.id)
+        .maybeSingle();
+      return data?.role === "super_admin";
+    },
+    staleTime: 60_000,
+  });
+
+  const allNav = [...nav, ...(isSuperAdmin ? adminNav : [])];
+  const current =
+    allNav.find((n) => (n.exact ? pathname === n.to : pathname.startsWith(n.to))) ?? nav[0];
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -82,6 +108,34 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Link>
             );
           })}
+          {isSuperAdmin && (
+            <>
+              <div className="px-3 pt-5 pb-2 label-mono text-[oklch(0.55_0.005_85)] text-[10px]">
+                Super Admin
+              </div>
+              {adminNav.map((item) => {
+                const active = item.exact
+                  ? pathname === item.to
+                  : pathname.startsWith(item.to);
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to as string}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-[3px] text-sm transition-colors",
+                      active
+                        ? "bg-[oklch(0.24_0.005_280)] text-white border-l-2 border-[var(--color-rec)] pl-[10px]"
+                        : "text-[oklch(0.75_0.005_85)] hover:bg-[oklch(0.22_0.005_280)] hover:text-white",
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </>
+          )}
         </nav>
         <button
           onClick={signOut}
