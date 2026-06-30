@@ -1066,6 +1066,8 @@ function ShotPanel({
     }))
     .sort((x, y) => (x.createdAt < y.createdAt ? -1 : 1));
 
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
   return (
     <article className="border border-border bg-card rounded-[3px] p-4">
       <header className="flex items-start gap-4 mb-4">
@@ -1097,6 +1099,18 @@ function ShotPanel({
             <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border border-border rounded-[2px] bg-background">
               target {shot.duration_seconds ?? 0}s
             </span>
+            <button
+              type="button"
+              onClick={() => setDetailsOpen((v) => !v)}
+              className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border border-border rounded-[2px] bg-background hover:bg-foreground hover:text-background inline-flex items-center gap-1"
+            >
+              {detailsOpen ? (
+                <ChevronDown className="h-3 w-3" />
+              ) : (
+                <ChevronRight className="h-3 w-3" />
+              )}
+              {detailsOpen ? "Hide details" : "Show details"}
+            </button>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -1125,6 +1139,8 @@ function ShotPanel({
           </Button>
         </div>
       </header>
+
+      {detailsOpen && <ShotDetailsPanel shot={shot} />}
 
       {assets.length === 0 ? (
         <div className="border border-dashed border-border rounded-[3px] p-6 text-center">
