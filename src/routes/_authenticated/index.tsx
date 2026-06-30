@@ -117,7 +117,7 @@ function BriefColumn({
 }) {
   return (
     <section>
-      <div className="flex items-baseline justify-between mb-4 pb-3 border-b border-border">
+      <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-2 mb-4 pb-3 border-b border-border">
         <h2 className="font-display text-lg font-bold tracking-tight">{title}</h2>
         <span className="label-mono">{briefs.length} item{briefs.length === 1 ? "" : "s"}</span>
       </div>
