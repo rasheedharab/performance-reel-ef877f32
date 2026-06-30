@@ -26,6 +26,8 @@ import {
 } from "@/lib/campaign-assets";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { CostMeter, useCannotAfford } from "@/components/cost-meter";
+import { parseEdgeError } from "@/lib/wallet";
 import {
   Loader2,
   Sparkles,
@@ -397,10 +399,28 @@ export function ImageStudioDialog({
         },
       );
       if (error) {
+        const parsed = await parseEdgeError(error, data);
+        if (parsed?.isInsufficient) {
+          toast.error(
+            parsed.shortfall != null
+              ? `Insufficient credits — need ~${parsed.shortfall.toFixed(2)} more. Open Wallet.`
+              : "Insufficient credits. Open Wallet.",
+          );
+          break;
+        }
         toast.error(error.message);
         continue;
       }
       if ((data as { error?: string } | null)?.error) {
+        const parsed = await parseEdgeError(null, data);
+        if (parsed?.isInsufficient) {
+          toast.error(
+            parsed.shortfall != null
+              ? `Insufficient credits — need ~${parsed.shortfall.toFixed(2)} more. Open Wallet.`
+              : "Insufficient credits. Open Wallet.",
+          );
+          break;
+        }
         toast.error((data as { error: string }).error);
         continue;
       }
@@ -687,12 +707,15 @@ export function ImageStudioDialog({
                 />
               </div>
               <div>
-                <p className="label-mono mb-1.5">Estimated spend</p>
+                <p className="label-mono mb-1.5">Provider unit</p>
                 <div className="h-10 border border-border rounded-[3px] flex items-center px-3 font-mono text-sm bg-background">
-                  {formatCost(unitCost)} <span className="text-muted-foreground ml-1">/ frame</span>
+                  {formatCost(unitCost)}{" "}
+                  <span className="text-muted-foreground ml-1">/ frame</span>
                 </div>
               </div>
             </div>
+
+            <CostMeter estimatedUsd={unitCost} label="Per frame" />
 
             {/* Reference picker */}
             <div className="border-t border-border pt-4">
@@ -766,28 +789,27 @@ export function ImageStudioDialog({
             </div>
 
             <div className="border-t border-border pt-4 flex flex-col gap-2">
-              <Button
+              <ImageGenerateButton
+                estimatedUsd={unitCost}
+                disabled={generating || compileLoading}
+                busy={generating}
+                label={`Generate · ${formatCost(unitCost)}`}
                 onClick={async () => {
                   setGenerating(true);
                   try { await fireGenerate(1); } finally { setGenerating(false); }
                 }}
-                disabled={generating || compileLoading}
-                className="w-full"
-              >
-                {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                Generate · {formatCost(unitCost)}
-              </Button>
-              <Button
+              />
+              <ImageGenerateButton
                 variant="outline"
+                estimatedUsd={unitCost * 3}
+                disabled={generating || compileLoading}
+                busy={false}
+                label={`Generate 3 variations · ${formatCost(unitCost * 3)}`}
                 onClick={async () => {
                   setGenerating(true);
                   try { await fireGenerate(3); } finally { setGenerating(false); }
                 }}
-                disabled={generating || compileLoading}
-                className="w-full"
-              >
-                Generate 3 variations · {formatCost(unitCost * 3)}
-              </Button>
+              />
             </div>
           </div>
 
@@ -946,5 +968,35 @@ export function ImageStudioDialog({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ImageGenerateButton({
+  estimatedUsd,
+  disabled,
+  busy,
+  label,
+  onClick,
+  variant,
+}: {
+  estimatedUsd: number;
+  disabled: boolean;
+  busy: boolean;
+  label: string;
+  onClick: () => void;
+  variant?: "outline";
+}) {
+  const cannot = useCannotAfford(estimatedUsd);
+  return (
+    <Button
+      type="button"
+      variant={variant}
+      onClick={onClick}
+      disabled={disabled || cannot}
+      className="w-full"
+    >
+      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+      {cannot ? "Insufficient credits" : label}
+    </Button>
   );
 }

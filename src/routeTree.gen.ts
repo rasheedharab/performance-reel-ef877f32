@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedWalletRouteImport } from './routes/_authenticated/wallet'
 import { Route as AuthenticatedQaRouteImport } from './routes/_authenticated/qa'
 import { Route as AuthenticatedPerformanceRouteImport } from './routes/_authenticated/performance'
 import { Route as AuthenticatedLibraryRouteImport } from './routes/_authenticated/library'
@@ -47,6 +48,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedWalletRoute = AuthenticatedWalletRouteImport.update({
+  id: '/wallet',
+  path: '/wallet',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedQaRoute = AuthenticatedQaRouteImport.update({
@@ -184,6 +190,7 @@ export interface FileRoutesByFullPath {
   '/library': typeof AuthenticatedLibraryRoute
   '/performance': typeof AuthenticatedPerformanceRoute
   '/qa': typeof AuthenticatedQaRoute
+  '/wallet': typeof AuthenticatedWalletRoute
   '/brands/new': typeof AuthenticatedBrandsNewRoute
   '/briefs/new': typeof AuthenticatedBriefsNewRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -208,6 +215,7 @@ export interface FileRoutesByTo {
   '/library': typeof AuthenticatedLibraryRoute
   '/performance': typeof AuthenticatedPerformanceRoute
   '/qa': typeof AuthenticatedQaRoute
+  '/wallet': typeof AuthenticatedWalletRoute
   '/': typeof AuthenticatedIndexRoute
   '/brands/new': typeof AuthenticatedBrandsNewRoute
   '/briefs/new': typeof AuthenticatedBriefsNewRoute
@@ -236,6 +244,7 @@ export interface FileRoutesById {
   '/_authenticated/library': typeof AuthenticatedLibraryRoute
   '/_authenticated/performance': typeof AuthenticatedPerformanceRoute
   '/_authenticated/qa': typeof AuthenticatedQaRoute
+  '/_authenticated/wallet': typeof AuthenticatedWalletRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/brands/new': typeof AuthenticatedBrandsNewRoute
   '/_authenticated/briefs/new': typeof AuthenticatedBriefsNewRoute
@@ -265,6 +274,7 @@ export interface FileRouteTypes {
     | '/library'
     | '/performance'
     | '/qa'
+    | '/wallet'
     | '/brands/new'
     | '/briefs/new'
     | '/admin/'
@@ -289,6 +299,7 @@ export interface FileRouteTypes {
     | '/library'
     | '/performance'
     | '/qa'
+    | '/wallet'
     | '/'
     | '/brands/new'
     | '/briefs/new'
@@ -316,6 +327,7 @@ export interface FileRouteTypes {
     | '/_authenticated/library'
     | '/_authenticated/performance'
     | '/_authenticated/qa'
+    | '/_authenticated/wallet'
     | '/_authenticated/'
     | '/_authenticated/brands/new'
     | '/_authenticated/briefs/new'
@@ -359,6 +371,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/wallet': {
+      id: '/_authenticated/wallet'
+      path: '/wallet'
+      fullPath: '/wallet'
+      preLoaderRoute: typeof AuthenticatedWalletRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/qa': {
@@ -542,6 +561,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLibraryRoute: typeof AuthenticatedLibraryRoute
   AuthenticatedPerformanceRoute: typeof AuthenticatedPerformanceRoute
   AuthenticatedQaRoute: typeof AuthenticatedQaRoute
+  AuthenticatedWalletRoute: typeof AuthenticatedWalletRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedBrandsNewRoute: typeof AuthenticatedBrandsNewRoute
   AuthenticatedBriefsNewRoute: typeof AuthenticatedBriefsNewRoute
@@ -565,6 +585,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLibraryRoute: AuthenticatedLibraryRoute,
   AuthenticatedPerformanceRoute: AuthenticatedPerformanceRoute,
   AuthenticatedQaRoute: AuthenticatedQaRoute,
+  AuthenticatedWalletRoute: AuthenticatedWalletRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedBrandsNewRoute: AuthenticatedBrandsNewRoute,
   AuthenticatedBriefsNewRoute: AuthenticatedBriefsNewRoute,
