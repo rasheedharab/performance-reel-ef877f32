@@ -2705,6 +2705,7 @@ function AbPromptDialog({
           payload: { ...buildShotSlotsPayload(shot), count: n },
         },
       });
+      if (await handleInsufficientCredits(error, data)) return;
       if (error) throw new Error(error.message);
       const result = (data as { result?: { variants?: unknown[] } } | null)?.result;
       const list = Array.isArray(result?.variants) ? result.variants : [];
