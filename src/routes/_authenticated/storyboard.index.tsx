@@ -1014,6 +1014,7 @@ function StoryboardWorkspace() {
                     onDuplicate={() => duplicate(shot)}
                     onRemove={() => removeShot(shot)}
                     onAbTest={() => setAbShot(shot)}
+                    onOpenStudio={() => setStudioShot(shot)}
                   />
                 ))}
               </div>
