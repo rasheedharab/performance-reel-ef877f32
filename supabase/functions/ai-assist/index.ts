@@ -451,12 +451,6 @@ Return ONLY this JSON shape (no other text):
 };
 
 TASKS.prompt_variants = (p) => {
-// (compile_image_prompt registered below)
-
-_REGISTER_IMAGE_PROMPT_();
-
-function _REGISTER_IMAGE_PROMPT_() {}
-
 TASKS.compile_image_prompt = (p) => {
   const s = (k: string) => {
     const v = p[k];
@@ -535,11 +529,6 @@ Return ONLY this JSON shape (no other text):
   return { system, user };
 };
 
-TASKS._prompt_variants_marker = (p) => {
-  return { system: "", user: "" };
-};
-
-// Restore original prompt_variants definition below.
 TASKS.prompt_variants = (p) => {
   const s = (k: string) => {
     const v = p[k];
