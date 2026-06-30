@@ -3437,6 +3437,24 @@ function GenerateClipDialog({
               placeholder="https://…"
               className={cn(blockingReferenceMissing && "border-[var(--color-rec)]")}
             />
+            {referenceUrl.trim() && (
+              <div className="mt-2 flex items-start gap-2 p-2 border border-border rounded-[3px] bg-background">
+                <img
+                  src={referenceUrl}
+                  alt="Anchor frame"
+                  className="w-16 h-16 object-cover rounded-[2px] border border-border"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                  }}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="label-mono text-foreground">Anchor frame attached</p>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    Passed to image-to-video model · lineage recorded on output
+                  </p>
+                </div>
+              </div>
+            )}
             {blockingReferenceMissing && (
               <p className="text-xs text-[var(--color-rec)] mt-1">
                 Image-to-video can't run without an anchor frame. Add one in Storyboard
