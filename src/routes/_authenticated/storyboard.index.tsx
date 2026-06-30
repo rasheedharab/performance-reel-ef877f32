@@ -49,6 +49,11 @@ import {
   getCampaignSignedUrls,
   uploadCampaignFile,
 } from "@/lib/campaign-assets";
+import {
+  ImageStudioDialog,
+  type ImageStudioShot,
+  type ImageStudioStyleBible,
+} from "@/components/image-studio";
 
 type ScriptStatus = "draft" | "approved" | "archived";
 type GenMethod = "text-to-video" | "image-to-video";
