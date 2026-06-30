@@ -1011,6 +1011,37 @@ function GenerationBoard() {
         />
       )}
 
+      {studioShot && (
+        <ImageStudioDialog
+          open={!!studioShot}
+          onOpenChange={(o) => { if (!o) setStudioShot(null); }}
+          shot={{
+            id: studioShot.id,
+            brief_id: briefId,
+            brand_id: brandId,
+            subject: studioShot.subject,
+            subject_tokens: studioShot.subject_tokens,
+            action: studioShot.action,
+            setting: studioShot.setting,
+            lighting: studioShot.lighting,
+            lens: studioShot.lens,
+            style_grade: studioShot.style_grade,
+            mood: studioShot.mood,
+            negative_prompt: studioShot.negative_prompt,
+            seed: studioShot.seed,
+            assigned_tool: studioShot.assigned_tool,
+            visual_description: studioShot.visual_description,
+            reference_image_url: studioShot.reference_image_url,
+          } satisfies ImageStudioShot}
+          styleBible={brandStyleBible}
+          briefProductPaths={briefProductPaths}
+          initialImageUrls={signedUrls}
+          onAnchorSet={async () => {
+            await reloadBoard();
+          }}
+        />
+      )}
+
       {audioOpen && selected && briefId && (
         <AudioAddDialog
           type={audioOpen.type}
