@@ -977,6 +977,7 @@ function GenerationBoard() {
                   onSelectTake={(assetId) => setSelectedTake(shot.id, assetId)}
                   onOpenDetail={(a) => setDetailOpen(a)}
                   onSavePromptToLibrary={(a) => savePromptToLibrary(a)}
+                  onOpenStudio={() => setStudioShot(shot)}
                 />
               ))
             )}
