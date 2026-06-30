@@ -552,6 +552,84 @@ export type Database = {
           },
         ]
       }
+      credit_ledger: {
+        Row: {
+          amount: number
+          brand_id: string | null
+          brief_id: string | null
+          created_at: string
+          created_by: string | null
+          currency: Database["public"]["Enums"]["display_currency"]
+          entity_id: string | null
+          entity_type: Database["public"]["Enums"]["ledger_entity_type"]
+          fx_rate: number
+          id: string
+          markup: number
+          model_id: string | null
+          note: string | null
+          operation: string | null
+          status: Database["public"]["Enums"]["ledger_status"]
+          type: Database["public"]["Enums"]["ledger_type"]
+          usd_cost: number | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          brand_id?: string | null
+          brief_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency: Database["public"]["Enums"]["display_currency"]
+          entity_id?: string | null
+          entity_type?: Database["public"]["Enums"]["ledger_entity_type"]
+          fx_rate: number
+          id?: string
+          markup?: number
+          model_id?: string | null
+          note?: string | null
+          operation?: string | null
+          status?: Database["public"]["Enums"]["ledger_status"]
+          type: Database["public"]["Enums"]["ledger_type"]
+          usd_cost?: number | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          brand_id?: string | null
+          brief_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: Database["public"]["Enums"]["display_currency"]
+          entity_id?: string | null
+          entity_type?: Database["public"]["Enums"]["ledger_entity_type"]
+          fx_rate?: number
+          id?: string
+          markup?: number
+          model_id?: string | null
+          note?: string | null
+          operation?: string | null
+          status?: Database["public"]["Enums"]["ledger_status"]
+          type?: Database["public"]["Enums"]["ledger_type"]
+          usd_cost?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_ledger_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_ledger_brief_id_fkey"
+            columns: ["brief_id"]
+            isOneToOne: false
+            referencedRelation: "briefs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cut_shots: {
         Row: {
           asset_id: string | null
@@ -1016,6 +1094,87 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      pricing_config: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          label: string | null
+          model_id: string
+          notes: string | null
+          operation: string
+          unit: Database["public"]["Enums"]["pricing_unit"]
+          updated_at: string
+          usd_unit_cost: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string | null
+          model_id: string
+          notes?: string | null
+          operation: string
+          unit: Database["public"]["Enums"]["pricing_unit"]
+          updated_at?: string
+          usd_unit_cost: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string | null
+          model_id?: string
+          notes?: string | null
+          operation?: string
+          unit?: Database["public"]["Enums"]["pricing_unit"]
+          updated_at?: string
+          usd_unit_cost?: number
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          account_status: Database["public"]["Enums"]["account_status"]
+          created_at: string
+          display_currency: Database["public"]["Enums"]["display_currency"]
+          email: string | null
+          full_name: string | null
+          fx_rate_inr_per_usd: number
+          id: string
+          low_balance_threshold: number
+          markup_multiplier: number
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+        }
+        Insert: {
+          account_status?: Database["public"]["Enums"]["account_status"]
+          created_at?: string
+          display_currency?: Database["public"]["Enums"]["display_currency"]
+          email?: string | null
+          full_name?: string | null
+          fx_rate_inr_per_usd?: number
+          id: string
+          low_balance_threshold?: number
+          markup_multiplier?: number
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Update: {
+          account_status?: Database["public"]["Enums"]["account_status"]
+          created_at?: string
+          display_currency?: Database["public"]["Enums"]["display_currency"]
+          email?: string | null
+          full_name?: string | null
+          fx_rate_inr_per_usd?: number
+          id?: string
+          low_balance_threshold?: number
+          markup_multiplier?: number
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Relationships: []
       }
       prompt_library: {
         Row: {
@@ -1552,9 +1711,25 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_balance: {
+        Args: { p_user_id: string }
+        Returns: {
+          available: number
+          reserved_amount: number
+          total_consumed: number
+          total_topped_up: number
+        }[]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
+      account_status: "active" | "suspended"
       angle_entry_point:
         | "pain"
         | "outcome"
@@ -1563,6 +1738,7 @@ export type Database = {
         | "identity"
         | "curiosity"
       angle_status: "draft" | "approved" | "archived"
+      app_role: "super_admin" | "user"
       asset_status: "queued" | "generating" | "review" | "approved" | "rejected"
       asset_type: "clip" | "voiceover" | "music" | "sfx"
       brief_objective:
@@ -1575,6 +1751,7 @@ export type Database = {
       campaign_type: "advantage_plus" | "manual_abo" | "manual_cbo"
       deliverable_aspect: "9:16" | "4:5" | "1:1"
       deliverable_placement: "reels" | "feed" | "stories"
+      display_currency: "INR" | "USD"
       frame_purpose:
         | "anchor_frame"
         | "hero_shot"
@@ -1582,6 +1759,17 @@ export type Database = {
         | "character"
         | "style_ref"
       frame_status: "queued" | "generating" | "review" | "approved" | "rejected"
+      ledger_entity_type:
+        | "brand"
+        | "brief"
+        | "angle"
+        | "script"
+        | "shot"
+        | "asset"
+        | "frame"
+        | "none"
+      ledger_status: "reserved" | "captured" | "refunded" | "posted"
+      ledger_type: "topup" | "debit" | "refund" | "adjustment"
       library_category:
         | "generation_prompt"
         | "script_template"
@@ -1597,6 +1785,13 @@ export type Database = {
         | "iterate_body"
         | "iterate_offer"
         | "kill"
+      pricing_unit:
+        | "per_second"
+        | "per_image"
+        | "per_1k_input_tokens"
+        | "per_1k_output_tokens"
+        | "per_1k_chars"
+        | "per_call"
       render_tier: "draft" | "final"
       script_status: "draft" | "approved" | "archived"
       shot_generation_method: "text-to-video" | "image-to-video"
@@ -1728,6 +1923,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      account_status: ["active", "suspended"],
       angle_entry_point: [
         "pain",
         "outcome",
@@ -1737,6 +1933,7 @@ export const Constants = {
         "curiosity",
       ],
       angle_status: ["draft", "approved", "archived"],
+      app_role: ["super_admin", "user"],
       asset_status: ["queued", "generating", "review", "approved", "rejected"],
       asset_type: ["clip", "voiceover", "music", "sfx"],
       brief_objective: ["awareness", "traffic", "engagement", "leads", "sales"],
@@ -1744,6 +1941,7 @@ export const Constants = {
       campaign_type: ["advantage_plus", "manual_abo", "manual_cbo"],
       deliverable_aspect: ["9:16", "4:5", "1:1"],
       deliverable_placement: ["reels", "feed", "stories"],
+      display_currency: ["INR", "USD"],
       frame_purpose: [
         "anchor_frame",
         "hero_shot",
@@ -1752,6 +1950,18 @@ export const Constants = {
         "style_ref",
       ],
       frame_status: ["queued", "generating", "review", "approved", "rejected"],
+      ledger_entity_type: [
+        "brand",
+        "brief",
+        "angle",
+        "script",
+        "shot",
+        "asset",
+        "frame",
+        "none",
+      ],
+      ledger_status: ["reserved", "captured", "refunded", "posted"],
+      ledger_type: ["topup", "debit", "refund", "adjustment"],
       library_category: [
         "generation_prompt",
         "script_template",
@@ -1768,6 +1978,14 @@ export const Constants = {
         "iterate_body",
         "iterate_offer",
         "kill",
+      ],
+      pricing_unit: [
+        "per_second",
+        "per_image",
+        "per_1k_input_tokens",
+        "per_1k_output_tokens",
+        "per_1k_chars",
+        "per_call",
       ],
       render_tier: ["draft", "final"],
       script_status: ["draft", "approved", "archived"],
