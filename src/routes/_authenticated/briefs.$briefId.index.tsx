@@ -180,7 +180,7 @@ function BriefDetailPage() {
   const locked = brief.status === "locked";
 
   return (
-    <div className="px-8 py-10 max-w-4xl mx-auto pb-20">
+    <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10 max-w-4xl mx-auto pb-20">
       <button
         onClick={() => navigate({ to: "/briefs" })}
         className="inline-flex items-center gap-2 label-mono mb-6 hover:text-foreground transition-colors"
