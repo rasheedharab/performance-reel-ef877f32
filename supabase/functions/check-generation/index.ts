@@ -7,6 +7,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { falActualCost } from "../_shared/pricing.ts";
+import { captureCredit, refundCredit } from "../_shared/billing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -64,7 +65,7 @@ Deno.serve(async (req) => {
 
     const { data: asset, error: aErr } = await admin
       .from("assets")
-      .select("id, user_id, brief_id, shot_id, model_id, job_id, status, file_url, duration_seconds")
+      .select("id, user_id, brief_id, shot_id, model_id, job_id, status, file_url, duration_seconds, usage_meta")
       .eq("id", assetId)
       .maybeSingle();
     if (aErr || !asset) return json({ error: "Asset not found" }, 404);
@@ -78,6 +79,11 @@ Deno.serve(async (req) => {
     ) {
       return json({ status: asset.status, file_url: asset.file_url });
     }
+
+    const reservationLedgerId =
+      (asset.usage_meta as Record<string, unknown> | null)?.reservation_ledger_id as
+        | string
+        | undefined;
 
     // fal.ai queue status/result endpoints use the app namespace
     // (first two path segments), not the full model variant path.
@@ -168,12 +174,24 @@ Deno.serve(async (req) => {
                 duration_seconds: Number(dur) || null,
                 rate_per_second: priced.rate,
                 metrics: result?.metrics ?? null,
+                reservation_ledger_id: reservationLedgerId ?? null,
               },
             };
           })(),
         })
         .eq("id", assetId);
       if (updErr) return json({ error: updErr.message }, 500);
+
+      // Capture the held credits against the actual provider spend.
+      if (reservationLedgerId) {
+        const dur =
+          (result?.video?.duration as number | undefined) ||
+          (result?.duration as number | undefined) ||
+          (asset.duration_seconds as number | undefined) ||
+          0;
+        const priced = falActualCost(asset.model_id ?? "", Number(dur) || 0);
+        await captureCredit(admin, reservationLedgerId, priced?.cost ?? 0);
+      }
 
       return json({ status: "review", file_url: storedPath });
     }
@@ -187,6 +205,9 @@ Deno.serve(async (req) => {
       .from("assets")
       .update({ status: "rejected", error_message: errorMessage })
       .eq("id", assetId);
+    if (reservationLedgerId) {
+      await refundCredit(admin, reservationLedgerId);
+    }
     return json({ status: "rejected", error: errorMessage });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
