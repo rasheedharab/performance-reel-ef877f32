@@ -832,12 +832,13 @@ function StoryboardWorkspace() {
       </div>
 
       {!selectedScript ? (
-        <div className="border border-dashed border-border rounded-[3px] bg-card/50 p-16 text-center">
-          <p className="label-mono mb-3">No script selected</p>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Pick an approved script above to start storyboarding.
-          </p>
-        </div>
+        <StoryboardsOverview
+          scripts={scripts}
+          stats={overviewStats}
+          brandFilter={brandFilter}
+          onBrandFilter={setBrandFilter}
+          onPick={selectScript}
+        />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
           <section>
