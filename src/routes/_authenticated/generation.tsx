@@ -2633,12 +2633,19 @@ function AssetDetailDialog({
             <p>{asset.duration_seconds ? `${asset.duration_seconds}s` : "—"}</p>
           </div>
           <div>
-            <p className="label-mono">Cost estimate</p>
+            <p className="label-mono">Spend</p>
             <p>
-              {asset.cost_estimate != null
-                ? `$${Number(asset.cost_estimate).toFixed(2)}`
+              {asset.actual_cost != null
+                ? `$${Number(asset.actual_cost).toFixed(4)}`
+                : asset.cost_estimate != null
+                ? `~$${Number(asset.cost_estimate).toFixed(2)} (est)`
                 : "—"}
             </p>
+            {asset.cost_source && (
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                {asset.cost_source}
+              </p>
+            )}
           </div>
           {asset.voice_id && (
             <div>
