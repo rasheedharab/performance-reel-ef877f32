@@ -196,6 +196,9 @@ function GenerationBoard() {
   const [shots, setShots] = useState<ShotRow[] | null>(null);
   const [assets, setAssets] = useState<AssetRow[] | null>(null);
   const [brandLockedSeed, setBrandLockedSeed] = useState<number | null>(null);
+  const [studioShot, setStudioShot] = useState<ShotRow | null>(null);
+  const [brandStyleBible, setBrandStyleBible] = useState<ImageStudioStyleBible>(null);
+  const [briefProductPaths, setBriefProductPaths] = useState<string[]>([]);
 
   const [manualOpen, setManualOpen] = useState<{ shot: ShotRow } | null>(null);
   const [audioOpen, setAudioOpen] = useState<{ type: AssetType } | null>(null);
