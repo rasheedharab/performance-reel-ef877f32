@@ -201,8 +201,13 @@ TOOL ROUTING LOGIC (pick ONE per shot, set generation_method accordingly)
 - "Runway Gen-4.5" — tight camera control / motion-brush / strict reference consistency.
 - "Arcads" — UGC / talking-head / spokesperson testimonial.
 - "HeyGen" — avatar lip-sync spokesperson.
-- "Luma Ray3" — product fidelity shot ONLY when has_product_images is true; use generation_method "image-to-video" and note in tool_reason to attach a product reference frame. (Runway Gen-4.5 is an acceptable alternative for image-to-video.)
-- Default generation_method = "text-to-video" unless a real product frame is genuinely needed.
+- "Luma Ray3" — product fidelity shot. Use generation_method "image-to-video" and route to it whenever a specific real-world product, character, or place must be preserved across the shot. (Runway Gen-4.5 is an acceptable alternative for image-to-video.)
+- Default generation_method = "text-to-video" unless a specific real-world product, character, or place must be preserved verbatim.
+
+ANCHOR-FRAME LOGIC (set needs_generated_anchor on every shot)
+- needs_generated_anchor = false for any text-to-video shot.
+- needs_generated_anchor = false for an image-to-video shot when has_product_images is true AND a brief product image clearly matches the subject (the user will pick one).
+- needs_generated_anchor = true for an image-to-video shot when no suitable real reference exists — i.e. has_product_images is false, OR the subject is a non-product subject (hero scene, character, environment) that can't be served by a product photo. When true, tool_reason should explicitly say something like "generate a hero anchor frame first".
 
 Give a one-line tool_reason per shot. Map each shot to a script beat (hook → desire → body → proof → cta) in order. Keep shots short and stitchable.
 
@@ -219,7 +224,8 @@ Return ONLY this JSON shape (no other text):
       "assigned_tool": "Veo 3.1 | Kling 3.0 | Runway Gen-4.5 | Arcads | HeyGen | Luma Ray3",
       "tool_reason": "one short line on why this tool",
       "caption_text": "on-screen text for this shot (sound off)",
-      "audio_note": "VO line or sfx cue for this shot"
+      "audio_note": "VO line or sfx cue for this shot",
+      "needs_generated_anchor": false
     }
   ]
 }`;
