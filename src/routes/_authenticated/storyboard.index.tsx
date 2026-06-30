@@ -2066,7 +2066,7 @@ function ShotFormDialog({
                 {productAssets.length > 0 && (
                   <>
                     <p className="text-xs text-muted-foreground mb-2">From the brief:</p>
-                    <div className="grid grid-cols-4 gap-2 mb-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
                       {productAssets.map((path) => {
                         const url = imageUrls[path];
                         const isSelected = referenceImageUrl === path;

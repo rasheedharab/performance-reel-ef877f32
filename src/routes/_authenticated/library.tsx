@@ -938,7 +938,7 @@ function EntryForm({
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
               <Label className="label-mono mb-1.5 block">Archetype</Label>
               <Select

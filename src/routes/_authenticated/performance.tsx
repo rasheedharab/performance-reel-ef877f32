@@ -1541,7 +1541,7 @@ function CellRow({
         {/* Funnel */}
         <div>
           <p className="label-mono mb-3">CREATIVE FUNNEL</p>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <FunnelStage
               label="HOOK"
               sub="3s view rate"
