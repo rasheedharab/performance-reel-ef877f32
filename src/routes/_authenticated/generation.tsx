@@ -103,6 +103,7 @@ type ShotRow = {
   duration_seconds: number | null;
   generation_method: string | null;
   reference_image_url: string | null;
+  needs_generated_anchor: boolean | null;
   // Prompt slots — used for auto-compile in the generate dialog.
   subject: string | null;
   subject_tokens: string | null;
