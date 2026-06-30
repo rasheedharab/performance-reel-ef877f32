@@ -332,23 +332,53 @@ function GenerationBoard() {
   useEffect(() => {
     if (!brandId) {
       setBrandLockedSeed(null);
+      setBrandStyleBible(null);
       return;
     }
     let alive = true;
     (async () => {
       const { data } = await supabase
         .from("style_bibles")
-        .select("locked_seed")
+        .select(
+          "film_look, color_grade, lighting_signature, lens_feel, subject_tokens, default_negative, locked_seed",
+        )
         .eq("brand_id", brandId)
         .maybeSingle();
       if (!alive) return;
-      const s = (data as { locked_seed?: number | null } | null)?.locked_seed;
+      const sb = data as ImageStudioStyleBible;
+      setBrandStyleBible(sb ?? null);
+      const s = sb?.locked_seed;
       setBrandLockedSeed(typeof s === "number" ? s : null);
     })();
     return () => {
       alive = false;
     };
   }, [brandId]);
+
+  // Load brief product asset paths for use as image references.
+  useEffect(() => {
+    if (!briefId) {
+      setBriefProductPaths([]);
+      return;
+    }
+    let alive = true;
+    (async () => {
+      const { data } = await supabase
+        .from("briefs")
+        .select("product_asset_urls")
+        .eq("id", briefId)
+        .maybeSingle();
+      if (!alive) return;
+      const raw = (data as { product_asset_urls?: unknown } | null)?.product_asset_urls;
+      const paths = Array.isArray(raw)
+        ? raw.filter((p): p is string => typeof p === "string")
+        : [];
+      setBriefProductPaths(paths);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [briefId]);
 
   const reloadBoard = async () => {
     if (!selected) return;
