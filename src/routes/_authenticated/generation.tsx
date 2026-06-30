@@ -611,6 +611,16 @@ function GenerationBoard() {
       const method =
         (shot.generation_method as "text-to-video" | "image-to-video" | null) ??
         "text-to-video";
+      let frameId: string | null = null;
+      if (method === "image-to-video" && shot.reference_image_url) {
+        const { data: fr } = await supabase
+          .from("frames")
+          .select("id")
+          .eq("shot_id", shot.id)
+          .eq("is_selected", true)
+          .maybeSingle();
+        frameId = (fr as { id?: string } | null)?.id ?? null;
+      }
       const { error } = await supabase.functions.invoke("generate-clip", {
         body: {
           shot_id: shot.id,
@@ -622,6 +632,7 @@ function GenerationBoard() {
           generation_method: method,
           reference_image_url:
             method === "image-to-video" ? shot.reference_image_url ?? null : null,
+          frame_id: frameId,
           duration_seconds: dur,
           aspect_ratio: "9:16",
           model_id: family.final.id,
