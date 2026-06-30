@@ -1874,6 +1874,7 @@ function ShotFormDialog({
       const { data, error: err } = await supabase.functions.invoke("ai-assist", {
         body: { task: "compile_prompt", payload },
       });
+      if (await handleInsufficientCredits(err, data)) return;
       if (err) throw new Error(err.message);
       const r = (data as { result?: Record<string, unknown> } | null)?.result;
       if (!r || typeof r !== "object") throw new Error("Empty AI response");
