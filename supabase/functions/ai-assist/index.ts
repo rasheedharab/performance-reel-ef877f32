@@ -4,6 +4,12 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { anthropicActualCost } from "../_shared/pricing.ts";
+import {
+  reserveCredit,
+  captureCredit,
+  refundCredit,
+  insufficientCreditsResponse,
+} from "../_shared/billing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -651,7 +657,15 @@ Deno.serve(async (req) => {
     if (!body || typeof body !== "object") {
       return json({ error: "Invalid request body." }, 400);
     }
-    const { task, payload } = body as { task?: string; payload?: Record<string, unknown> };
+    const { task, payload, entity_type, entity_id, brand_id, brief_id } =
+      body as {
+        task?: string;
+        payload?: Record<string, unknown>;
+        entity_type?: string;
+        entity_id?: string;
+        brand_id?: string;
+        brief_id?: string;
+      };
     if (!task || typeof task !== "string") {
       return json({ error: "Missing 'task'." }, 400);
     }
@@ -661,6 +675,44 @@ Deno.serve(async (req) => {
     }
     const { system, user } = builder(payload ?? {});
 
+    const usedModel = TASK_MODELS[task] ?? DEFAULT_MODEL;
+    const MAX_TOKENS = 4000;
+
+    // ---- Identify caller (required for billing) ----
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+    if (!SUPABASE_URL || !SERVICE_ROLE || !token) {
+      return json({ error: "Unauthorized" }, 401);
+    }
+    const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: userRes, error: userErr } = await admin.auth.getUser(token);
+    if (userErr || !userRes?.user) return json({ error: "Unauthorized" }, 401);
+    const userId = userRes.user.id;
+
+    // ---- Reserve credits using a generous max_tokens estimate ----
+    // Assume ~1500 input tokens (system + user prompts) + worst-case max_tokens output.
+    const estimateCost = anthropicActualCost(usedModel, 1500, MAX_TOKENS).cost;
+    const reservation = await reserveCredit(admin, {
+      user_id: userId,
+      estimated_usd: estimateCost,
+      operation: "ai_assist",
+      model_id: usedModel,
+      entity_type:
+        typeof entity_type === "string" ? entity_type : "none",
+      entity_id: typeof entity_id === "string" ? entity_id : null,
+      brand_id: typeof brand_id === "string" ? brand_id : null,
+      brief_id: typeof brief_id === "string" ? brief_id : null,
+    });
+    if (!reservation.ok) {
+      const status = reservation.code === "insufficient_credits" ? 402 : 403;
+      return json(insufficientCreditsResponse(reservation), status);
+    }
+    const reservationId = reservation.ledger_id;
+
     const resp = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -669,8 +721,8 @@ Deno.serve(async (req) => {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: TASK_MODELS[task] ?? DEFAULT_MODEL,
-        max_tokens: 4000,
+        model: usedModel,
+        max_tokens: MAX_TOKENS,
         system,
         messages: [{ role: "user", content: user }],
       }),
@@ -679,6 +731,7 @@ Deno.serve(async (req) => {
     if (!resp.ok) {
       const errText = await resp.text().catch(() => "");
       console.error("anthropic error", resp.status, errText);
+      await refundCredit(admin, reservationId);
       return json({ error: `AI provider error (${resp.status}). Try again.` }, 502);
     }
 
@@ -693,24 +746,28 @@ Deno.serve(async (req) => {
       .join("\n")
       .trim();
 
-    if (!text) return json({ error: "AI returned an empty response." }, 502);
+    if (!text) {
+      await refundCredit(admin, reservationId);
+      return json({ error: "AI returned an empty response." }, 502);
+    }
 
     let parsed: unknown;
     try {
       parsed = parseJsonLoose(text);
     } catch (e) {
       console.error("parse error", e, text.slice(0, 500));
+      await refundCredit(admin, reservationId);
       return json({ error: "AI returned malformed JSON. Try again." }, 502);
     }
 
     // Compute actual Anthropic spend and log it.
-    const usedModel = data.model ?? TASK_MODELS[task] ?? DEFAULT_MODEL;
+    const reportedModel = data.model ?? usedModel;
     const inputTokens = data.usage?.input_tokens ?? 0;
     const outputTokens = data.usage?.output_tokens ?? 0;
-    const priced = anthropicActualCost(usedModel, inputTokens, outputTokens);
+    const priced = anthropicActualCost(reportedModel, inputTokens, outputTokens);
     const usage = {
       provider: "anthropic",
-      model: usedModel,
+      model: reportedModel,
       task,
       input_tokens: inputTokens,
       output_tokens: outputTokens,
@@ -719,34 +776,36 @@ Deno.serve(async (req) => {
       rate_output_per_mtok: priced.rateOut,
     };
 
+    // Capture credits against the true Anthropic spend.
+    await captureCredit(admin, reservationId, priced.cost);
+
     // Best-effort log (don't block the response on logging failures).
     try {
-      const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-      const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-      const authHeader = req.headers.get("Authorization") ?? "";
-      const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-      if (SUPABASE_URL && SERVICE_ROLE && token) {
-        const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
-          auth: { persistSession: false, autoRefreshToken: false },
-        });
-        const { data: userRes } = await admin.auth.getUser(token);
-        const userId = userRes?.user?.id ?? null;
-        await admin.from("ai_usage").insert({
-          user_id: userId,
-          provider: "anthropic",
-          model: usedModel,
-          task,
-          input_tokens: inputTokens,
-          output_tokens: outputTokens,
-          actual_cost: priced.cost,
-          meta: { rate_in: priced.rateIn, rate_out: priced.rateOut },
-        });
-      }
+      await admin.from("ai_usage").insert({
+        user_id: userId,
+        provider: "anthropic",
+        model: reportedModel,
+        task,
+        input_tokens: inputTokens,
+        output_tokens: outputTokens,
+        actual_cost: priced.cost,
+        meta: {
+          rate_in: priced.rateIn,
+          rate_out: priced.rateOut,
+          reservation_ledger_id: reservationId,
+        },
+      });
     } catch (logErr) {
       console.warn("ai_usage log failed", logErr);
     }
 
-    return json({ result: parsed, usage });
+    return json({
+      result: parsed,
+      usage,
+      reservation_ledger_id: reservationId,
+      charged_amount: reservation.charged_amount,
+      currency: reservation.currency,
+    });
   } catch (e) {
     console.error("ai-assist fatal", e);
     return json({ error: "Unexpected error in AI assist." }, 500);

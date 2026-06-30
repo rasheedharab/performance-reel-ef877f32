@@ -6,6 +6,12 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { elevenlabsActualCost, ELEVENLABS_USD_PER_CHAR } from "../_shared/pricing.ts";
+import {
+  reserveCredit,
+  captureCredit,
+  refundCredit,
+  insufficientCreditsResponse,
+} from "../_shared/billing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -53,6 +59,9 @@ Deno.serve(async (req) => {
       voice_id,
       voice_label,
       model_id,
+      entity_type,
+      entity_id,
+      brand_id,
     } = body as Record<string, unknown>;
 
     if (!brief_id || typeof brief_id !== "string")
@@ -64,6 +73,26 @@ Deno.serve(async (req) => {
     const finalLabel =
       (typeof voice_label === "string" && voice_label) || DEFAULT_VOICE_LABEL;
     const finalModel = (typeof model_id === "string" && model_id) || DEFAULT_MODEL;
+
+    // ---- Reserve credits before calling ElevenLabs ----
+    const chars = source_text.length;
+    const estimatedUsd = elevenlabsActualCost(chars);
+    const reservation = await reserveCredit(admin, {
+      user_id: userId,
+      estimated_usd: estimatedUsd,
+      operation: "voiceover",
+      model_id: finalModel,
+      entity_type: typeof entity_type === "string" ? entity_type : "brief",
+      entity_id:
+        typeof entity_id === "string" && entity_id ? entity_id : brief_id,
+      brand_id: typeof brand_id === "string" ? brand_id : null,
+      brief_id,
+    });
+    if (!reservation.ok) {
+      const status = reservation.code === "insufficient_credits" ? 402 : 403;
+      return json(insufficientCreditsResponse(reservation), status);
+    }
+    const reservationId = reservation.ledger_id;
 
     const ttsRes = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${finalVoice}`,
@@ -85,6 +114,7 @@ Deno.serve(async (req) => {
     if (!ttsRes.ok) {
       const errText = await ttsRes.text();
       console.error("elevenlabs fail", ttsRes.status, errText);
+      await refundCredit(admin, reservationId);
       return json(
         { error: `ElevenLabs request failed (${ttsRes.status})`, detail: errText },
         502,
@@ -98,10 +128,10 @@ Deno.serve(async (req) => {
       .upload(path, audioBytes, { contentType: "audio/mpeg", upsert: false });
     if (up.error) {
       console.error("storage upload failed", up.error);
+      await refundCredit(admin, reservationId);
       return json({ error: up.error.message }, 500);
     }
 
-    const chars = source_text.length;
     const cost = elevenlabsActualCost(chars);
 
     const { data: inserted, error: insErr } = await admin
@@ -126,14 +156,26 @@ Deno.serve(async (req) => {
           voice_id: finalVoice,
           character_count: chars,
           rate_per_char: ELEVENLABS_USD_PER_CHAR,
+          reservation_ledger_id: reservationId,
         },
         is_selected: false,
       })
       .select("id")
       .single();
-    if (insErr) return json({ error: insErr.message }, 500);
+    if (insErr) {
+      await refundCredit(admin, reservationId);
+      return json({ error: insErr.message }, 500);
+    }
 
-    return json({ asset_id: inserted.id, file_url: path });
+    await captureCredit(admin, reservationId, cost);
+
+    return json({
+      asset_id: inserted.id,
+      file_url: path,
+      reservation_ledger_id: reservationId,
+      charged_amount: reservation.charged_amount,
+      currency: reservation.currency,
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("generate-voiceover error", msg);
