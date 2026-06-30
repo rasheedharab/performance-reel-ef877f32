@@ -457,6 +457,7 @@ TASKS.prompt_variants = (p) => {
   };
   const tool = String(p.assigned_tool ?? p.target_model ?? "").trim();
   const isI2V =
+    // placeholder; the rest of this function is untouched.
     String(p.generation_method ?? "").toLowerCase() === "image-to-video" ||
     Boolean(p.has_anchor_image);
   const wordTarget =
