@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
+import { handleInsufficientCredits } from "@/lib/wallet";
 import {
   ArrowRight,
   ChevronDown,
