@@ -302,6 +302,34 @@ function StoryboardWorkspace() {
   // signed URLs cache for both brief product assets and shot reference images
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
 
+  // Overview stats: per-script shot counts / total duration / compiled count
+  const [overviewStats, setOverviewStats] = useState<
+    Record<string, { shotCount: number; totalDur: number; compiledCount: number }>
+  >({});
+  const [brandFilter, setBrandFilter] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("shots")
+        .select("script_id, duration_seconds, compiled_prompt");
+      const stats: Record<string, { shotCount: number; totalDur: number; compiledCount: number }> = {};
+      for (const row of (data ?? []) as Array<{
+        script_id: string | null;
+        duration_seconds: number | null;
+        compiled_prompt: string | null;
+      }>) {
+        if (!row.script_id) continue;
+        const s = stats[row.script_id] ?? { shotCount: 0, totalDur: 0, compiledCount: 0 };
+        s.shotCount += 1;
+        s.totalDur += row.duration_seconds ?? 0;
+        if (row.compiled_prompt && row.compiled_prompt.trim()) s.compiledCount += 1;
+        stats[row.script_id] = s;
+      }
+      setOverviewStats(stats);
+    })();
+  }, [shots]); // refresh when active shots list changes (e.g. after add/remove)
+
   useEffect(() => {
     (async () => {
       const { data } = await supabase
