@@ -167,6 +167,19 @@ type ScriptRow = {
   status: ScriptStatus;
 };
 
+type ScriptOverviewRow = ScriptRow & {
+  angle: {
+    id: string;
+    title: string;
+    entry_point: EntryPoint | null;
+    brief: {
+      id: string;
+      project_name: string;
+      brand: { id: string; name: string } | null;
+    } | null;
+  } | null;
+};
+
 type AiDraft = {
   hook: string;
   desire_beat: string;
