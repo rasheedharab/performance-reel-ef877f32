@@ -33,7 +33,7 @@ type NavItem = {
 };
 
 const nav: NavItem[] = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/brands", label: "Brands", icon: Building2 },
   { to: "/briefs", label: "Briefs", icon: FileText },
   { to: "/angles", label: "Angles", icon: Lightbulb },
