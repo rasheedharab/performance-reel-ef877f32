@@ -876,6 +876,162 @@ function BriefField({ label, value }: { label: string; value: string | null }) {
   );
 }
 
+function AnglesOverview({
+  rows,
+  brandFilter,
+  onBrandFilter,
+  onPick,
+}: {
+  rows: AngleOverviewRow[] | null;
+  brandFilter: string;
+  onBrandFilter: (v: string) => void;
+  onPick: (briefId: string) => void;
+}) {
+  const brands = useMemo(() => {
+    if (!rows) return [] as { id: string; name: string; count: number }[];
+    const map = new Map<string, { id: string; name: string; count: number }>();
+    for (const a of rows) {
+      const b = a.brief?.brand;
+      if (!b) continue;
+      const existing = map.get(b.id);
+      if (existing) existing.count += 1;
+      else map.set(b.id, { id: b.id, name: b.name, count: 1 });
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [rows]);
+
+  const filtered = useMemo(() => {
+    if (!rows) return [];
+    if (brandFilter === "all") return rows;
+    return rows.filter((a) => a.brief?.brand?.id === brandFilter);
+  }, [rows, brandFilter]);
+
+  if (rows === null) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="border border-border rounded-[3px] bg-card animate-pulse h-44" />
+        ))}
+      </div>
+    );
+  }
+
+  if (rows.length === 0) {
+    return (
+      <div className="border border-dashed border-border rounded-[3px] bg-card/50 p-16 text-center">
+        <p className="label-mono mb-3">No angles yet</p>
+        <p className="text-sm text-muted-foreground max-w-md mx-auto">
+          Pick a brief above and sketch the first entry point.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {brands.length > 0 && (
+        <div className="mb-5">
+          <p className="label-mono mb-2">Filter by brand</p>
+          <div className="flex flex-wrap gap-2">
+            <BrandFilterChip
+              label="All"
+              count={rows.length}
+              active={brandFilter === "all"}
+              onClick={() => onBrandFilter("all")}
+            />
+            {brands.map((b) => (
+              <BrandFilterChip
+                key={b.id}
+                label={b.name}
+                count={b.count}
+                active={brandFilter === b.id}
+                onClick={() => onBrandFilter(b.id)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {filtered.length === 0 ? (
+        <div className="border border-dashed border-border rounded-[3px] bg-card/50 p-12 text-center">
+          <p className="text-sm text-muted-foreground">No angles for this brand yet.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map((a) => (
+            <button
+              key={a.id}
+              onClick={() => a.brief && onPick(a.brief.id)}
+              className="text-left border border-border bg-card rounded-[3px] p-5 flex flex-col gap-3 hover:border-foreground/40 transition-colors"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <p className="label-mono text-muted-foreground truncate">
+                  {a.brief?.brand?.name ?? "—"}
+                </p>
+                <StatusChip status={a.status} />
+              </div>
+              <p className="text-xs text-foreground/70 truncate flex items-center gap-1.5">
+                <ArrowRight className="h-3 w-3 shrink-0" />
+                {a.brief?.project_name ?? "—"}
+              </p>
+              <h3 className="font-display text-base font-bold leading-snug line-clamp-2">
+                {a.title}
+              </h3>
+              {a.hook_seed && (
+                <p className="text-xs italic text-foreground/70 line-clamp-2">
+                  "{a.hook_seed}"
+                </p>
+              )}
+              <div className="mt-auto flex items-center justify-between gap-2 pt-2 border-t border-border/60">
+                {a.entry_point ? (
+                  <EntryPointChip ep={a.entry_point} size="xs" />
+                ) : (
+                  <span className="label-mono text-muted-foreground/60">No entry point</span>
+                )}
+                {a.target_segment && (
+                  <span className="label-mono text-muted-foreground truncate max-w-[55%]">
+                    {a.target_segment}
+                  </span>
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BrandFilterChip({
+  label,
+  count,
+  active,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider px-2.5 py-1 border rounded-[2px] transition-colors",
+        active
+          ? "bg-foreground text-background border-foreground"
+          : "bg-card text-foreground border-border hover:border-foreground/40",
+      )}
+    >
+      {label}
+      <span className={cn("opacity-70", active ? "text-background" : "text-muted-foreground")}>
+        {count}
+      </span>
+    </button>
+  );
+}
+
 function AngleFormDialog({
   open,
   onOpenChange,
