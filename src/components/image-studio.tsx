@@ -723,7 +723,7 @@ export function ImageStudioDialog({
               {briefProductPaths.length > 0 && (
                 <>
                   <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1.5">From the brief</p>
-                  <div className="grid grid-cols-5 gap-1.5 mb-3">
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 mb-3">
                     {briefProductPaths.map((path) => {
                       const url = imageUrls[path];
                       const sel = selectedRefs.includes(path);
