@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_usage: {
+        Row: {
+          actual_cost: number | null
+          created_at: string
+          id: string
+          input_tokens: number | null
+          meta: Json | null
+          model: string | null
+          output_tokens: number | null
+          provider: string
+          task: string | null
+          user_id: string | null
+        }
+        Insert: {
+          actual_cost?: number | null
+          created_at?: string
+          id?: string
+          input_tokens?: number | null
+          meta?: Json | null
+          model?: string | null
+          output_tokens?: number | null
+          provider: string
+          task?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          actual_cost?: number | null
+          created_at?: string
+          id?: string
+          input_tokens?: number | null
+          meta?: Json | null
+          model?: string | null
+          output_tokens?: number | null
+          provider?: string
+          task?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       angles: {
         Row: {
           brief_id: string
@@ -70,9 +109,11 @@ export type Database = {
       assets: {
         Row: {
           ab_group_id: string | null
+          actual_cost: number | null
           audio_used: string | null
           brief_id: string | null
           cost_estimate: number | null
+          cost_source: string | null
           created_at: string
           duration_seconds: number | null
           error_message: string | null
@@ -94,6 +135,7 @@ export type Database = {
           tool_used: string | null
           type: Database["public"]["Enums"]["asset_type"]
           updated_at: string
+          usage_meta: Json | null
           user_id: string
           variant_label: string | null
           version: number | null
@@ -101,9 +143,11 @@ export type Database = {
         }
         Insert: {
           ab_group_id?: string | null
+          actual_cost?: number | null
           audio_used?: string | null
           brief_id?: string | null
           cost_estimate?: number | null
+          cost_source?: string | null
           created_at?: string
           duration_seconds?: number | null
           error_message?: string | null
@@ -125,6 +169,7 @@ export type Database = {
           tool_used?: string | null
           type: Database["public"]["Enums"]["asset_type"]
           updated_at?: string
+          usage_meta?: Json | null
           user_id: string
           variant_label?: string | null
           version?: number | null
@@ -132,9 +177,11 @@ export type Database = {
         }
         Update: {
           ab_group_id?: string | null
+          actual_cost?: number | null
           audio_used?: string | null
           brief_id?: string | null
           cost_estimate?: number | null
+          cost_source?: string | null
           created_at?: string
           duration_seconds?: number | null
           error_message?: string | null
@@ -156,6 +203,7 @@ export type Database = {
           tool_used?: string | null
           type?: Database["public"]["Enums"]["asset_type"]
           updated_at?: string
+          usage_meta?: Json | null
           user_id?: string
           variant_label?: string | null
           version?: number | null

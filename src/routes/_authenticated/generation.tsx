@@ -142,6 +142,9 @@ type AssetRow = {
   version: number | null;
   file_url: string | null;
   cost_estimate: number | null;
+  actual_cost: number | null;
+  cost_source: string | null;
+  usage_meta: Record<string, unknown> | null;
   duration_seconds: number | null;
   voice_id: string | null;
   source_text: string | null;
@@ -357,7 +360,7 @@ function GenerationBoard() {
       const { data: a } = await supabase
         .from("assets")
         .select(
-          "id, shot_id, brief_id, type, tool_used, model_id, prompt_used, negative_used, audio_used, seed_used, status, version, file_url, cost_estimate, duration_seconds, voice_id, source_text, notes, is_selected, error_message, created_at, render_tier, ab_group_id, variant_label",
+          "id, shot_id, brief_id, type, tool_used, model_id, prompt_used, negative_used, audio_used, seed_used, status, version, file_url, cost_estimate, actual_cost, cost_source, usage_meta, duration_seconds, voice_id, source_text, notes, is_selected, error_message, created_at, render_tier, ab_group_id, variant_label",
         )
         .in("shot_id", shotIds)
         .order("version", { ascending: true });
@@ -369,7 +372,7 @@ function GenerationBoard() {
       const { data: b } = await supabase
         .from("assets")
         .select(
-          "id, shot_id, brief_id, type, tool_used, model_id, prompt_used, negative_used, audio_used, seed_used, status, version, file_url, cost_estimate, duration_seconds, voice_id, source_text, notes, is_selected, error_message, created_at, render_tier, ab_group_id, variant_label",
+          "id, shot_id, brief_id, type, tool_used, model_id, prompt_used, negative_used, audio_used, seed_used, status, version, file_url, cost_estimate, actual_cost, cost_source, usage_meta, duration_seconds, voice_id, source_text, notes, is_selected, error_message, created_at, render_tier, ab_group_id, variant_label",
         )
         .eq("brief_id", briefId)
         .is("shot_id", null)
@@ -492,7 +495,7 @@ function GenerationBoard() {
   const totalCost = useMemo(
     () =>
       (assets ?? []).reduce(
-        (sum, a) => sum + (a.cost_estimate ? Number(a.cost_estimate) : 0),
+        (sum, a) => sum + Number(a.actual_cost ?? a.cost_estimate ?? 0),
         0,
       ),
     [assets],
@@ -504,7 +507,7 @@ function GenerationBoard() {
     let final = 0;
     for (const a of assets ?? []) {
       if (a.type !== "clip") continue;
-      const c = a.cost_estimate ? Number(a.cost_estimate) : 0;
+      const c = Number(a.actual_cost ?? a.cost_estimate ?? 0);
       if (a.render_tier === "final") final += c;
       else draft += c;
     }
@@ -1723,9 +1726,16 @@ function VersionCard({
               {asset.is_selected ? "Final take" : "Use this take"}
             </span>
           </label>
-          {asset.cost_estimate != null && (
-            <span className="font-mono text-[10px] text-muted-foreground">
-              ${Number(asset.cost_estimate).toFixed(2)}
+          {(asset.actual_cost != null || asset.cost_estimate != null) && (
+            <span
+              className="font-mono text-[10px] text-muted-foreground"
+              title={asset.cost_source ?? (asset.actual_cost != null ? "Actual provider spend" : "Estimated spend")}
+            >
+              {asset.actual_cost != null ? (
+                <>${Number(asset.actual_cost).toFixed(3)}</>
+              ) : (
+                <>~${Number(asset.cost_estimate).toFixed(2)}</>
+              )}
             </span>
           )}
         </div>
@@ -2623,12 +2633,19 @@ function AssetDetailDialog({
             <p>{asset.duration_seconds ? `${asset.duration_seconds}s` : "—"}</p>
           </div>
           <div>
-            <p className="label-mono">Cost estimate</p>
+            <p className="label-mono">Spend</p>
             <p>
-              {asset.cost_estimate != null
-                ? `$${Number(asset.cost_estimate).toFixed(2)}`
+              {asset.actual_cost != null
+                ? `$${Number(asset.actual_cost).toFixed(4)}`
+                : asset.cost_estimate != null
+                ? `~$${Number(asset.cost_estimate).toFixed(2)} (est)`
                 : "—"}
             </p>
+            {asset.cost_source && (
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                {asset.cost_source}
+              </p>
+            )}
           </div>
           {asset.voice_id && (
             <div>

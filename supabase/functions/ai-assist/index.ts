@@ -2,6 +2,9 @@
 // Holds server-side prompt templates per task and calls Anthropic.
 // Never exposes the API key.
 
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { anthropicActualCost } from "../_shared/pricing.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -597,6 +600,8 @@ Deno.serve(async (req) => {
 
     const data = (await resp.json()) as {
       content?: Array<{ type: string; text?: string }>;
+      usage?: { input_tokens?: number; output_tokens?: number };
+      model?: string;
     };
     const text = (data.content ?? [])
       .filter((b) => b.type === "text")
@@ -614,7 +619,50 @@ Deno.serve(async (req) => {
       return json({ error: "AI returned malformed JSON. Try again." }, 502);
     }
 
-    return json({ result: parsed });
+    // Compute actual Anthropic spend and log it.
+    const usedModel = data.model ?? TASK_MODELS[task] ?? DEFAULT_MODEL;
+    const inputTokens = data.usage?.input_tokens ?? 0;
+    const outputTokens = data.usage?.output_tokens ?? 0;
+    const priced = anthropicActualCost(usedModel, inputTokens, outputTokens);
+    const usage = {
+      provider: "anthropic",
+      model: usedModel,
+      task,
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
+      actual_cost: priced.cost,
+      rate_input_per_mtok: priced.rateIn,
+      rate_output_per_mtok: priced.rateOut,
+    };
+
+    // Best-effort log (don't block the response on logging failures).
+    try {
+      const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+      const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      const authHeader = req.headers.get("Authorization") ?? "";
+      const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+      if (SUPABASE_URL && SERVICE_ROLE && token) {
+        const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
+          auth: { persistSession: false, autoRefreshToken: false },
+        });
+        const { data: userRes } = await admin.auth.getUser(token);
+        const userId = userRes?.user?.id ?? null;
+        await admin.from("ai_usage").insert({
+          user_id: userId,
+          provider: "anthropic",
+          model: usedModel,
+          task,
+          input_tokens: inputTokens,
+          output_tokens: outputTokens,
+          actual_cost: priced.cost,
+          meta: { rate_in: priced.rateIn, rate_out: priced.rateOut },
+        });
+      }
+    } catch (logErr) {
+      console.warn("ai_usage log failed", logErr);
+    }
+
+    return json({ result: parsed, usage });
   } catch (e) {
     console.error("ai-assist fatal", e);
     return json({ error: "Unexpected error in AI assist." }, 500);
