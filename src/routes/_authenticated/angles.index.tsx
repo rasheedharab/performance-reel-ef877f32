@@ -1196,7 +1196,7 @@ function AngleFormDialog({
             />
           </Field>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Priority">
               <Input
                 type="number"
@@ -1312,7 +1312,7 @@ function AngleDetailDialog({
                   <p className="text-sm whitespace-pre-wrap">{angle.description}</p>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border">
                 <div>
                   <p className="label-mono mb-1">Priority</p>
                   <p className="font-mono text-sm">{angle.priority}</p>

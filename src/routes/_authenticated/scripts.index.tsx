@@ -1010,7 +1010,7 @@ function ScriptFormDialog({
           </div>
 
           <div className="border-t border-border pt-5 space-y-5">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField label="Target duration (s)">
                 <Input
                   type="number"

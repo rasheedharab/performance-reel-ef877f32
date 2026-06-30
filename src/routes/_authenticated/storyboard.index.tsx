@@ -1999,7 +1999,7 @@ function ShotFormDialog({
             />
           </FormField>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField label="Camera move">
               <Select value={camera || undefined} onValueChange={setCamera}>
                 <SelectTrigger>
@@ -2132,7 +2132,7 @@ function ShotFormDialog({
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4 border-t border-border pt-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-border pt-5">
             <FormField label="Assigned tool">
               <Select value={assignedTool || undefined} onValueChange={setAssignedTool}>
                 <SelectTrigger>
@@ -2163,7 +2163,7 @@ function ShotFormDialog({
             />
           </FormField>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField label="Audio note">
               <Textarea
                 value={audioNote}
@@ -2454,7 +2454,7 @@ function PromptSlotsSection({
             Structured slots the compiler will use. One action per shot. Specific focal lengths and motion verbs beat adjectives. Don't stack contradictory style cues — keep it tight.
           </p>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <SlotField label="Subject" hint='Who/what is in frame, e.g. "barista, late 20s, navy apron"'>
               <Input value={values.subject} onChange={(e) => setters.setSubject(e.target.value)} />
             </SlotField>
@@ -2474,7 +2474,7 @@ function PromptSlotsSection({
             <Input value={values.action} onChange={(e) => setters.setAction(e.target.value)} />
           </SlotField>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <SlotField label="Setting" hint='Where, e.g. "morning kitchen, marble counter"'>
               <Input value={values.setting} onChange={(e) => setters.setSetting(e.target.value)} />
             </SlotField>
@@ -2483,7 +2483,7 @@ function PromptSlotsSection({
             </SlotField>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <SlotField
               label="Lighting"
               hint='Specific direction + temperature, e.g. "soft side-light, 3500K"'
@@ -2514,7 +2514,7 @@ function PromptSlotsSection({
               <SlotField label="Dialogue" hint="Spoken line for this shot, if any.">
                 <Input value={values.dialogue} onChange={(e) => setters.setDialogue(e.target.value)} />
               </SlotField>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <SlotField label="SFX" hint='e.g. "espresso steam hiss, ceramic clink"'>
                   <Input value={values.sfx} onChange={(e) => setters.setSfx(e.target.value)} />
                 </SlotField>
@@ -2539,7 +2539,7 @@ function PromptSlotsSection({
                   onChange={(e) => setters.setNegativePrompt(e.target.value)}
                 />
               </SlotField>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <SlotField
                   label="Seed"
                   hint="Optional fixed seed for consistency across takes."
