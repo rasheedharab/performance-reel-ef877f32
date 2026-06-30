@@ -7,6 +7,12 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { falImageActualCost } from "../_shared/pricing.ts";
+import {
+  reserveCredit,
+  captureCredit,
+  refundCredit,
+  insufficientCreditsResponse,
+} from "../_shared/billing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -148,6 +154,8 @@ Deno.serve(async (req) => {
     cost_estimate,
     mode,
     instruction,
+    entity_type,
+    entity_id,
   } = body as Record<string, unknown>;
 
   const isEdit = mode === "edit";
@@ -179,6 +187,37 @@ Deno.serve(async (req) => {
   const purposeVal =
     typeof purpose === "string" && purpose ? purpose : "anchor_frame";
 
+  // ---- Reserve credits BEFORE submitting to fal.ai ----
+  const priceEst = falImageActualCost(model_id, 1);
+  const estimatedUsd =
+    priceEst?.cost ??
+    (typeof cost_estimate === "number" && Number.isFinite(cost_estimate)
+      ? cost_estimate
+      : 0.05);
+  const reservation = await reserveCredit(admin, {
+    user_id: userId,
+    estimated_usd: estimatedUsd,
+    operation: "image_generation",
+    model_id,
+    entity_type:
+      typeof entity_type === "string"
+        ? entity_type
+        : shot_id
+        ? "shot"
+        : "frame",
+    entity_id:
+      typeof entity_id === "string" && entity_id
+        ? entity_id
+        : (typeof shot_id === "string" ? shot_id : null),
+    brand_id: typeof brand_id === "string" ? brand_id : null,
+    brief_id: typeof brief_id === "string" ? brief_id : null,
+  });
+  if (!reservation.ok) {
+    const status = reservation.code === "insufficient_credits" ? 402 : 403;
+    return json(insufficientCreditsResponse(reservation), status);
+  }
+  const reservationId = reservation.ledger_id;
+
   // Pre-insert a `frames` row in `generating` status so the UI can track it.
   const { data: inserted, error: insErr } = await admin
     .from("frames")
@@ -206,6 +245,7 @@ Deno.serve(async (req) => {
     .single();
 
   if (insErr || !inserted) {
+    await refundCredit(admin, reservationId);
     return json({ error: insErr?.message ?? "frame insert failed" }, 500);
   }
   const frameId = inserted.id as string;
@@ -278,11 +318,19 @@ Deno.serve(async (req) => {
         status: "review",
         actual_cost: price?.cost ?? null,
         cost_source: price ? `fal.ai · ${price.matched} @ $${price.rate}/img` : null,
-        usage_meta: { provider: "fal", model_id, job_id: jobId },
+        usage_meta: {
+          provider: "fal",
+          model_id,
+          job_id: jobId,
+          reservation_ledger_id: reservationId,
+        },
         error_message: null,
       })
       .eq("id", frameId);
     if (updErr) throw new Error(updErr.message);
+
+    // Capture credits against the actual provider spend.
+    await captureCredit(admin, reservationId, price?.cost ?? estimatedUsd);
 
     return json({
       frame_id: frameId,
@@ -290,6 +338,9 @@ Deno.serve(async (req) => {
       model_id,
       job_id: jobId,
       actual_cost: price?.cost ?? null,
+      reservation_ledger_id: reservationId,
+      charged_amount: reservation.charged_amount,
+      currency: reservation.currency,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -298,6 +349,7 @@ Deno.serve(async (req) => {
       .from("frames")
       .update({ status: "rejected", error_message: msg })
       .eq("id", frameId);
+    await refundCredit(admin, reservationId);
     return json({ error: msg, frame_id: frameId }, 500);
   }
 });
