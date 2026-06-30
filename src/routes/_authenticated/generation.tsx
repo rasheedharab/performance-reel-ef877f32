@@ -48,6 +48,11 @@ import {
   getCampaignSignedUrls,
   uploadCampaignFile,
 } from "@/lib/campaign-assets";
+import {
+  ImageStudioDialog,
+  type ImageStudioShot,
+  type ImageStudioStyleBible,
+} from "@/components/image-studio";
 
 type AssetStatus = "queued" | "generating" | "review" | "approved" | "rejected";
 type AssetType = "clip" | "voiceover" | "music" | "sfx";
