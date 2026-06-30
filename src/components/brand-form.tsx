@@ -439,7 +439,7 @@ export function BrandForm({
       </Section>
 
       <Section label="Visual identity">
-        <div className="grid grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
           <ColorField
             label="Primary color"
             value={values.primary_color}

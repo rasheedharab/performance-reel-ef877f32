@@ -621,7 +621,7 @@ export function ImageStudioDialog({
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <p className="label-mono mb-1.5">Tier</p>
                 <div className="flex gap-1">
@@ -692,7 +692,7 @@ export function ImageStudioDialog({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <p className="label-mono mb-1.5">Seed</p>
                 <Input
@@ -835,7 +835,7 @@ export function ImageStudioDialog({
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {frames.map((frame) => {
                   const url = frame.file_url ? imageUrls[frame.file_url] : null;
                   const isSelected = frame.is_selected === true;
