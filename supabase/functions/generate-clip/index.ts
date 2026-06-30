@@ -108,6 +108,7 @@ Deno.serve(async (req) => {
       cost_estimate,
       ab_group_id,
       variant_label,
+      frame_id,
     } = body as Record<string, unknown>;
 
     if (!shot_id || typeof shot_id !== "string")
@@ -219,6 +220,7 @@ Deno.serve(async (req) => {
           typeof variant_label === "string" && variant_label.trim()
             ? variant_label.trim()
             : null,
+        frame_id: typeof frame_id === "string" && frame_id ? frame_id : null,
       })
       .select("id")
       .single();

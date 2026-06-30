@@ -48,6 +48,11 @@ import {
   getCampaignSignedUrls,
   uploadCampaignFile,
 } from "@/lib/campaign-assets";
+import {
+  ImageStudioDialog,
+  type ImageStudioShot,
+  type ImageStudioStyleBible,
+} from "@/components/image-studio";
 
 type AssetStatus = "queued" | "generating" | "review" | "approved" | "rejected";
 type AssetType = "clip" | "voiceover" | "music" | "sfx";
@@ -103,6 +108,7 @@ type ShotRow = {
   duration_seconds: number | null;
   generation_method: string | null;
   reference_image_url: string | null;
+  needs_generated_anchor: boolean | null;
   // Prompt slots — used for auto-compile in the generate dialog.
   subject: string | null;
   subject_tokens: string | null;
@@ -195,6 +201,9 @@ function GenerationBoard() {
   const [shots, setShots] = useState<ShotRow[] | null>(null);
   const [assets, setAssets] = useState<AssetRow[] | null>(null);
   const [brandLockedSeed, setBrandLockedSeed] = useState<number | null>(null);
+  const [studioShot, setStudioShot] = useState<ShotRow | null>(null);
+  const [brandStyleBible, setBrandStyleBible] = useState<ImageStudioStyleBible>(null);
+  const [briefProductPaths, setBriefProductPaths] = useState<string[]>([]);
 
   const [manualOpen, setManualOpen] = useState<{ shot: ShotRow } | null>(null);
   const [audioOpen, setAudioOpen] = useState<{ type: AssetType } | null>(null);
@@ -323,17 +332,22 @@ function GenerationBoard() {
   useEffect(() => {
     if (!brandId) {
       setBrandLockedSeed(null);
+      setBrandStyleBible(null);
       return;
     }
     let alive = true;
     (async () => {
       const { data } = await supabase
         .from("style_bibles")
-        .select("locked_seed")
+        .select(
+          "film_look, color_grade, lighting_signature, lens_feel, subject_tokens, default_negative, locked_seed",
+        )
         .eq("brand_id", brandId)
         .maybeSingle();
       if (!alive) return;
-      const s = (data as { locked_seed?: number | null } | null)?.locked_seed;
+      const sb = data as ImageStudioStyleBible;
+      setBrandStyleBible(sb ?? null);
+      const s = sb?.locked_seed;
       setBrandLockedSeed(typeof s === "number" ? s : null);
     })();
     return () => {
@@ -341,12 +355,37 @@ function GenerationBoard() {
     };
   }, [brandId]);
 
+  // Load brief product asset paths for use as image references.
+  useEffect(() => {
+    if (!briefId) {
+      setBriefProductPaths([]);
+      return;
+    }
+    let alive = true;
+    (async () => {
+      const { data } = await supabase
+        .from("briefs")
+        .select("product_asset_urls")
+        .eq("id", briefId)
+        .maybeSingle();
+      if (!alive) return;
+      const raw = (data as { product_asset_urls?: unknown } | null)?.product_asset_urls;
+      const paths = Array.isArray(raw)
+        ? raw.filter((p): p is string => typeof p === "string")
+        : [];
+      setBriefProductPaths(paths);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [briefId]);
+
   const reloadBoard = async () => {
     if (!selected) return;
     const { data: shotData } = await supabase
       .from("shots")
       .select(
-        "id, script_id, shot_number, visual_description, assigned_tool, duration_seconds, generation_method, reference_image_url, subject, subject_tokens, action, setting, lighting, lens, style_grade, mood, dialogue, sfx, ambient, negative_prompt, seed, camera_move, motion_intensity, prompt_word_target, compiled_prompt, compiled_negative, compiled_audio, compiled_for_tool, compiled_at",
+        "id, script_id, shot_number, visual_description, assigned_tool, duration_seconds, generation_method, reference_image_url, needs_generated_anchor, subject, subject_tokens, action, setting, lighting, lens, style_grade, mood, dialogue, sfx, ambient, negative_prompt, seed, camera_move, motion_intensity, prompt_word_target, compiled_prompt, compiled_negative, compiled_audio, compiled_for_tool, compiled_at",
       )
       .eq("script_id", selected.id)
       .order("shot_number", { ascending: true })
@@ -572,6 +611,16 @@ function GenerationBoard() {
       const method =
         (shot.generation_method as "text-to-video" | "image-to-video" | null) ??
         "text-to-video";
+      let frameId: string | null = null;
+      if (method === "image-to-video" && shot.reference_image_url) {
+        const { data: fr } = await supabase
+          .from("frames")
+          .select("id")
+          .eq("shot_id", shot.id)
+          .eq("is_selected", true)
+          .maybeSingle();
+        frameId = (fr as { id?: string } | null)?.id ?? null;
+      }
       const { error } = await supabase.functions.invoke("generate-clip", {
         body: {
           shot_id: shot.id,
@@ -583,6 +632,7 @@ function GenerationBoard() {
           generation_method: method,
           reference_image_url:
             method === "image-to-video" ? shot.reference_image_url ?? null : null,
+          frame_id: frameId,
           duration_seconds: dur,
           aspect_ratio: "9:16",
           model_id: family.final.id,
@@ -938,6 +988,7 @@ function GenerationBoard() {
                   onSelectTake={(assetId) => setSelectedTake(shot.id, assetId)}
                   onOpenDetail={(a) => setDetailOpen(a)}
                   onSavePromptToLibrary={(a) => savePromptToLibrary(a)}
+                  onOpenStudio={() => setStudioShot(shot)}
                 />
               ))
             )}
@@ -966,6 +1017,37 @@ function GenerationBoard() {
           onClose={() => setManualOpen(null)}
           onSaved={async () => {
             setManualOpen(null);
+            await reloadBoard();
+          }}
+        />
+      )}
+
+      {studioShot && (
+        <ImageStudioDialog
+          open={!!studioShot}
+          onOpenChange={(o) => { if (!o) setStudioShot(null); }}
+          shot={{
+            id: studioShot.id,
+            brief_id: briefId,
+            brand_id: brandId,
+            subject: studioShot.subject,
+            subject_tokens: studioShot.subject_tokens,
+            action: studioShot.action,
+            setting: studioShot.setting,
+            lighting: studioShot.lighting,
+            lens: studioShot.lens,
+            style_grade: studioShot.style_grade,
+            mood: studioShot.mood,
+            negative_prompt: studioShot.negative_prompt,
+            seed: studioShot.seed,
+            assigned_tool: studioShot.assigned_tool,
+            visual_description: studioShot.visual_description,
+            reference_image_url: studioShot.reference_image_url,
+          } satisfies ImageStudioShot}
+          styleBible={brandStyleBible}
+          briefProductPaths={briefProductPaths}
+          initialImageUrls={signedUrls}
+          onAnchorSet={async () => {
             await reloadBoard();
           }}
         />
@@ -1384,6 +1466,7 @@ function ShotPanel({
   onSelectTake,
   onOpenDetail,
   onSavePromptToLibrary,
+  onOpenStudio,
 }: {
   shot: ShotRow;
   assets: AssetRow[];
@@ -1394,6 +1477,7 @@ function ShotPanel({
   onSelectTake: (assetId: string) => void;
   onOpenDetail: (a: AssetRow) => void;
   onSavePromptToLibrary: (a: AssetRow) => void;
+  onOpenStudio: () => void;
 }) {
   const selected = assets.find((a) => a.is_selected && a.type === "clip");
   const selectedIsDraft = selected ? selected.render_tier !== "final" : false;
@@ -1498,6 +1582,34 @@ function ShotPanel({
       </header>
 
       {detailsOpen && <ShotDetailsPanel shot={shot} />}
+
+      {shot.generation_method === "image-to-video" && !shot.reference_image_url && (
+        <div className="mb-3 border border-dashed border-[var(--color-rec)]/50 bg-[var(--color-rec)]/5 rounded-[2px] p-3 flex items-start gap-3">
+          <Sparkles className="h-4 w-4 text-[var(--color-rec)] mt-0.5 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="label-mono text-[var(--color-rec)] mb-1">
+              Needs anchor frame
+            </p>
+            <p className="text-xs text-muted-foreground leading-snug">
+              This shot is image-to-video. Generate or pick an anchor frame in the Image Studio before rendering the clip.
+            </p>
+          </div>
+          <Button type="button" size="sm" variant="outline" onClick={onOpenStudio}>
+            <Sparkles className="h-3.5 w-3.5" /> Open Studio
+          </Button>
+        </div>
+      )}
+      {shot.generation_method === "image-to-video" && shot.reference_image_url && (
+        <div className="mb-3 flex items-center justify-end">
+          <button
+            type="button"
+            onClick={onOpenStudio}
+            className="label-mono text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+          >
+            <Sparkles className="h-3 w-3" /> Refine anchor in Studio
+          </button>
+        </div>
+      )}
 
       {assets.length === 0 ? (
         <div className="border border-dashed border-border rounded-[3px] p-6 text-center">
@@ -3139,6 +3251,18 @@ function GenerateClipDialog({
           generation_method: method,
           reference_image_url:
             method === "image-to-video" ? referenceUrl.trim() : null,
+          frame_id:
+            method === "image-to-video" && referenceUrl.trim()
+              ? await (async () => {
+                  const { data: fr } = await supabase
+                    .from("frames")
+                    .select("id")
+                    .eq("shot_id", shot.id)
+                    .eq("is_selected", true)
+                    .maybeSingle();
+                  return (fr as { id?: string } | null)?.id ?? null;
+                })()
+              : null,
           duration_seconds: duration,
           aspect_ratio: aspect,
           model_id: selectedVariant.id,
@@ -3313,6 +3437,24 @@ function GenerateClipDialog({
               placeholder="https://…"
               className={cn(blockingReferenceMissing && "border-[var(--color-rec)]")}
             />
+            {referenceUrl.trim() && (
+              <div className="mt-2 flex items-start gap-2 p-2 border border-border rounded-[3px] bg-background">
+                <img
+                  src={referenceUrl}
+                  alt="Anchor frame"
+                  className="w-16 h-16 object-cover rounded-[2px] border border-border"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                  }}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="label-mono text-foreground">Anchor frame attached</p>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    Passed to image-to-video model · lineage recorded on output
+                  </p>
+                </div>
+              </div>
+            )}
             {blockingReferenceMissing && (
               <p className="text-xs text-[var(--color-rec)] mt-1">
                 Image-to-video can't run without an anchor frame. Add one in Storyboard

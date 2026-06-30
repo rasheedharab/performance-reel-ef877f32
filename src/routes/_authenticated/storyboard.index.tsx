@@ -49,6 +49,11 @@ import {
   getCampaignSignedUrls,
   uploadCampaignFile,
 } from "@/lib/campaign-assets";
+import {
+  ImageStudioDialog,
+  type ImageStudioShot,
+  type ImageStudioStyleBible,
+} from "@/components/image-studio";
 
 type ScriptStatus = "draft" | "approved" | "archived";
 type GenMethod = "text-to-video" | "image-to-video";
@@ -198,6 +203,7 @@ type ShotRow = {
   compiled_audio: string | null;
   compiled_for_tool: string | null;
   compiled_at: string | null;
+  needs_generated_anchor: boolean | null;
 };
 
 type DraftShot = {
@@ -212,6 +218,7 @@ type DraftShot = {
   tool_reason: string;
   caption_text: string;
   audio_note: string;
+  needs_generated_anchor: boolean;
 };
 
 const MOTION_OPTIONS = ["Subtle", "Moderate", "Dynamic"] as const;
@@ -287,6 +294,7 @@ function StoryboardWorkspace() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<ShotRow | null>(null);
   const [abShot, setAbShot] = useState<ShotRow | null>(null);
+  const [studioShot, setStudioShot] = useState<ShotRow | null>(null);
   const [guideOpen, setGuideOpen] = useState(true);
 
   // AI shot-list draft state
@@ -367,7 +375,7 @@ function StoryboardWorkspace() {
     const { data } = await supabase
       .from("shots")
       .select(
-        "id, script_id, shot_number, visual_description, camera_move, motion_intensity, duration_seconds, audio_note, assigned_tool, reference_notes, generation_method, reference_image_url, tool_reason, caption_text, subject, subject_tokens, action, setting, lighting, lens, style_grade, mood, dialogue, sfx, ambient, negative_prompt, seed, prompt_word_target, compiled_prompt, compiled_negative, compiled_audio, compiled_for_tool, compiled_at",
+        "id, script_id, shot_number, visual_description, camera_move, motion_intensity, duration_seconds, audio_note, assigned_tool, reference_notes, generation_method, reference_image_url, tool_reason, caption_text, subject, subject_tokens, action, setting, lighting, lens, style_grade, mood, dialogue, sfx, ambient, negative_prompt, seed, prompt_word_target, compiled_prompt, compiled_negative, compiled_audio, compiled_for_tool, compiled_at, needs_generated_anchor",
       )
       .eq("script_id", scriptId)
       .order("shot_number", { ascending: true })
@@ -713,6 +721,10 @@ function StoryboardWorkspace() {
           tool_reason: String(o.tool_reason ?? ""),
           caption_text: String(o.caption_text ?? ""),
           audio_note: String(o.audio_note ?? ""),
+          needs_generated_anchor:
+            o.needs_generated_anchor === true ||
+            (gm === "image-to-video" && o.needs_generated_anchor !== false &&
+              productAssetPaths.length === 0),
         };
       });
       setAiDrafts(drafts);
@@ -756,6 +768,7 @@ function StoryboardWorkspace() {
       tool_reason: d.tool_reason.trim() || null,
       caption_text: d.caption_text.trim() || null,
       audio_note: d.audio_note.trim() || null,
+      needs_generated_anchor: d.needs_generated_anchor === true,
     }));
     const { error } = await supabase.from("shots").insert(rows);
     if (error) { toast.error(error.message); return; }
@@ -1001,6 +1014,7 @@ function StoryboardWorkspace() {
                     onDuplicate={() => duplicate(shot)}
                     onRemove={() => removeShot(shot)}
                     onAbTest={() => setAbShot(shot)}
+                    onOpenStudio={() => setStudioShot(shot)}
                   />
                 ))}
               </div>
@@ -1083,6 +1097,45 @@ function StoryboardWorkspace() {
                 onClick: () => navigate({ to: "/generation", search: { script: selectedScript.id } }),
               },
             });
+          }}
+        />
+      )}
+
+      {selectedScript && studioShot && (
+        <ImageStudioDialog
+          open={!!studioShot}
+          onOpenChange={(o) => { if (!o) setStudioShot(null); }}
+          shot={{
+            id: studioShot.id,
+            brief_id: selectedScript.angle?.brief?.id ?? null,
+            brand_id: selectedScript.angle?.brief?.brand?.id ?? null,
+            subject: studioShot.subject,
+            subject_tokens: studioShot.subject_tokens,
+            action: studioShot.action,
+            setting: studioShot.setting,
+            lighting: studioShot.lighting,
+            lens: studioShot.lens,
+            style_grade: studioShot.style_grade,
+            mood: studioShot.mood,
+            negative_prompt: studioShot.negative_prompt,
+            seed: studioShot.seed,
+            assigned_tool: studioShot.assigned_tool,
+            visual_description: studioShot.visual_description,
+            reference_image_url: studioShot.reference_image_url,
+          } satisfies ImageStudioShot}
+          styleBible={(() => {
+            const sb = selectedScript.angle?.brief?.brand?.style_bibles as unknown;
+            const row = Array.isArray(sb) ? sb[0] : sb;
+            return (row ?? null) as ImageStudioStyleBible;
+          })()}
+          briefProductPaths={productAssetPaths}
+          initialImageUrls={imageUrls}
+          onAnchorSet={async (filePath) => {
+            setImageUrls((prev) => ({ ...prev }));
+            await loadShots(selectedScript.id);
+            // resolve URL for new ref
+            const fresh = await getCampaignSignedUrls([filePath]);
+            setImageUrls((p) => ({ ...p, ...fresh }));
           }}
         />
       )}
@@ -1339,6 +1392,7 @@ function ShotRowCard({
   onDuplicate,
   onRemove,
   onAbTest,
+  onOpenStudio,
 }: {
   shot: ShotRow;
   index: number;
@@ -1352,10 +1406,14 @@ function ShotRowCard({
   onDuplicate: () => void;
   onRemove: () => void;
   onAbTest: () => void;
+  onOpenStudio: () => void;
 }) {
   const longShot = (shot.duration_seconds ?? 0) > 10;
   const refUrl = shot.reference_image_url ? imageUrls[shot.reference_image_url] : null;
   const hasCompiled = !!shot.compiled_prompt;
+  const isI2V = shot.generation_method === "image-to-video";
+  const needsAnchor =
+    (isI2V && !shot.reference_image_url) || shot.needs_generated_anchor === true;
   const compiledStale =
     hasCompiled &&
     shot.assigned_tool &&
@@ -1400,11 +1458,44 @@ function ShotRowCard({
           </span>
           <GenChip method={shot.generation_method} />
           <ToolChip tool={shot.assigned_tool} />
+          {needsAnchor && (
+            <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 border border-[var(--color-rec)] text-[var(--color-rec)] bg-[var(--color-rec)]/10 rounded-[2px]">
+              <Sparkles className="h-3 w-3" /> Generate anchor
+            </span>
+          )}
         </div>
         {shot.caption_text && (
           <p className="label-mono mt-2 text-foreground/70">
             on-screen · {shot.caption_text}
           </p>
+        )}
+
+        {isI2V && (
+          <div className="mt-3 border-t border-border pt-3">
+            {!shot.reference_image_url ? (
+              <div className="border border-dashed border-[var(--color-rec)]/50 bg-[var(--color-rec)]/5 rounded-[2px] p-3">
+                <p className="label-mono text-[var(--color-rec)] mb-1">Anchor frame required</p>
+                <p className="text-xs text-muted-foreground mb-2 leading-snug">
+                  This shot is image-to-video. Upload a frame in Edit, pick one from the brief, or generate one in the Studio.
+                </p>
+                <button
+                  type="button"
+                  onClick={onOpenStudio}
+                  className="label-mono inline-flex items-center gap-1 px-2 py-1 border border-foreground rounded-[2px] hover:bg-foreground hover:text-background"
+                >
+                  <Sparkles className="h-3 w-3" /> Open Image Studio
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={onOpenStudio}
+                className="label-mono inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
+              >
+                <Sparkles className="h-3 w-3" /> Refine anchor in Studio
+              </button>
+            )}
+          </div>
         )}
       </div>
 
