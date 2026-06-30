@@ -158,6 +158,15 @@ type AngleRow = {
   priority: number;
 };
 
+type AngleOverviewRow = AngleRow & {
+  brief: {
+    id: string;
+    project_name: string;
+    status: BriefStatus;
+    brand: { id: string; name: string } | null;
+  } | null;
+};
+
 type SuggestedAngle = {
   title: string;
   entry_point: EntryPoint;
