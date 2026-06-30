@@ -1021,6 +1021,66 @@ export type Database = {
           },
         ]
       }
+      shot_prompt_revisions: {
+        Row: {
+          asset_id: string | null
+          compiled_audio: string | null
+          compiled_for_tool: string | null
+          compiled_negative: string | null
+          compiled_prompt: string | null
+          created_at: string
+          id: string
+          note: string | null
+          seed: number | null
+          shot_id: string
+          source: string
+          user_id: string
+        }
+        Insert: {
+          asset_id?: string | null
+          compiled_audio?: string | null
+          compiled_for_tool?: string | null
+          compiled_negative?: string | null
+          compiled_prompt?: string | null
+          created_at?: string
+          id?: string
+          note?: string | null
+          seed?: number | null
+          shot_id: string
+          source?: string
+          user_id: string
+        }
+        Update: {
+          asset_id?: string | null
+          compiled_audio?: string | null
+          compiled_for_tool?: string | null
+          compiled_negative?: string | null
+          compiled_prompt?: string | null
+          created_at?: string
+          id?: string
+          note?: string | null
+          seed?: number | null
+          shot_id?: string
+          source?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shot_prompt_revisions_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shot_prompt_revisions_shot_id_fkey"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "shots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shots: {
         Row: {
           action: string | null

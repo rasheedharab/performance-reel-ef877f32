@@ -590,7 +590,30 @@ function GenerationBoard() {
         },
       });
       if (error) failed += 1;
-      else queued += 1;
+      else {
+        queued += 1;
+        try {
+          const { data: ures } = await supabase.auth.getUser();
+          const uid = ures.user?.id;
+          if (uid) {
+            await supabase.from("shot_prompt_revisions").insert({
+              shot_id: shot.id,
+              user_id: uid,
+              source: "generate",
+              compiled_for_tool: `${family.label} · ${family.final.label}`,
+              compiled_prompt: asset.prompt_used ?? null,
+              compiled_negative: asset.negative_used ?? null,
+              compiled_audio: family.supportsAudio
+                ? asset.audio_used ?? null
+                : null,
+              seed: asset.seed_used ?? null,
+              note: `batch final render · ${dur}s`,
+            });
+          }
+        } catch {
+          /* non-fatal */
+        }
+      }
     }
     toast.dismiss(toastId);
     if (failed === 0) {
@@ -1126,6 +1149,204 @@ function ShotDetailsPanel({ shot }: { shot: ShotRow }) {
           </p>
         )}
       </div>
+      <div>
+        <p className="label-mono text-muted-foreground mb-2">
+          Prompt revision history
+        </p>
+        <PromptHistoryPanel shotId={shot.id} />
+      </div>
+    </div>
+  );
+}
+
+type RevisionRow = {
+  id: string;
+  created_at: string;
+  source: string;
+  compiled_for_tool: string | null;
+  compiled_prompt: string | null;
+  compiled_negative: string | null;
+  compiled_audio: string | null;
+  seed: number | null;
+  note: string | null;
+  user_id: string;
+};
+
+function PromptHistoryPanel({ shotId }: { shotId: string }) {
+  const [rows, setRows] = useState<RevisionRow[] | null>(null);
+  const [emails, setEmails] = useState<Record<string, string>>({});
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [reloadTick, setReloadTick] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("shot_prompt_revisions")
+        .select(
+          "id, created_at, source, compiled_for_tool, compiled_prompt, compiled_negative, compiled_audio, seed, note, user_id",
+        )
+        .eq("shot_id", shotId)
+        .order("created_at", { ascending: false });
+      if (cancelled) return;
+      if (error) {
+        setRows([]);
+        return;
+      }
+      const list = (data as RevisionRow[]) ?? [];
+      setRows(list);
+      const { data: ures } = await supabase.auth.getUser();
+      if (ures.user) {
+        setEmails({ [ures.user.id]: ures.user.email ?? "you" });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [shotId, reloadTick]);
+
+  if (rows === null) {
+    return (
+      <div className="text-xs text-muted-foreground italic">
+        Loading history…
+      </div>
+    );
+  }
+  if (rows.length === 0) {
+    return (
+      <div className="text-xs text-muted-foreground italic">
+        No revisions yet. Compiling a prompt or generating a take will record
+        one here.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          {rows.length} revision{rows.length === 1 ? "" : "s"} · newest first
+        </p>
+        <button
+          type="button"
+          onClick={() => setReloadTick((t) => t + 1)}
+          className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground"
+        >
+          Refresh
+        </button>
+      </div>
+      <ol className="space-y-2">
+        {rows.map((r, idx) => {
+          const prev = rows[idx + 1];
+          const isOpen = !!expanded[r.id];
+          const dateStr = new Date(r.created_at).toLocaleString();
+          const author = emails[r.user_id] ?? r.user_id.slice(0, 8);
+          return (
+            <li
+              key={r.id}
+              className="border border-border bg-card rounded-[2px]"
+            >
+              <button
+                type="button"
+                onClick={() =>
+                  setExpanded((m) => ({ ...m, [r.id]: !m[r.id] }))
+                }
+                className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-background"
+              >
+                {isOpen ? (
+                  <ChevronDown className="h-3 w-3 shrink-0" />
+                ) : (
+                  <ChevronRight className="h-3 w-3 shrink-0" />
+                )}
+                <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 border border-border rounded-[2px] bg-background">
+                  {r.source}
+                </span>
+                <span className="text-xs">{dateStr}</span>
+                <span className="text-xs text-muted-foreground">· {author}</span>
+                {r.compiled_for_tool && (
+                  <span className="ml-auto font-mono text-[10px] uppercase tracking-wider text-muted-foreground truncate max-w-[40%]">
+                    {r.compiled_for_tool}
+                  </span>
+                )}
+              </button>
+              {isOpen && (
+                <div className="border-t border-border p-3 space-y-3">
+                  {r.note && (
+                    <p className="text-xs text-muted-foreground">{r.note}</p>
+                  )}
+                  {r.seed != null && (
+                    <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                      seed {r.seed}
+                    </p>
+                  )}
+                  <DiffBlock
+                    label="Prompt"
+                    current={r.compiled_prompt}
+                    previous={prev?.compiled_prompt ?? null}
+                  />
+                  <DiffBlock
+                    label="Negative"
+                    current={r.compiled_negative}
+                    previous={prev?.compiled_negative ?? null}
+                  />
+                  <DiffBlock
+                    label="Audio"
+                    current={r.compiled_audio}
+                    previous={prev?.compiled_audio ?? null}
+                  />
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
+function DiffBlock({
+  label,
+  current,
+  previous,
+}: {
+  label: string;
+  current: string | null;
+  previous: string | null;
+}) {
+  if (!current && !previous) return null;
+  const changed = (current ?? "") !== (previous ?? "");
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-1">
+        <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          {label}
+        </p>
+        {previous !== null && (
+          <span
+            className={cn(
+              "font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-[2px] border",
+              changed
+                ? "border-[var(--color-rec)] text-[var(--color-rec)]"
+                : "border-border text-muted-foreground",
+            )}
+          >
+            {changed ? "changed" : "unchanged"}
+          </span>
+        )}
+        {previous === null && (
+          <span className="font-mono text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-[2px] border border-border text-muted-foreground">
+            initial
+          </span>
+        )}
+      </div>
+      {changed && previous !== null && previous !== "" && (
+        <pre className="text-xs font-sans whitespace-pre-wrap leading-snug border border-border bg-background rounded-[2px] p-2 mb-1 line-through opacity-60">
+          {previous}
+        </pre>
+      )}
+      <pre className="text-xs font-sans whitespace-pre-wrap leading-snug border border-border bg-background rounded-[2px] p-2">
+        {current || <span className="italic text-muted-foreground">—</span>}
+      </pre>
     </div>
   );
 }
@@ -2931,6 +3152,29 @@ function GenerateClipDialog({
       }
       const errPayload = (data as { error?: string } | null)?.error;
       if (errPayload) throw new Error(errPayload);
+      // Record a revision tied to this generation request.
+      try {
+        const { data: ures } = await supabase.auth.getUser();
+        const uid = ures.user?.id;
+        if (uid) {
+          await supabase.from("shot_prompt_revisions").insert({
+            shot_id: shot.id,
+            user_id: uid,
+            source: "generate",
+            compiled_for_tool: `${selectedFamily.label} · ${selectedVariant.label}`,
+            compiled_prompt: compiledPrompt.trim() || null,
+            compiled_negative: negativePrompt.trim() || null,
+            compiled_audio:
+              selectedFamily.supportsAudio && audioPrompt.trim()
+                ? audioPrompt.trim()
+                : null,
+            seed: seedNum != null ? Math.floor(seedNum) : null,
+            note: `${tier} render · ${duration}s`,
+          });
+        }
+      } catch {
+        // Non-fatal.
+      }
       toast.success("Generation queued");
       onSubmitted();
     } catch (e) {

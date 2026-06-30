@@ -445,6 +445,25 @@ function StoryboardWorkspace() {
         })
         .eq("id", shot.id);
       if (dbErr) throw new Error(dbErr.message);
+      // Record this compile as a revision in the per-shot prompt history.
+      try {
+        const { data: ures } = await supabase.auth.getUser();
+        const uid = ures.user?.id;
+        if (uid) {
+          await supabase.from("shot_prompt_revisions").insert({
+            shot_id: shot.id,
+            user_id: uid,
+            source: "compile",
+            compiled_for_tool: tool,
+            compiled_prompt: compiled_prompt || null,
+            compiled_negative: compiled_negative || null,
+            compiled_audio,
+            seed: shot.seed ?? null,
+          });
+        }
+      } catch {
+        // Non-fatal: history insert failure should not block compile.
+      }
       return { ok: true, warnings };
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Compile failed";
