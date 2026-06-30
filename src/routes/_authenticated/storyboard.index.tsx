@@ -1123,9 +1123,11 @@ function StoryboardWorkspace() {
             visual_description: studioShot.visual_description,
             reference_image_url: studioShot.reference_image_url,
           } satisfies ImageStudioShot}
-          styleBible={
-            (selectedScript.angle?.brief?.brand?.style_bibles?.[0] ?? null) as ImageStudioStyleBible
-          }
+          styleBible={(() => {
+            const sb = selectedScript.angle?.brief?.brand?.style_bibles as unknown;
+            const row = Array.isArray(sb) ? sb[0] : sb;
+            return (row ?? null) as ImageStudioStyleBible;
+          })()}
           briefProductPaths={productAssetPaths}
           initialImageUrls={imageUrls}
           onAnchorSet={async (filePath) => {
