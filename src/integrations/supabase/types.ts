@@ -355,6 +355,7 @@ export type Database = {
           regulated: boolean | null
           regulatory_notes: string | null
           signoff_owner: string | null
+          spend_cap: number | null
           stats_claims: string | null
           status: Database["public"]["Enums"]["brief_status"]
           testimonials: string | null
@@ -410,6 +411,7 @@ export type Database = {
           regulated?: boolean | null
           regulatory_notes?: string | null
           signoff_owner?: string | null
+          spend_cap?: number | null
           stats_claims?: string | null
           status?: Database["public"]["Enums"]["brief_status"]
           testimonials?: string | null
@@ -465,6 +467,7 @@ export type Database = {
           regulated?: boolean | null
           regulatory_notes?: string | null
           signoff_owner?: string | null
+          spend_cap?: number | null
           stats_claims?: string | null
           status?: Database["public"]["Enums"]["brief_status"]
           testimonials?: string | null
@@ -1145,6 +1148,7 @@ export type Database = {
           id: string
           low_balance_threshold: number
           markup_multiplier: number
+          per_user_spend_cap: number | null
           role: Database["public"]["Enums"]["app_role"]
           updated_at: string
         }
@@ -1158,6 +1162,7 @@ export type Database = {
           id: string
           low_balance_threshold?: number
           markup_multiplier?: number
+          per_user_spend_cap?: number | null
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
         }
@@ -1171,6 +1176,7 @@ export type Database = {
           id?: string
           low_balance_threshold?: number
           markup_multiplier?: number
+          per_user_spend_cap?: number | null
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
         }
@@ -1711,6 +1717,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_platform_overview: {
+        Args: never
+        Returns: {
+          active_users: number
+          suspended_users: number
+          total_charged_usd_equiv: number
+          total_consumed_usd: number
+          total_reserved_usd: number
+          total_topped_up_usd: number
+          total_users: number
+        }[]
+      }
+      admin_topup_credit: {
+        Args: { p_amount: number; p_note?: string; p_user_id: string }
+        Returns: {
+          currency: Database["public"]["Enums"]["display_currency"]
+          ledger_id: string
+          new_balance: number
+        }[]
+      }
       capture_credit: {
         Args: { p_actual_usd: number; p_ledger_id: string }
         Returns: undefined
