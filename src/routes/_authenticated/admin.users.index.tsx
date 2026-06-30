@@ -229,15 +229,23 @@ function InviteUser({ onDone }: { onDone: () => void }) {
   async function submit() {
     setBusy(true);
     try {
-      // Inviting users requires admin Auth API; surfaced via edge function or manual onboarding.
-      // For now: instruct the super admin that the user must sign in once, then configure here.
-      toast.message("Send the user a sign-in link", {
-        description:
-          "After they sign in once, refresh this list — you can then set their role, currency, FX rate, and markup from their detail page.",
+      const { data, error } = await supabase.functions.invoke("admin-invite-user", {
+        body: {
+          email,
+          role,
+          display_currency: currency,
+          fx_rate_inr_per_usd: Number(fx),
+          markup_multiplier: Number(markup),
+        },
       });
-      console.log("invite intent", { email, role, currency, fx, markup });
+      if (error || (data as { error?: string })?.error) {
+        throw new Error((data as { detail?: string })?.detail || error?.message || "invite_failed");
+      }
+      toast.success("Invite sent");
       setOpen(false);
       onDone();
+    } catch (e) {
+      toast.error((e as Error).message);
     } finally {
       setBusy(false);
     }
