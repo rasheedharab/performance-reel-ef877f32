@@ -1100,6 +1100,43 @@ function StoryboardWorkspace() {
           }}
         />
       )}
+
+      {selectedScript && studioShot && (
+        <ImageStudioDialog
+          open={!!studioShot}
+          onOpenChange={(o) => { if (!o) setStudioShot(null); }}
+          shot={{
+            id: studioShot.id,
+            brief_id: selectedScript.angle?.brief?.id ?? null,
+            brand_id: selectedScript.angle?.brief?.brand?.id ?? null,
+            subject: studioShot.subject,
+            subject_tokens: studioShot.subject_tokens,
+            action: studioShot.action,
+            setting: studioShot.setting,
+            lighting: studioShot.lighting,
+            lens: studioShot.lens,
+            style_grade: studioShot.style_grade,
+            mood: studioShot.mood,
+            negative_prompt: studioShot.negative_prompt,
+            seed: studioShot.seed,
+            assigned_tool: studioShot.assigned_tool,
+            visual_description: studioShot.visual_description,
+            reference_image_url: studioShot.reference_image_url,
+          } satisfies ImageStudioShot}
+          styleBible={
+            (selectedScript.angle?.brief?.brand?.style_bibles?.[0] ?? null) as ImageStudioStyleBible
+          }
+          briefProductPaths={productAssetPaths}
+          initialImageUrls={imageUrls}
+          onAnchorSet={async (filePath) => {
+            setImageUrls((prev) => ({ ...prev }));
+            await loadShots(selectedScript.id);
+            // resolve URL for new ref
+            const fresh = await getCampaignSignedUrls([filePath]);
+            setImageUrls((p) => ({ ...p, ...fresh }));
+          }}
+        />
+      )}
     </div>
   );
 }
