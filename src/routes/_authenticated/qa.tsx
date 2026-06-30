@@ -450,7 +450,7 @@ function QaReview({ brief, onBack }: { brief: BriefRow; onBack: () => void }) {
 
   if (loading || !qa) {
     return (
-      <div className="container max-w-5xl mx-auto px-6 py-10">
+      <div className="container max-w-5xl mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
         <p className="text-muted-foreground">Loading review…</p>
       </div>
     );
@@ -462,7 +462,7 @@ function QaReview({ brief, onBack }: { brief: BriefRow; onBack: () => void }) {
   const skippedBrand = CHECKS.filter((c) => c.group === "brand_spec" && !c.applicable(brief));
 
   return (
-    <div className="container max-w-5xl mx-auto px-6 py-10">
+    <div className="container max-w-5xl mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
       <button onClick={onBack} className="inline-flex items-center gap-1.5 label-mono text-muted-foreground hover:text-foreground mb-3">
         <ArrowLeft className="h-3 w-3" /> Back to brief select
       </button>
