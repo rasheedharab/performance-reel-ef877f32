@@ -14,6 +14,7 @@ import {
   Rocket,
   LineChart,
   Library,
+  Wallet,
   LogOut,
   Shield,
   Users,
@@ -43,6 +44,7 @@ const nav: NavItem[] = [
   { to: "/launch", label: "Launch & Tests", icon: Rocket },
   { to: "/performance", label: "Performance", icon: LineChart },
   { to: "/library", label: "Library", icon: Library },
+  { to: "/wallet", label: "Wallet & Usage", icon: Wallet },
 ];
 
 const adminNav: NavItem[] = [

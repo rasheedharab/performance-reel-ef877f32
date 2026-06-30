@@ -49,6 +49,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { handleInsufficientCredits } from "@/lib/wallet";
+import { CostHint } from "@/components/cost-meter";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -442,6 +444,10 @@ function AnglesWorkspace() {
           },
         },
       });
+      if (await handleInsufficientCredits(error, data)) {
+        setSuggestError("Insufficient credits. Open Wallet to view spend.");
+        return;
+      }
       if (error) throw new Error(error.message);
       const payload = data as { result?: { angles?: SuggestedAngle[] }; error?: string };
       if (payload?.error) {
@@ -699,6 +705,7 @@ function AnglesWorkspace() {
               <div className="flex items-center justify-between mb-3">
                 <p className="label-mono">Angles</p>
                 <div className="flex items-center gap-2">
+                  <CostHint usd={0.02} />
                   <SuggestButton
                     coreDriver={selectedBrief.core_driver}
                     loading={suggesting}

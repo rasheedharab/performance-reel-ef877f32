@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
+import { handleInsufficientCredits } from "@/lib/wallet";
+import { CostHint } from "@/components/cost-meter";
 import {
   ArrowRight,
   Film,
@@ -512,6 +514,7 @@ function ScriptsWorkspace() {
                   <Sparkles className="h-4 w-4" />
                   Draft script
                 </Button>
+                <CostHint usd={0.03} />
                 <Button
                   size="sm"
                   onClick={() => {
@@ -1484,6 +1487,10 @@ function AiDraftPickerDialog({
       const results = await Promise.all(calls);
       const drafts: AiDraft[] = [];
       for (const r of results) {
+        if (await handleInsufficientCredits(r.error, r.data)) {
+          setError("Insufficient credits. Open Wallet to view spend.");
+          return;
+        }
         if (r.error) {
           throw new Error(r.error.message || "AI assist failed.");
         }

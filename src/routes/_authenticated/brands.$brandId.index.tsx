@@ -6,6 +6,10 @@ import { Button } from "@/components/ui/button";
 import { getSignedUrl, getSignedUrls, fileNameFromPath } from "@/lib/brand-assets";
 import { StyleBibleSection } from "@/components/style-bible-form";
 import type { Database } from "@/integrations/supabase/types";
+import { useQuery } from "@tanstack/react-query";
+import { formatCurrency } from "@/lib/wallet";
+import { Wallet as WalletIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type Brand = Database["public"]["Tables"]["brands"]["Row"];
 
@@ -216,6 +220,8 @@ function BrandDetailPage() {
         </Button>
       </div>
 
+      <BrandSpendCard brandId={brand.id} />
+
       <div className="bg-card border border-border rounded-[3px] p-8">
         <Section label="Identity">
           <Row label="One-line" value={brand.one_line_what_you_sell} />
@@ -303,6 +309,55 @@ function BrandDetailPage() {
         <Section label="Style Bible">
           <StyleBibleSection brandId={brand.id} />
         </Section>
+      </div>
+    </div>
+  );
+}
+
+function BrandSpendCard({ brandId }: { brandId: string }) {
+  const { data } = useQuery({
+    queryKey: ["brand-spend", brandId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("credit_ledger")
+        .select("amount, currency, brief_id")
+        .eq("brand_id", brandId)
+        .eq("type", "debit")
+        .in("status", ["reserved", "captured"]);
+      const rows = data ?? [];
+      const spent = rows.reduce((s, r) => s + -Number(r.amount), 0);
+      const briefs = new Set(
+        rows.map((r) => r.brief_id).filter((x): x is string => !!x),
+      );
+      const currency = (rows[0]?.currency as string) || "USD";
+      return { spent, briefCount: briefs.size, currency, ops: rows.length };
+    },
+    refetchInterval: 30_000,
+  });
+  const spent = data?.spent ?? 0;
+  const currency = data?.currency ?? "USD";
+  return (
+    <div className="border border-border bg-card rounded-[3px] p-4 mt-2 mb-3 grid grid-cols-3 gap-6">
+      <div>
+        <div className="flex items-center gap-2 label-mono mb-1">
+          <WalletIcon className="h-3.5 w-3.5" />
+          Total spend
+        </div>
+        <p className="font-display text-2xl font-bold tabular-nums">
+          {formatCurrency(spent, currency)}
+        </p>
+      </div>
+      <div>
+        <p className="label-mono mb-1">Across briefs</p>
+        <p className="font-display text-2xl font-bold tabular-nums">
+          {data?.briefCount ?? 0}
+        </p>
+      </div>
+      <div>
+        <p className="label-mono mb-1">Operations</p>
+        <p className={cn("font-display text-2xl font-bold tabular-nums")}>
+          {data?.ops ?? 0}
+        </p>
       </div>
     </div>
   );

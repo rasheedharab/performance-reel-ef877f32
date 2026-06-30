@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
+import { handleInsufficientCredits } from "@/lib/wallet";
 import {
   ArrowRight,
   ChevronDown,
@@ -427,6 +428,7 @@ function StoryboardWorkspace() {
       const { data, error } = await supabase.functions.invoke("ai-assist", {
         body: { task: "compile_prompt", payload },
       });
+      if (await handleInsufficientCredits(error, data)) return { ok: false };
       if (error) throw new Error(error.message);
       const result = (data as { result?: Record<string, unknown> } | null)?.result;
       if (!result || typeof result !== "object") throw new Error("Empty AI response");
@@ -694,6 +696,7 @@ function StoryboardWorkspace() {
       const { data, error } = await supabase.functions.invoke("ai-assist", {
         body: { task: "build_shotlist", payload },
       });
+      if (await handleInsufficientCredits(error, data)) return;
       if (error) throw new Error(error.message);
       const err = (data as { error?: string } | null)?.error;
       if (err) throw new Error(err);
@@ -1871,6 +1874,7 @@ function ShotFormDialog({
       const { data, error: err } = await supabase.functions.invoke("ai-assist", {
         body: { task: "compile_prompt", payload },
       });
+      if (await handleInsufficientCredits(err, data)) return;
       if (err) throw new Error(err.message);
       const r = (data as { result?: Record<string, unknown> } | null)?.result;
       if (!r || typeof r !== "object") throw new Error("Empty AI response");
@@ -2701,6 +2705,7 @@ function AbPromptDialog({
           payload: { ...buildShotSlotsPayload(shot), count: n },
         },
       });
+      if (await handleInsufficientCredits(error, data)) return;
       if (error) throw new Error(error.message);
       const result = (data as { result?: { variants?: unknown[] } } | null)?.result;
       const list = Array.isArray(result?.variants) ? result.variants : [];

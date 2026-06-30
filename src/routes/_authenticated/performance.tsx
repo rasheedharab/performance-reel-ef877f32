@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
+import { handleInsufficientCredits } from "@/lib/wallet";
 import {
   ArrowLeft,
   BookmarkPlus,
@@ -689,6 +690,7 @@ function PerformancePage() {
           },
         },
       });
+      if (await handleInsufficientCredits(error, data)) return false;
       if (error) throw new Error(error.message);
       const payload = data as { result?: unknown; error?: string };
       if (payload?.error) {
@@ -918,6 +920,7 @@ function PerformancePage() {
           },
         },
       });
+      if (await handleInsufficientCredits(error, data)) return;
       if (error) throw new Error(error.message);
       const payload = data as { result?: unknown; error?: string };
       if (payload?.error) {

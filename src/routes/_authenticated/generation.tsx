@@ -44,6 +44,8 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { CostMeter, useCannotAfford } from "@/components/cost-meter";
+import { parseEdgeError } from "@/lib/wallet";
 import {
   getCampaignSignedUrls,
   uploadCampaignFile,
@@ -3319,11 +3321,21 @@ function GenerateClipDialog({
       toast.success("Generation queued");
       onSubmitted();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      if (/exhausted balance|user is locked/i.test(msg)) {
-        toast.error("fal.ai balance exhausted. Top up at fal.ai/dashboard/billing.");
+      const parsed = await parseEdgeError(e, null);
+      if (parsed?.isInsufficient) {
+        const shortfall = parsed.shortfall;
+        toast.error(
+          shortfall != null
+            ? `Insufficient credits — you need about ${shortfall.toFixed(2)} more. Open Wallet.`
+            : "Insufficient credits. Open Wallet.",
+        );
       } else {
-        toast.error(msg);
+        const msg = e instanceof Error ? e.message : String(e);
+        if (/exhausted balance|user is locked/i.test(msg)) {
+          toast.error("fal.ai balance exhausted. Top up at fal.ai/dashboard/billing.");
+        } else {
+          toast.error(msg);
+        }
       }
     } finally {
       setBusy(false);
@@ -3565,26 +3577,21 @@ function GenerateClipDialog({
           </div>
         </div>
 
-        <div className="border border-border rounded-[2px] bg-background p-3 text-xs text-muted-foreground">
-          About{" "}
-          <span className="font-mono text-foreground">
-            ~${estimateCost(selectedVariant, duration).toFixed(2)}
-          </span>{" "}
-          in API credits ({tier} tier · {selectedVariant.label}). You'll be charged by fal.ai when the job runs.
-        </div>
+        <CostMeter
+          estimatedUsd={estimateCost(selectedVariant, duration)}
+          label={`Estimated · ${tier}`}
+        />
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
-          <Button
-            type="button"
-            onClick={submit}
+          <GenerateClipSubmitButton
+            estimatedUsd={estimateCost(selectedVariant, duration)}
             disabled={busy || compiling || blockingReferenceMissing || !compiledPrompt.trim()}
-          >
-            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-            Generate
-          </Button>
+            busy={busy}
+            onClick={submit}
+          />
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -3592,6 +3599,26 @@ function GenerateClipDialog({
 }
 
 // ============== Generate voiceover dialog (ElevenLabs) ==============
+
+function GenerateClipSubmitButton({
+  estimatedUsd,
+  disabled,
+  busy,
+  onClick,
+}: {
+  estimatedUsd: number;
+  disabled: boolean;
+  busy: boolean;
+  onClick: () => void;
+}) {
+  const cannot = useCannotAfford(estimatedUsd);
+  return (
+    <Button type="button" onClick={onClick} disabled={disabled || cannot}>
+      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+      {cannot ? "Insufficient credits" : "Generate"}
+    </Button>
+  );
+}
 
 const ELEVEN_VOICES = [
   { id: "21m00Tcm4TlvDq8ikWAM", label: "Rachel · narrator" },
@@ -3650,14 +3677,22 @@ function GenerateVoiceoverDialog({
       toast.success("Voiceover generated");
       onSaved();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      toast.error(msg);
+      const parsed = await parseEdgeError(e, null);
+      if (parsed?.isInsufficient) {
+        toast.error(
+          parsed.shortfall != null
+            ? `Insufficient credits — need ~${parsed.shortfall.toFixed(2)} more. Open Wallet.`
+            : "Insufficient credits. Open Wallet.",
+        );
+      } else {
+        toast.error(e instanceof Error ? e.message : String(e));
+      }
     } finally {
       setBusy(false);
     }
   };
 
-  const approxCost = Math.round(text.length * 0.0003 * 100) / 100;
+  const approxCost = text.length * 0.0003;
 
   return (
     <Dialog open onOpenChange={(v) => (!v ? onClose() : null)}>
@@ -3690,20 +3725,44 @@ function GenerateVoiceoverDialog({
             placeholder="Paste or edit the line you want spoken…"
           />
           <p className="font-mono text-[10px] text-muted-foreground mt-1">
-            {text.length} chars · ~${approxCost.toFixed(2)}
+            {text.length} chars
           </p>
         </div>
+
+        <CostMeter estimatedUsd={approxCost} label="Voiceover" />
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
-          <Button type="button" onClick={submit} disabled={busy}>
-            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-            Generate
-          </Button>
+          <VoiceoverSubmitButton
+            estimatedUsd={approxCost}
+            busy={busy}
+            disabled={busy || !text.trim()}
+            onClick={submit}
+          />
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function VoiceoverSubmitButton({
+  estimatedUsd,
+  disabled,
+  busy,
+  onClick,
+}: {
+  estimatedUsd: number;
+  disabled: boolean;
+  busy: boolean;
+  onClick: () => void;
+}) {
+  const cannot = useCannotAfford(estimatedUsd);
+  return (
+    <Button type="button" onClick={onClick} disabled={disabled || cannot}>
+      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+      {cannot ? "Insufficient credits" : "Generate"}
+    </Button>
   );
 }

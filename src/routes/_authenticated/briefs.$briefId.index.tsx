@@ -22,6 +22,9 @@ import { cn } from "@/lib/utils";
 import { getSignedUrl } from "@/lib/brand-assets";
 import { getCampaignSignedUrls, campaignFileName } from "@/lib/campaign-assets";
 import type { Database } from "@/integrations/supabase/types";
+import { useQuery } from "@tanstack/react-query";
+import { formatCurrency } from "@/lib/wallet";
+import { Wallet as WalletIcon } from "lucide-react";
 
 type BriefRow = Database["public"]["Tables"]["briefs"]["Row"];
 type BrandRow = Database["public"]["Tables"]["brands"]["Row"];
@@ -271,6 +274,8 @@ function BriefDetailPage() {
         </Button>
       </div>
 
+      <BriefSpendCard briefId={brief.id} cap={brief.spend_cap} />
+
       {/* Document */}
       <div className="bg-card border border-border rounded-[3px] p-8 md:p-10 mt-6">
         <Scene num="01" title="Project">
@@ -472,6 +477,82 @@ function BriefDetailPage() {
           <Row label="References" value={brief.reference_links} />
           <Row label="Notes" value={brief.notes} />
         </Scene>
+      </div>
+    </div>
+  );
+}
+
+function BriefSpendCard({
+  briefId,
+  cap,
+}: {
+  briefId: string;
+  cap: number | null;
+}) {
+  const { data } = useQuery({
+    queryKey: ["brief-spend", briefId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("credit_ledger")
+        .select("amount, currency")
+        .eq("brief_id", briefId)
+        .eq("type", "debit")
+        .in("status", ["reserved", "captured"]);
+      const rows = data ?? [];
+      const spent = rows.reduce((s, r) => s + -Number(r.amount), 0);
+      const currency = (rows[0]?.currency as string) || "USD";
+      return { spent, currency };
+    },
+    refetchInterval: 30_000,
+  });
+  if (!data && cap == null) return null;
+  const spent = data?.spent ?? 0;
+  const currency = data?.currency ?? "USD";
+  const pct = cap && cap > 0 ? Math.min(100, (spent / cap) * 100) : null;
+  const remaining = cap != null ? cap - spent : null;
+  const over = cap != null && spent >= cap;
+  return (
+    <div className="border border-border bg-card rounded-[3px] p-4 mt-4 mb-2 flex items-center gap-5">
+      <WalletIcon className="h-5 w-5 text-muted-foreground" />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline justify-between gap-3 flex-wrap">
+          <div>
+            <p className="label-mono">Spend on this brief</p>
+            <p className="font-display text-xl font-bold tabular-nums">
+              {formatCurrency(spent, currency)}
+              {cap != null && (
+                <span className="text-muted-foreground text-sm font-mono ml-2">
+                  / {formatCurrency(cap, currency)} cap
+                </span>
+              )}
+            </p>
+          </div>
+          {remaining != null && (
+            <p
+              className={cn(
+                "label-mono",
+                over ? "text-[var(--color-rec)]" : "text-muted-foreground",
+              )}
+            >
+              {over ? "Cap reached" : `${formatCurrency(remaining, currency)} remaining`}
+            </p>
+          )}
+        </div>
+        {pct != null && (
+          <div className="h-1.5 mt-2 bg-muted rounded-full overflow-hidden">
+            <div
+              className={cn(
+                "h-full",
+                over
+                  ? "bg-[var(--color-rec)]"
+                  : pct > 80
+                    ? "bg-amber-500"
+                    : "bg-foreground",
+              )}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
