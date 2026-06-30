@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
 
     const { data: asset, error: aErr } = await admin
       .from("assets")
-      .select("id, user_id, brief_id, shot_id, model_id, job_id, status, file_url")
+      .select("id, user_id, brief_id, shot_id, model_id, job_id, status, file_url, duration_seconds")
       .eq("id", assetId)
       .maybeSingle();
     if (aErr || !asset) return json({ error: "Asset not found" }, 404);
@@ -152,9 +152,11 @@ Deno.serve(async (req) => {
           file_url: storedPath,
           error_message: null,
           ...(() => {
-            const dur = (result?.video?.duration as number | undefined) ||
+            const dur =
+              (result?.video?.duration as number | undefined) ||
               (result?.duration as number | undefined) ||
-              undefined;
+              (asset.duration_seconds as number | undefined) ||
+              0;
             const priced = falActualCost(asset.model_id ?? "", Number(dur) || 0);
             if (!priced) return {};
             return {
