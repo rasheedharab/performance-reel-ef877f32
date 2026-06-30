@@ -266,8 +266,8 @@ function GenerationBoard() {
         s.assetCount += 1;
         if (a.is_selected) s.selectedCount += 1;
         if (a.status === "queued") s.queued += 1;
-        if (a.status === "processing") s.processing += 1;
-        if (a.status === "failed") s.failed += 1;
+        if (a.status === "generating") s.processing += 1;
+        if (a.status === "rejected") s.failed += 1;
         if (a.render_tier === "final") s.finalCount += 1;
         s.totalCost += a.cost_estimate ?? 0;
       }
