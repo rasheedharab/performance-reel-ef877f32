@@ -1541,6 +1541,34 @@ function ShotPanel({
 
       {detailsOpen && <ShotDetailsPanel shot={shot} />}
 
+      {shot.generation_method === "image-to-video" && !shot.reference_image_url && (
+        <div className="mb-3 border border-dashed border-[var(--color-rec)]/50 bg-[var(--color-rec)]/5 rounded-[2px] p-3 flex items-start gap-3">
+          <Sparkles className="h-4 w-4 text-[var(--color-rec)] mt-0.5 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="label-mono text-[var(--color-rec)] mb-1">
+              Needs anchor frame
+            </p>
+            <p className="text-xs text-muted-foreground leading-snug">
+              This shot is image-to-video. Generate or pick an anchor frame in the Image Studio before rendering the clip.
+            </p>
+          </div>
+          <Button type="button" size="sm" variant="outline" onClick={onOpenStudio}>
+            <Sparkles className="h-3.5 w-3.5" /> Open Studio
+          </Button>
+        </div>
+      )}
+      {shot.generation_method === "image-to-video" && shot.reference_image_url && (
+        <div className="mb-3 flex items-center justify-end">
+          <button
+            type="button"
+            onClick={onOpenStudio}
+            className="label-mono text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+          >
+            <Sparkles className="h-3 w-3" /> Refine anchor in Studio
+          </button>
+        </div>
+      )}
+
       {assets.length === 0 ? (
         <div className="border border-dashed border-border rounded-[3px] p-6 text-center">
           <p className="label-mono text-muted-foreground">No takes yet</p>
