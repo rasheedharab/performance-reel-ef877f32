@@ -590,7 +590,30 @@ function GenerationBoard() {
         },
       });
       if (error) failed += 1;
-      else queued += 1;
+      else {
+        queued += 1;
+        try {
+          const { data: ures } = await supabase.auth.getUser();
+          const uid = ures.user?.id;
+          if (uid) {
+            await supabase.from("shot_prompt_revisions").insert({
+              shot_id: shot.id,
+              user_id: uid,
+              source: "generate",
+              compiled_for_tool: `${family.label} · ${family.final.label}`,
+              compiled_prompt: asset.prompt_used ?? null,
+              compiled_negative: asset.negative_used ?? null,
+              compiled_audio: family.supportsAudio
+                ? asset.audio_used ?? null
+                : null,
+              seed: asset.seed_used ?? null,
+              note: `batch final render · ${dur}s`,
+            });
+          }
+        } catch {
+          /* non-fatal */
+        }
+      }
     }
     toast.dismiss(toastId);
     if (failed === 0) {
