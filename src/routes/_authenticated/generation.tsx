@@ -3,6 +3,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
 import {
   Check,
+  ChevronDown,
+  ChevronRight,
   Film,
   Loader2,
   Music,
