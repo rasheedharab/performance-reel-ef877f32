@@ -1073,6 +1073,172 @@ function ScriptFormDialog({
   );
 }
 
+function ScriptsOverview({
+  rows,
+  brandFilter,
+  onBrandFilter,
+  onPick,
+}: {
+  rows: ScriptOverviewRow[] | null;
+  brandFilter: string;
+  onBrandFilter: (v: string) => void;
+  onPick: (angleId: string) => void;
+}) {
+  const brands = useMemo(() => {
+    if (!rows) return [] as { id: string; name: string; count: number }[];
+    const map = new Map<string, { id: string; name: string; count: number }>();
+    for (const s of rows) {
+      const b = s.angle?.brief?.brand;
+      if (!b) continue;
+      const existing = map.get(b.id);
+      if (existing) existing.count += 1;
+      else map.set(b.id, { id: b.id, name: b.name, count: 1 });
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [rows]);
+
+  const filtered = useMemo(() => {
+    if (!rows) return [];
+    if (brandFilter === "all") return rows;
+    return rows.filter((s) => s.angle?.brief?.brand?.id === brandFilter);
+  }, [rows, brandFilter]);
+
+  if (rows === null) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="border border-border rounded-[3px] bg-card animate-pulse h-48" />
+        ))}
+      </div>
+    );
+  }
+
+  if (rows.length === 0) {
+    return (
+      <div className="border border-dashed border-border rounded-[3px] bg-card/50 p-16 text-center">
+        <p className="label-mono mb-3">No scripts yet</p>
+        <p className="text-sm text-muted-foreground max-w-md mx-auto">
+          Pick an approved angle above and write the first cut.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {brands.length > 0 && (
+        <div className="mb-5">
+          <p className="label-mono mb-2">Filter by brand</p>
+          <div className="flex flex-wrap gap-2">
+            <OverviewBrandChip
+              label="All"
+              count={rows.length}
+              active={brandFilter === "all"}
+              onClick={() => onBrandFilter("all")}
+            />
+            {brands.map((b) => (
+              <OverviewBrandChip
+                key={b.id}
+                label={b.name}
+                count={b.count}
+                active={brandFilter === b.id}
+                onClick={() => onBrandFilter(b.id)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {filtered.length === 0 ? (
+        <div className="border border-dashed border-border rounded-[3px] bg-card/50 p-12 text-center">
+          <p className="text-sm text-muted-foreground">No scripts for this brand yet.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map((s) => {
+            const d = s.duration_seconds ?? 0;
+            const meta = ZONE_META[durationZone(s.duration_seconds)];
+            return (
+              <button
+                key={s.id}
+                onClick={() => s.angle && onPick(s.angle.id)}
+                className="text-left border border-border bg-card rounded-[3px] p-5 flex flex-col gap-3 hover:border-foreground/40 transition-colors"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="label-mono text-muted-foreground truncate">
+                    {s.angle?.brief?.brand?.name ?? "—"}
+                  </p>
+                  <StatusChip status={s.status} />
+                </div>
+                <p className="text-xs text-foreground/70 truncate flex items-center gap-1.5">
+                  <Film className="h-3 w-3 shrink-0" />
+                  {s.angle?.brief?.project_name ?? "—"}
+                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {s.angle?.entry_point && <EntryPointChip ep={s.angle.entry_point} />}
+                  <ArchetypeChip value={s.archetype} />
+                </div>
+                <p className="text-xs text-muted-foreground line-clamp-1 italic">
+                  Angle: {s.angle?.title ?? "—"}
+                </p>
+                <h3 className="font-display text-base font-bold leading-snug line-clamp-2">
+                  {s.hook?.split("\n")[0] || (
+                    <span className="text-muted-foreground italic font-normal">No hook yet</span>
+                  )}
+                </h3>
+                <div className="mt-auto flex items-center justify-between gap-2 pt-2 border-t border-border/60">
+                  <span className="font-mono text-[11px]">{d}s · <span className="text-muted-foreground">{meta.label}</span></span>
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 border rounded-[2px]",
+                      s.works_sound_off
+                        ? "border-emerald-700/40 text-emerald-800 bg-emerald-700/10"
+                        : "border-border text-muted-foreground bg-background",
+                    )}
+                  >
+                    {s.works_sound_off ? <VolumeX className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />}
+                    {s.works_sound_off ? "Sound-off" : "Needs pass"}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OverviewBrandChip({
+  label,
+  count,
+  active,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider px-2.5 py-1 border rounded-[2px] transition-colors",
+        active
+          ? "bg-foreground text-background border-foreground"
+          : "bg-card text-foreground border-border hover:border-foreground/40",
+      )}
+    >
+      {label}
+      <span className={cn("opacity-70", active ? "text-background" : "text-muted-foreground")}>
+        {count}
+      </span>
+    </button>
+  );
+}
+
 function FormField({
   label,
   helper,
