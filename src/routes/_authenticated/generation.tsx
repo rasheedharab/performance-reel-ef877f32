@@ -1434,6 +1434,7 @@ function ShotPanel({
   onSelectTake: (assetId: string) => void;
   onOpenDetail: (a: AssetRow) => void;
   onSavePromptToLibrary: (a: AssetRow) => void;
+  onOpenStudio: () => void;
 }) {
   const selected = assets.find((a) => a.is_selected && a.type === "clip");
   const selectedIsDraft = selected ? selected.render_tier !== "final" : false;
