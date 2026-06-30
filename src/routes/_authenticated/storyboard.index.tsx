@@ -1366,10 +1366,14 @@ function ShotRowCard({
   onDuplicate: () => void;
   onRemove: () => void;
   onAbTest: () => void;
+  onOpenStudio: () => void;
 }) {
   const longShot = (shot.duration_seconds ?? 0) > 10;
   const refUrl = shot.reference_image_url ? imageUrls[shot.reference_image_url] : null;
   const hasCompiled = !!shot.compiled_prompt;
+  const isI2V = shot.generation_method === "image-to-video";
+  const needsAnchor =
+    (isI2V && !shot.reference_image_url) || shot.needs_generated_anchor === true;
   const compiledStale =
     hasCompiled &&
     shot.assigned_tool &&
