@@ -347,7 +347,7 @@ function GenerationBoard() {
     const { data: shotData } = await supabase
       .from("shots")
       .select(
-        "id, script_id, shot_number, visual_description, assigned_tool, duration_seconds, generation_method, reference_image_url, subject, subject_tokens, action, setting, lighting, lens, style_grade, mood, dialogue, sfx, ambient, negative_prompt, seed, camera_move, motion_intensity, prompt_word_target, compiled_prompt, compiled_negative, compiled_audio, compiled_for_tool, compiled_at",
+        "id, script_id, shot_number, visual_description, assigned_tool, duration_seconds, generation_method, reference_image_url, needs_generated_anchor, subject, subject_tokens, action, setting, lighting, lens, style_grade, mood, dialogue, sfx, ambient, negative_prompt, seed, camera_move, motion_intensity, prompt_word_target, compiled_prompt, compiled_negative, compiled_audio, compiled_for_tool, compiled_at",
       )
       .eq("script_id", selected.id)
       .order("shot_number", { ascending: true })
