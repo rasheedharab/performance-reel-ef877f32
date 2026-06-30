@@ -1424,6 +1424,7 @@ function ShotPanel({
   onSelectTake,
   onOpenDetail,
   onSavePromptToLibrary,
+  onOpenStudio,
 }: {
   shot: ShotRow;
   assets: AssetRow[];
