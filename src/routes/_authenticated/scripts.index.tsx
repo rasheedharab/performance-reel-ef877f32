@@ -1484,6 +1484,10 @@ function AiDraftPickerDialog({
       const results = await Promise.all(calls);
       const drafts: AiDraft[] = [];
       for (const r of results) {
+        if (await handleInsufficientCredits(r.error, r.data)) {
+          setError("Insufficient credits. Open Wallet to view spend.");
+          return;
+        }
         if (r.error) {
           throw new Error(r.error.message || "AI assist failed.");
         }
