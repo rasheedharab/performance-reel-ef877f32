@@ -705,6 +705,7 @@ function AnglesWorkspace() {
               <div className="flex items-center justify-between mb-3">
                 <p className="label-mono">Angles</p>
                 <div className="flex items-center gap-2">
+                  <CostHint usd={0.02} />
                   <SuggestButton
                     coreDriver={selectedBrief.core_driver}
                     loading={suggesting}
