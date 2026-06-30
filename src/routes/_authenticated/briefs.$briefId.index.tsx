@@ -207,7 +207,7 @@ function BriefDetailPage() {
         </div>
         <div className="flex-1 min-w-0">
           <p className="label-mono mb-1">Creative brief</p>
-          <h1 className="font-display text-3xl font-bold tracking-tight leading-tight">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight leading-tight">
             {brief.project_name}
           </h1>
           {brand && (

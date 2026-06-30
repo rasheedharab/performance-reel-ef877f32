@@ -295,12 +295,12 @@ function LibraryPage() {
   }
 
   return (
-    <div className="px-8 py-10 max-w-7xl mx-auto">
+    <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10 max-w-7xl mx-auto">
       {/* header */}
-      <div className="flex items-start justify-between gap-6 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-6 mb-6 sm:mb-8">
         <div>
           <p className="label-mono mb-2">PROMPT VAULT</p>
-          <h1 className="font-display text-4xl font-bold tracking-tight">
+          <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">
             Library
           </h1>
           <p className="text-muted-foreground text-sm mt-2 max-w-xl">

@@ -241,10 +241,10 @@ function BriefAndCuts({ briefParam }: { briefParam: string | null }) {
   }, [briefs, search]);
 
   return (
-    <div className="px-8 py-10 max-w-6xl mx-auto">
+    <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10 max-w-6xl mx-auto">
       <div className="mb-8">
         <p className="label-mono mb-2">Phase 05 · Edit room</p>
-        <h1 className="font-display text-4xl font-bold tracking-tight">
+        <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">
           Edit Room
         </h1>
         <p className="text-muted-foreground text-sm mt-2 max-w-xl">
@@ -915,7 +915,7 @@ function CutEditor({ cutId, briefParam }: { cutId: string; briefParam: string | 
   const musics = briefAssets.filter((a) => a.type === "music");
 
   return (
-    <div className="px-8 py-10 max-w-7xl mx-auto">
+    <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10 max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-6">
         <Link
@@ -931,7 +931,7 @@ function CutEditor({ cutId, briefParam }: { cutId: string; briefParam: string | 
               {brief?.brand?.name ?? "—"} · {brief?.project_name ?? "—"}
               {script?.archetype && <> · {script.archetype}</>}
             </p>
-            <h1 className="font-display text-3xl font-bold tracking-tight flex items-center gap-3 flex-wrap">
+            <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-3 flex-wrap">
               {cut.name}
               <span className="font-mono text-[11px] uppercase tracking-wider px-2 py-0.5 border border-foreground rounded-[2px]">
                 v{cut.version ?? 1}

@@ -151,7 +151,7 @@ function BrandDetailPage() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="label-mono mb-1">Brand slate</p>
-            <h1 className="font-display text-4xl font-bold tracking-tight leading-none">
+            <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight leading-none">
               {brand.name}
             </h1>
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">

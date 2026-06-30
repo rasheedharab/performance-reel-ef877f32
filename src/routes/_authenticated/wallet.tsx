@@ -234,7 +234,7 @@ function WalletPage() {
       <header className="flex items-baseline justify-between gap-4">
         <div>
           <p className="label-mono text-[var(--color-rec)] mb-1">WALLET</p>
-          <h1 className="font-display text-3xl font-bold tracking-tight">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight">
             Wallet &amp; Usage
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
