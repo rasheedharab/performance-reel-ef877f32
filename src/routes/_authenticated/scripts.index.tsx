@@ -222,6 +222,27 @@ function ScriptsWorkspace() {
   const [aiQueue, setAiQueue] = useState<AiDraft[]>([]);
   const [aiCurrent, setAiCurrent] = useState<AiDraft | null>(null);
 
+  const [overview, setOverview] = useState<ScriptOverviewRow[] | null>(null);
+  const [overviewBrandFilter, setOverviewBrandFilter] = useState<string>("all");
+
+  useEffect(() => {
+    if (angleParam) return;
+    let alive = true;
+    (async () => {
+      const { data } = await supabase
+        .from("scripts")
+        .select(
+          "id, angle_id, archetype, hook, desire_beat, body, proof_beat, cta, vo_script, on_screen_text, target_duration, duration_seconds, works_sound_off, status, angle:angles(id, title, entry_point, brief:briefs(id, project_name, brand:brands(id, name)))",
+        )
+        .order("status", { ascending: true })
+        .order("created_at", { ascending: false });
+      if (alive) setOverview((data as unknown as ScriptOverviewRow[]) ?? []);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [angleParam]);
+
   useEffect(() => {
     (async () => {
       const { data } = await supabase
