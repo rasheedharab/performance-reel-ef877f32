@@ -450,7 +450,6 @@ Return ONLY this JSON shape (no other text):
   return { system, user };
 };
 
-TASKS.prompt_variants = (p) => {
 TASKS.compile_image_prompt = (p) => {
   const s = (k: string) => {
     const v = p[k];
