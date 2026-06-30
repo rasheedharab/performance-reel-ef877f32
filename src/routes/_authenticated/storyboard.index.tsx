@@ -198,6 +198,7 @@ type ShotRow = {
   compiled_audio: string | null;
   compiled_for_tool: string | null;
   compiled_at: string | null;
+  needs_generated_anchor: boolean | null;
 };
 
 type DraftShot = {
