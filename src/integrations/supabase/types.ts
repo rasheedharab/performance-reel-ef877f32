@@ -1588,6 +1588,8 @@ export type Database = {
         | "hook_formula"
         | "shot_recipe"
         | "vo_style"
+        | "style_ref"
+        | "hero_shot"
       metric_action:
         | "none"
         | "scale"
@@ -1756,6 +1758,8 @@ export const Constants = {
         "hook_formula",
         "shot_recipe",
         "vo_style",
+        "style_ref",
+        "hero_shot",
       ],
       metric_action: [
         "none",
