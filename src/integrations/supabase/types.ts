@@ -118,6 +118,7 @@ export type Database = {
           duration_seconds: number | null
           error_message: string | null
           file_url: string | null
+          frame_id: string | null
           generation_method: string | null
           id: string
           is_selected: boolean
@@ -152,6 +153,7 @@ export type Database = {
           duration_seconds?: number | null
           error_message?: string | null
           file_url?: string | null
+          frame_id?: string | null
           generation_method?: string | null
           id?: string
           is_selected?: boolean
@@ -186,6 +188,7 @@ export type Database = {
           duration_seconds?: number | null
           error_message?: string | null
           file_url?: string | null
+          frame_id?: string | null
           generation_method?: string | null
           id?: string
           is_selected?: boolean
@@ -215,6 +218,13 @@ export type Database = {
             columns: ["brief_id"]
             isOneToOne: false
             referencedRelation: "briefs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_frame_id_fkey"
+            columns: ["frame_id"]
+            isOneToOne: false
+            referencedRelation: "frames"
             referencedColumns: ["id"]
           },
           {
@@ -1302,6 +1312,7 @@ export type Database = {
           lighting: string | null
           mood: string | null
           motion_intensity: string | null
+          needs_generated_anchor: boolean
           negative_prompt: string | null
           prompt_word_target: number
           reference_image_url: string | null
@@ -1340,6 +1351,7 @@ export type Database = {
           lighting?: string | null
           mood?: string | null
           motion_intensity?: string | null
+          needs_generated_anchor?: boolean
           negative_prompt?: string | null
           prompt_word_target?: number
           reference_image_url?: string | null
@@ -1378,6 +1390,7 @@ export type Database = {
           lighting?: string | null
           mood?: string | null
           motion_intensity?: string | null
+          needs_generated_anchor?: boolean
           negative_prompt?: string | null
           prompt_word_target?: number
           reference_image_url?: string | null
