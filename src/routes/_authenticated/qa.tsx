@@ -300,7 +300,7 @@ function QaPage() {
 
   if (!selectedBrief) {
     return (
-      <div className="container max-w-7xl mx-auto px-6 py-10">
+      <div className="container max-w-7xl mx-auto px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
         <div className="mb-8">
           <p className="label-mono mb-2">PHASE 7 · GATE</p>
           <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">QA &amp; Compliance</h1>

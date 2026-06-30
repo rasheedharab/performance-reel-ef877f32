@@ -215,7 +215,7 @@ function AdminUserDetailPage() {
         <ArrowLeft className="h-3 w-3" /> Users
       </Link>
 
-      <div className="flex items-start justify-between gap-6 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-6 mb-6">
         <div>
           <p className="label-mono mb-2">User</p>
           <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight">
