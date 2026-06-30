@@ -6,6 +6,7 @@
 // Secrets: FAL_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { falActualCost } from "../_shared/pricing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -150,6 +151,24 @@ Deno.serve(async (req) => {
           status: "review",
           file_url: storedPath,
           error_message: null,
+          ...(() => {
+            const dur = (result?.video?.duration as number | undefined) ||
+              (result?.duration as number | undefined) ||
+              undefined;
+            const priced = falActualCost(asset.model_id ?? "", Number(dur) || 0);
+            if (!priced) return {};
+            return {
+              actual_cost: priced.cost,
+              cost_source: `fal.ai · ${priced.matched} @ $${priced.rate}/s`,
+              usage_meta: {
+                provider: "fal.ai",
+                model_id: asset.model_id,
+                duration_seconds: Number(dur) || null,
+                rate_per_second: priced.rate,
+                metrics: result?.metrics ?? null,
+              },
+            };
+          })(),
         })
         .eq("id", assetId);
       if (updErr) return json({ error: updErr.message }, 500);
