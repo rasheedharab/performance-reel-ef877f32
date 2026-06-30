@@ -495,7 +495,7 @@ function GenerationBoard() {
   const totalCost = useMemo(
     () =>
       (assets ?? []).reduce(
-        (sum, a) => sum + (a.cost_estimate ? Number(a.cost_estimate) : 0),
+        (sum, a) => sum + Number(a.actual_cost ?? a.cost_estimate ?? 0),
         0,
       ),
     [assets],
@@ -507,7 +507,7 @@ function GenerationBoard() {
     let final = 0;
     for (const a of assets ?? []) {
       if (a.type !== "clip") continue;
-      const c = a.cost_estimate ? Number(a.cost_estimate) : 0;
+      const c = Number(a.actual_cost ?? a.cost_estimate ?? 0);
       if (a.render_tier === "final") final += c;
       else draft += c;
     }
