@@ -89,7 +89,7 @@ function Eyebrow({ children }: { children: ReactNode }) {
   return (
     <div className="flex items-center gap-2 mb-5">
       <RecDot />
-      <span className="label-mono">{children}</span>
+      <span className="label-mono text-inherit opacity-80">{children}</span>
     </div>
   );
 }
@@ -207,9 +207,9 @@ function TopNav({ isAuthed }: { isAuthed: boolean }) {
 
 function MockCaption({ children }: { children: ReactNode }) {
   return (
-    <div className="mt-3 flex items-center gap-2 label-mono text-[oklch(0.6_0.005_85)]">
+    <div className="mt-3 flex items-center gap-2 label-mono text-inherit">
       <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-rec)]" />
-      <span>PREVIEW · {children}</span>
+      <span className="opacity-80">PREVIEW · {children}</span>
     </div>
   );
 }
@@ -233,9 +233,9 @@ function MockFrame({ children, dark = false }: { children: ReactNode; dark?: boo
         }
       >
         <RecDot />
-        <span className="label-mono">REC</span>
+        <span className={"label-mono " + (dark ? "text-[oklch(0.85_0.005_85)]" : "text-[var(--color-ink)]")}>REC</span>
         <span className={dark ? "h-2.5 w-px bg-[oklch(0.35_0.005_280)]" : "h-2.5 w-px bg-[var(--color-hairline)]"} />
-        <span className="label-mono">REEL ENGINE</span>
+        <span className={"label-mono " + (dark ? "text-[oklch(0.85_0.005_85)]" : "text-[var(--color-ink)]")}>REEL ENGINE</span>
       </div>
       {children}
     </div>
@@ -255,7 +255,7 @@ function HeroStoryboardMock() {
       <div className="p-4 sm:p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <p className="label-mono mb-1 text-[oklch(0.7_0.005_85)]">STORYBOARD · 15s · 9:16</p>
+            <p className="label-mono mb-1 text-[oklch(0.85_0.005_85)]">STORYBOARD · 15s · 9:16</p>
             <p className="font-display font-bold text-sm sm:text-base">Lumen Skincare · Hook A — “3am text from my dermatologist”</p>
           </div>
           <span className="label-mono text-[var(--color-rec)] hidden sm:inline">● LIVE</span>
@@ -266,7 +266,7 @@ function HeroStoryboardMock() {
               key={s.id}
               className="grid grid-cols-[36px_64px_minmax(0,1fr)_auto] items-center gap-3 bg-[oklch(0.2_0.005_280)] border border-[oklch(0.32_0.005_280)] rounded-[3px] px-3 py-2.5"
             >
-              <span className="label-mono text-[oklch(0.7_0.005_85)]">{s.id}</span>
+              <span className="label-mono text-[oklch(0.85_0.005_85)]">{s.id}</span>
               <div className="h-10 w-16 rounded-[2px] bg-gradient-to-br from-[oklch(0.32_0.02_280)] to-[oklch(0.18_0.005_280)] border border-[oklch(0.32_0.005_280)] relative overflow-hidden">
                 <span className="absolute bottom-1 left-1 label-mono text-[9px] text-[oklch(0.85_0.005_85)]">{s.dur}</span>
               </div>
@@ -287,8 +287,8 @@ function HeroStoryboardMock() {
           ))}
         </div>
         <div className="mt-4 flex items-center justify-between border-t border-[oklch(0.32_0.005_280)] pt-3">
-          <span className="label-mono text-[oklch(0.7_0.005_85)]">VEO 3 · KLING · FLUX</span>
-          <span className="label-mono text-[oklch(0.7_0.005_85)]">CREDITS ▸ 12 / 200</span>
+          <span className="label-mono text-[oklch(0.85_0.005_85)]">VEO 3 · KLING · FLUX</span>
+          <span className="label-mono text-[oklch(0.85_0.005_85)]">CREDITS ▸ 12 / 200</span>
         </div>
       </div>
     </MockFrame>
@@ -440,7 +440,7 @@ function Pipeline() {
             <div key={s} className="flex items-stretch gap-2">
               <div className="w-[148px] sm:w-[160px] bg-[oklch(0.22_0.005_280)] border border-[oklch(0.32_0.005_280)] rounded-[3px] p-3">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="label-mono text-[oklch(0.6_0.005_85)]">
+                  <span className="label-mono text-[oklch(0.85_0.005_85)]">
                     {String(i + 1).padStart(2, "0")}
                   </span>
                   <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-rec)]" />
@@ -462,7 +462,7 @@ function Pipeline() {
           ))}
         </div>
       </div>
-      <div className="mt-4 flex items-center gap-3 text-[oklch(0.7_0.005_85)]">
+      <div className="mt-4 flex items-center gap-3 text-[oklch(0.85_0.005_85)]">
         <div className="h-px flex-1 bg-[oklch(0.32_0.005_280)]" />
         <span className="label-mono flex items-center gap-2">
           <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-rec)]" />
@@ -616,7 +616,7 @@ function LandingPage() {
                 }
               />
             </div>
-            <p className="mt-10 label-mono text-[oklch(0.65_0.005_85)]">
+            <p className="mt-10 label-mono text-[oklch(0.75_0.005_85)]">
               POWERED BY VEO · KLING · RUNWAY · FLUX
             </p>
           </div>
@@ -792,8 +792,8 @@ function LandingPage() {
               d: "A test matrix plus hook-rate, hold-rate, CTR and ROAS diagnostics, feeding a winners library that makes the next campaign faster.",
               mock: (
                 <div className="grid grid-cols-3 gap-2 label-mono">
-                  <div className="bg-[oklch(0.2_0.005_280)] p-2 rounded-[2px]"><div className="text-[oklch(0.6_0.005_85)]">HOOK</div><div className="text-white text-base">41%</div></div>
-                  <div className="bg-[oklch(0.2_0.005_280)] p-2 rounded-[2px]"><div className="text-[oklch(0.6_0.005_85)]">HOLD</div><div className="text-white text-base">63%</div></div>
+                  <div className="bg-[oklch(0.2_0.005_280)] p-2 rounded-[2px]"><div className="text-[oklch(0.85_0.005_85)]">HOOK</div><div className="text-white text-base">41%</div></div>
+                  <div className="bg-[oklch(0.2_0.005_280)] p-2 rounded-[2px]"><div className="text-[oklch(0.85_0.005_85)]">HOLD</div><div className="text-white text-base">63%</div></div>
                   <div className="bg-[var(--color-rec)]/15 p-2 rounded-[2px] border border-[var(--color-rec)]/40"><div className="text-[oklch(0.8_0.1_27)]">ROAS</div><div className="text-white text-base">3.4x</div></div>
                 </div>
               ),
@@ -883,7 +883,7 @@ function LandingPage() {
                         {val === true ? (
                           <Check className={"h-4 w-4 " + (c === 1 ? "text-[var(--color-rec)]" : "text-[oklch(0.78_0.005_85)]")} />
                         ) : val === false ? (
-                          <Minus className="h-4 w-4 text-[oklch(0.55_0.005_85)]" />
+                          <Minus className="h-4 w-4 text-[oklch(0.75_0.005_85)]" />
                         ) : (
                           <span className={c === 1 ? "font-medium text-white" : "text-[oklch(0.78_0.005_85)]"}>{val as string}</span>
                         )}
@@ -1086,7 +1086,7 @@ function LandingPage() {
         <div className="relative mx-auto max-w-6xl px-5 sm:px-8 py-20 sm:py-28 text-center">
           <div className="flex items-center justify-center gap-2 mb-6">
             <RecDot />
-            <span className="label-mono">FINAL CUT</span>
+            <span className="label-mono text-[oklch(0.85_0.005_85)]">FINAL CUT</span>
           </div>
           <h2 className="font-display font-bold tracking-tight text-4xl sm:text-6xl lg:text-7xl leading-[0.95] max-w-4xl mx-auto">
             Stop assembling tools.<br />
@@ -1127,7 +1127,7 @@ function LandingPage() {
             </p>
           </div>
           <div>
-            <p className="label-mono text-[oklch(0.55_0.005_85)] mb-3">Product</p>
+            <p className="label-mono text-[oklch(0.85_0.005_85)] mb-3">Product</p>
             <ul className="space-y-2 text-sm">
               <li><a className="hover:text-white" href="#how">How it works</a></li>
               <li><a className="hover:text-white" href="#features">Features</a></li>
@@ -1136,7 +1136,7 @@ function LandingPage() {
             </ul>
           </div>
           <div>
-            <p className="label-mono text-[oklch(0.55_0.005_85)] mb-3">Legal</p>
+            <p className="label-mono text-[oklch(0.85_0.005_85)] mb-3">Legal</p>
             <ul className="space-y-2 text-sm">
               <li><a className="hover:text-white" href="#">Terms</a></li>
               <li><a className="hover:text-white" href="#">Privacy</a></li>
@@ -1144,7 +1144,7 @@ function LandingPage() {
             </ul>
           </div>
           <div>
-            <p className="label-mono text-[oklch(0.55_0.005_85)] mb-3">Contact</p>
+            <p className="label-mono text-[oklch(0.85_0.005_85)] mb-3">Contact</p>
             <ul className="space-y-2 text-sm">
               <li><a className="hover:text-white" href="mailto:hello@reelengine.app">hello@reelengine.app</a></li>
               <li><a className="hover:text-white" href="#">Twitter / X</a></li>
