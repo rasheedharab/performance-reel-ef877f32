@@ -84,6 +84,14 @@ Deno.serve(async (req) => {
       (asset.usage_meta as Record<string, unknown> | null)?.reservation_ledger_id as
         | string
         | undefined;
+    const storedStatusUrl =
+      (asset.usage_meta as Record<string, unknown> | null)?.fal_status_url as
+        | string
+        | undefined;
+    const storedResponseUrl =
+      (asset.usage_meta as Record<string, unknown> | null)?.fal_response_url as
+        | string
+        | undefined;
 
     // fal.ai queue endpoints live at the app family (first two path segments
     // of the model id) — NOT the full model variant path. Examples:
@@ -102,10 +110,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    const statusRes = await fetch(
-      `https://queue.fal.run/${appId}/requests/${asset.job_id}/status`,
-      { headers: { "Authorization": `Key ${FAL_KEY}` } },
-    );
+    const statusUrl =
+      storedStatusUrl ||
+      `https://queue.fal.run/${appId}/requests/${asset.job_id}/status`;
+    const statusRes = await fetch(statusUrl, {
+      headers: { "Authorization": `Key ${FAL_KEY}` },
+    });
     if (!statusRes.ok) {
       const text = await statusRes.text().catch(() => "");
       console.error("fal status fail", statusRes.status, text);
@@ -133,6 +143,7 @@ Deno.serve(async (req) => {
       // /requests/{id} path.
       const responseUrl =
         (typeof statusData?.response_url === "string" && statusData.response_url) ||
+        storedResponseUrl ||
         `https://queue.fal.run/${appId}/requests/${asset.job_id}`;
       const resultRes = await fetch(responseUrl, {
         headers: { "Authorization": `Key ${FAL_KEY}` },
