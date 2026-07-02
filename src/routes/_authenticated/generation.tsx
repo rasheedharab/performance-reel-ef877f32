@@ -3055,7 +3055,16 @@ function estimateCost(variant: TierVariant, durationSeconds: number) {
   return Math.max(0, variant.costPerSecond * Math.max(1, durationSeconds || 8));
 }
 
-function buildCompilePayload(shot: ShotRow, compileTool: string) {
+function buildCompilePayload(
+  shot: ShotRow,
+  compileTool: string,
+  ctx: {
+    brand?: Record<string, unknown> | null;
+    brief?: Record<string, unknown> | null;
+    style_bible?: Record<string, unknown> | null;
+    script?: Record<string, unknown> | null;
+  } = {},
+) {
   return {
     assigned_tool: compileTool,
     subject: shot.subject,
@@ -3077,6 +3086,12 @@ function buildCompilePayload(shot: ShotRow, compileTool: string) {
     generation_method: shot.generation_method,
     has_anchor_image: !!shot.reference_image_url,
     prompt_word_target: shot.prompt_word_target ?? 60,
+    visual_description: shot.visual_description,
+    shot_number: shot.shot_number,
+    brand_context: ctx.brand ?? null,
+    brief_context: ctx.brief ?? null,
+    style_bible: ctx.style_bible ?? null,
+    script_context: ctx.script ?? null,
   };
 }
 
@@ -3092,6 +3107,10 @@ function GenerateClipDialog({
   shot,
   briefId,
   brandLockedSeed,
+  brandContext,
+  briefContext,
+  styleBible,
+  scriptContext,
   existingVersionCount,
   prefill,
   lockTier,
@@ -3101,6 +3120,10 @@ function GenerateClipDialog({
   shot: ShotRow;
   briefId: string | null;
   brandLockedSeed: number | null;
+  brandContext?: Record<string, unknown> | null;
+  briefContext?: Record<string, unknown> | null;
+  styleBible?: Record<string, unknown> | null;
+  scriptContext?: Record<string, unknown> | null;
   existingVersionCount: number;
   // Pre-populated from a sibling asset when promoting a draft → final.
   prefill?: {
