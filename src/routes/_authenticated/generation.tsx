@@ -206,6 +206,11 @@ function GenerationBoard() {
   const [studioShot, setStudioShot] = useState<ShotRow | null>(null);
   const [brandStyleBible, setBrandStyleBible] = useState<ImageStudioStyleBible>(null);
   const [briefProductPaths, setBriefProductPaths] = useState<string[]>([]);
+  // Full brand + brief context passed into compile_prompt so the AI has the
+  // product identity, brand voice, must-includes, and regulatory guardrails
+  // — not just the storyboard slot fields.
+  const [brandContext, setBrandContext] = useState<Record<string, unknown> | null>(null);
+  const [briefContext, setBriefContext] = useState<Record<string, unknown> | null>(null);
 
   const [manualOpen, setManualOpen] = useState<{ shot: ShotRow } | null>(null);
   const [audioOpen, setAudioOpen] = useState<{ type: AssetType } | null>(null);
@@ -335,6 +340,7 @@ function GenerationBoard() {
     if (!brandId) {
       setBrandLockedSeed(null);
       setBrandStyleBible(null);
+      setBrandContext(null);
       return;
     }
     let alive = true;
@@ -351,6 +357,16 @@ function GenerationBoard() {
       setBrandStyleBible(sb ?? null);
       const s = sb?.locked_seed;
       setBrandLockedSeed(typeof s === "number" ? s : null);
+
+      const { data: brandRow } = await supabase
+        .from("brands")
+        .select(
+          "name, category, one_line_what_you_sell, brand_voice, tone_do, tone_dont, personality, primary_color, secondary_color, fonts, no_go_list, avoid_competitors, notes",
+        )
+        .eq("id", brandId)
+        .maybeSingle();
+      if (!alive) return;
+      setBrandContext((brandRow as Record<string, unknown> | null) ?? null);
     })();
     return () => {
       alive = false;
@@ -361,13 +377,16 @@ function GenerationBoard() {
   useEffect(() => {
     if (!briefId) {
       setBriefProductPaths([]);
+      setBriefContext(null);
       return;
     }
     let alive = true;
     (async () => {
       const { data } = await supabase
         .from("briefs")
-        .select("product_asset_urls")
+        .select(
+          "project_name, product_name, product_description, offer_type, offer_detail, price, destination_url, objective, kpi_type, kpi_target, awareness_stage, audience_age, audience_gender, audience_location, audience_income, psychographic, headspace, core_driver, objection, wedge, benefits, customer_language, must_include, cannot_claim, disclosures, legal_copy, regulated, regulatory_notes, ai_disclosure, stats_claims, testimonials, awards, benchmark, reference_links, notes, languages, product_asset_urls",
+        )
         .eq("id", briefId)
         .maybeSingle();
       if (!alive) return;
@@ -376,6 +395,7 @@ function GenerationBoard() {
         ? raw.filter((p): p is string => typeof p === "string")
         : [];
       setBriefProductPaths(paths);
+      setBriefContext((data as Record<string, unknown> | null) ?? null);
     })();
     return () => {
       alive = false;
@@ -1075,6 +1095,10 @@ function GenerationBoard() {
           shot={generateOpen.shot}
           briefId={briefId}
           brandLockedSeed={brandLockedSeed}
+          brandContext={brandContext}
+          briefContext={briefContext}
+          styleBible={brandStyleBible as unknown as Record<string, unknown> | null}
+          scriptContext={selected as unknown as Record<string, unknown> | null}
           existingVersionCount={
             (assetsByShot.get(generateOpen.shot.id) ?? []).length
           }
@@ -3031,7 +3055,16 @@ function estimateCost(variant: TierVariant, durationSeconds: number) {
   return Math.max(0, variant.costPerSecond * Math.max(1, durationSeconds || 8));
 }
 
-function buildCompilePayload(shot: ShotRow, compileTool: string) {
+function buildCompilePayload(
+  shot: ShotRow,
+  compileTool: string,
+  ctx: {
+    brand?: Record<string, unknown> | null;
+    brief?: Record<string, unknown> | null;
+    style_bible?: Record<string, unknown> | null;
+    script?: Record<string, unknown> | null;
+  } = {},
+) {
   return {
     assigned_tool: compileTool,
     subject: shot.subject,
@@ -3053,6 +3086,12 @@ function buildCompilePayload(shot: ShotRow, compileTool: string) {
     generation_method: shot.generation_method,
     has_anchor_image: !!shot.reference_image_url,
     prompt_word_target: shot.prompt_word_target ?? 60,
+    visual_description: shot.visual_description,
+    shot_number: shot.shot_number,
+    brand_context: ctx.brand ?? null,
+    brief_context: ctx.brief ?? null,
+    style_bible: ctx.style_bible ?? null,
+    script_context: ctx.script ?? null,
   };
 }
 
@@ -3068,6 +3107,10 @@ function GenerateClipDialog({
   shot,
   briefId,
   brandLockedSeed,
+  brandContext,
+  briefContext,
+  styleBible,
+  scriptContext,
   existingVersionCount,
   prefill,
   lockTier,
@@ -3077,6 +3120,10 @@ function GenerateClipDialog({
   shot: ShotRow;
   briefId: string | null;
   brandLockedSeed: number | null;
+  brandContext?: Record<string, unknown> | null;
+  briefContext?: Record<string, unknown> | null;
+  styleBible?: Record<string, unknown> | null;
+  scriptContext?: Record<string, unknown> | null;
   existingVersionCount: number;
   // Pre-populated from a sibling asset when promoting a draft → final.
   prefill?: {
@@ -3154,7 +3201,15 @@ function GenerateClipDialog({
     setCompiling(true);
     try {
       const { data, error } = await supabase.functions.invoke("ai-assist", {
-        body: { task: "compile_prompt", payload: buildCompilePayload(shot, tool) },
+        body: {
+          task: "compile_prompt",
+          payload: buildCompilePayload(shot, tool, {
+            brand: brandContext ?? null,
+            brief: briefContext ?? null,
+            style_bible: (styleBible as Record<string, unknown> | null) ?? null,
+            script: scriptContext ?? null,
+          }),
+        },
       });
       if (error) throw new Error(error.message);
       const result = (data as { result?: Record<string, unknown> } | null)?.result;

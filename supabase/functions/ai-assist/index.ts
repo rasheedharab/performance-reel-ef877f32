@@ -374,6 +374,34 @@ TASKS.compile_prompt = (p) => {
     Boolean(p.has_anchor_image);
   const wordTarget = Number(p.prompt_word_target) > 0 ? Number(p.prompt_word_target) : 60;
 
+  // Helpers to render nested context blocks defensively.
+  const asObj = (v: unknown) =>
+    v && typeof v === "object" && !Array.isArray(v)
+      ? (v as Record<string, unknown>)
+      : {};
+  const brand = asObj(p.brand_context);
+  const brief = asObj(p.brief_context);
+  const sb = asObj(p.style_bible);
+  const script = asObj(p.script_context);
+  const fmt = (v: unknown): string => {
+    if (v == null || v === "") return "—";
+    if (Array.isArray(v)) {
+      const parts = v
+        .filter((x) => x != null && x !== "")
+        .map((x) => (typeof x === "string" ? x : JSON.stringify(x)));
+      return parts.length ? parts.join(" · ") : "—";
+    }
+    if (typeof v === "object") {
+      try {
+        return JSON.stringify(v);
+      } catch {
+        return "—";
+      }
+    }
+    return String(v);
+  };
+  const f = (obj: Record<string, unknown>, k: string) => fmt(obj[k]);
+
   let toolGuidance =
     "GENERIC / OTHER: Balanced cinematic structure — subject, action, setting, lighting, lens, grade, mood, motion. Single clear action.";
   const t = tool.toLowerCase();
@@ -406,12 +434,18 @@ TASKS.compile_prompt = (p) => {
   const system =
     "You are an expert AI-video prompt engineer. You compile structured shot slots into ONE optimized, " +
     "MODEL-SPECIFIC generation prompt. " +
+    "You are given full context: BRAND (voice, palette, tone do/don't, no-go list), BRIEF (product name, description, offer, must-include, cannot-claim, regulatory), " +
+    "STYLE BIBLE (film look, color grade, lighting signature, lens feel, brand-locked subject_tokens, default_negative), and SCRIPT (angle, hook, VO). " +
+    "Your compiled prompt MUST reflect the actual product identity (name, packaging, category) from BRIEF and the visual DNA from STYLE BIBLE and BRAND. " +
+    "Never invent a different product, category, or setting than what the BRIEF describes. " +
+    "Fold BRAND primary_color and STYLE BIBLE color_grade / film_look / lighting_signature / lens_feel into the visual language. " +
+    "Honor must_include (mandatory on-screen elements) and cannot_claim / no_go_list / regulatory_notes as hard constraints — never generate them. " +
     "GLOBAL RULES: stay within prompt_word_target (default ~60, hard cap ~90 words — tighter is better); " +
     "use specific focal lengths and motion verbs; ONE clear action per shot; no contradictory style cues; " +
     "convert subjective adjectives into concrete cinematographic terms; reuse subject_tokens VERBATIM for consistency. " +
     "If generation_method is image-to-video OR has_anchor_image is true, write a MOTION-ONLY prompt regardless of model " +
     "— describe movement and change, not the subject the anchor already shows. " +
-    "Build a clean negative_prompt from negative_prompt input (deduped, comma-separated). " +
+    "Build a clean negative_prompt by merging: shot negative_prompt + brand no_go_list + brief cannot_claim + style_bible default_negative (deduped, comma-separated). " +
     "Flag warnings for: contradictory cues, over-length, multiple actions in one shot, or a product/hero shot missing an anchor image. " +
     "Return ONLY valid JSON in the exact shape requested. No preamble, no markdown fences.";
 
@@ -419,6 +453,60 @@ TASKS.compile_prompt = (p) => {
 
 MODEL-SPECIFIC RULES
 ${toolGuidance}
+
+BRAND CONTEXT
+- name: ${f(brand, "name")}
+- category: ${f(brand, "category")}
+- one_line_what_you_sell: ${f(brand, "one_line_what_you_sell")}
+- brand_voice: ${f(brand, "brand_voice")}
+- tone_do: ${f(brand, "tone_do")}
+- tone_dont: ${f(brand, "tone_dont")}
+- personality: ${f(brand, "personality")}
+- primary_color: ${f(brand, "primary_color")}
+- secondary_color: ${f(brand, "secondary_color")}
+- fonts: ${f(brand, "fonts")}
+- no_go_list (never depict / say): ${f(brand, "no_go_list")}
+- avoid_competitors: ${f(brand, "avoid_competitors")}
+
+BRIEF CONTEXT (the actual product & campaign)
+- project_name: ${f(brief, "project_name")}
+- product_name: ${f(brief, "product_name")}
+- product_description: ${f(brief, "product_description")}
+- offer_type: ${f(brief, "offer_type")}
+- offer_detail: ${f(brief, "offer_detail")}
+- objective: ${f(brief, "objective")}
+- audience: age=${f(brief, "audience_age")}, gender=${f(brief, "audience_gender")}, location=${f(brief, "audience_location")}, income=${f(brief, "audience_income")}
+- psychographic: ${f(brief, "psychographic")}
+- awareness_stage: ${f(brief, "awareness_stage")}
+- headspace: ${f(brief, "headspace")}
+- core_driver: ${f(brief, "core_driver")}
+- objection: ${f(brief, "objection")}
+- wedge: ${f(brief, "wedge")}
+- benefits: ${f(brief, "benefits")}
+- customer_language (quote verbatim where natural): ${f(brief, "customer_language")}
+- must_include (mandatory on-screen elements): ${f(brief, "must_include")}
+- cannot_claim (hard prohibition): ${f(brief, "cannot_claim")}
+- disclosures: ${f(brief, "disclosures")}
+- legal_copy: ${f(brief, "legal_copy")}
+- regulated: ${f(brief, "regulated")}
+- regulatory_notes: ${f(brief, "regulatory_notes")}
+- ai_disclosure_required: ${f(brief, "ai_disclosure")}
+- languages: ${f(brief, "languages")}
+
+BRAND STYLE BIBLE (visual DNA — carry into every prompt)
+- film_look: ${f(sb, "film_look")}
+- color_grade: ${f(sb, "color_grade")}
+- lighting_signature: ${f(sb, "lighting_signature")}
+- lens_feel: ${f(sb, "lens_feel")}
+- subject_tokens (brand-locked, use verbatim): ${f(sb, "subject_tokens")}
+- default_negative: ${f(sb, "default_negative")}
+
+SCRIPT / ANGLE CONTEXT (this shot serves this narrative)
+- angle_archetype: ${f(script, "archetype")}
+- hook (opening promise): ${f(script, "hook")}
+- vo_script (voice-over the shot supports): ${f(script, "vo_script")}
+- shot_number in sequence: ${s("shot_number")}
+- visual_description (human note from storyboard): ${s("visual_description")}
 
 SHOT SLOTS
 - subject: ${s("subject")}
@@ -443,8 +531,11 @@ SHOT SLOTS
 
 REQUIREMENTS
 - compiled_prompt must be ONE prompt, optimized for ${tool || "a generic T2V model"}, within ${wordTarget} words (hard cap 90).
+- The compiled_prompt MUST reference the actual product from BRIEF (product_name / product_description / category). Never substitute a different product or category.
+- Fold in BRAND primary_color and STYLE BIBLE film_look / color_grade / lighting_signature / lens_feel where they don't conflict with the shot's own lighting/lens/grade slots.
+- Honor must_include as mandatory. Do not violate cannot_claim, no_go_list, or regulatory_notes.
 - If has_anchor_image is true OR generation_method is image-to-video, write MOTION-ONLY.
-- negative_prompt: clean, deduped, comma-separated; empty string if nothing.
+- negative_prompt: merge shot negative_prompt + brand no_go_list + brief cannot_claim + style_bible default_negative. Clean, deduped, comma-separated; empty string if nothing.
 - audio_prompt: only set for Veo (audio line) or avatar/UGC tools (the spoken line); null otherwise.
 - seed: echo the input seed as a number, or null.
 - word_count: integer count of words in compiled_prompt.
