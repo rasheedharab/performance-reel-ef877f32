@@ -3201,7 +3201,15 @@ function GenerateClipDialog({
     setCompiling(true);
     try {
       const { data, error } = await supabase.functions.invoke("ai-assist", {
-        body: { task: "compile_prompt", payload: buildCompilePayload(shot, tool) },
+        body: {
+          task: "compile_prompt",
+          payload: buildCompilePayload(shot, tool, {
+            brand: brandContext ?? null,
+            brief: briefContext ?? null,
+            style_bible: (styleBible as Record<string, unknown> | null) ?? null,
+            script: scriptContext ?? null,
+          }),
+        },
       });
       if (error) throw new Error(error.message);
       const result = (data as { result?: Record<string, unknown> } | null)?.result;
