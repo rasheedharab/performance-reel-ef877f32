@@ -85,12 +85,9 @@ Deno.serve(async (req) => {
         | string
         | undefined;
 
-    // fal.ai queue status/result endpoints use the app namespace
-    // (first two path segments), not the full model variant path.
-    // e.g. "fal-ai/veo3/fast" -> "fal-ai/veo3"
-    //      "fal-ai/kling-video/v2.1/standard/image-to-video" -> "fal-ai/kling-video"
-    const modelParts = asset.model_id.split("/").filter(Boolean);
-    const appId = modelParts.slice(0, 2).join("/") || asset.model_id;
+    // fal.ai queue status/result endpoints live at the full model endpoint id.
+    // e.g. "fal-ai/veo3/fast", "fal-ai/kling-video/v2.1/standard/text-to-video".
+    const appId = asset.model_id;
 
     const statusRes = await fetch(
       `https://queue.fal.run/${appId}/requests/${asset.job_id}/status`,
