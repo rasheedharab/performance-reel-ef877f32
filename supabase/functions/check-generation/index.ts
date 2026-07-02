@@ -85,21 +85,40 @@ Deno.serve(async (req) => {
         | string
         | undefined;
 
-    // fal.ai queue status/result endpoints use the app namespace
-    // (first two path segments), not the full model variant path.
-    // e.g. "fal-ai/veo3/fast" -> "fal-ai/veo3"
-    //      "fal-ai/kling-video/v2.1/standard/image-to-video" -> "fal-ai/kling-video"
-    const modelParts = asset.model_id.split("/").filter(Boolean);
+    // fal.ai queue endpoints live at the app family (first two path segments
+    // of the model id) — NOT the full model variant path. Examples:
+    //   "fal-ai/veo3/fast" -> "fal-ai/veo3"
+    //   "fal-ai/kling-video/v2.1/standard/text-to-video" -> "fal-ai/kling-video"
+    const modelParts = (asset.model_id ?? "").split("/").filter(Boolean);
     const appId = modelParts.slice(0, 2).join("/") || asset.model_id;
+
+    async function markFailed(msg: string) {
+      await admin
+        .from("assets")
+        .update({ status: "rejected", error_message: msg })
+        .eq("id", assetId);
+      if (reservationLedgerId) {
+        await refundCredit(admin, reservationLedgerId);
+      }
+    }
 
     const statusRes = await fetch(
       `https://queue.fal.run/${appId}/requests/${asset.job_id}/status`,
       { headers: { "Authorization": `Key ${FAL_KEY}` } },
     );
     if (!statusRes.ok) {
-      const text = await statusRes.text();
+      const text = await statusRes.text().catch(() => "");
       console.error("fal status fail", statusRes.status, text);
-      return json({ error: "fal status fetch failed", detail: text }, 502);
+      // Non-2xx from fal typically means the request expired or the id
+      // is unknown. Mark the asset as failed so the client stops polling.
+      await markFailed(
+        `fal status ${statusRes.status}: ${text || "no body"}`.slice(0, 500),
+      );
+      return json({
+        status: "rejected",
+        error: "fal status fetch failed",
+        detail: text,
+      });
     }
     const statusData = await statusRes.json();
     const falStatus: string = statusData?.status ?? "UNKNOWN";
@@ -109,14 +128,26 @@ Deno.serve(async (req) => {
     }
 
     if (falStatus === "COMPLETED") {
-      // Fetch result body
-      const resultRes = await fetch(
-        `https://queue.fal.run/${appId}/requests/${asset.job_id}`,
-        { headers: { "Authorization": `Key ${FAL_KEY}` } },
-      );
+      // Prefer the response_url that fal returned in the status body — some
+      // models (e.g. kling-video) route results differently than the base
+      // /requests/{id} path.
+      const responseUrl =
+        (typeof statusData?.response_url === "string" && statusData.response_url) ||
+        `https://queue.fal.run/${appId}/requests/${asset.job_id}`;
+      const resultRes = await fetch(responseUrl, {
+        headers: { "Authorization": `Key ${FAL_KEY}` },
+      });
       if (!resultRes.ok) {
-        const text = await resultRes.text();
-        return json({ error: "fal result fetch failed", detail: text }, 502);
+        const text = await resultRes.text().catch(() => "");
+        console.error("fal result fail", resultRes.status, text);
+        await markFailed(
+          `fal result ${resultRes.status}: ${text || "no body"}`.slice(0, 500),
+        );
+        return json({
+          status: "rejected",
+          error: "fal result fetch failed",
+          detail: text,
+        });
       }
       const result = await resultRes.json();
       const videoUrl = pickVideoUrl(result);
