@@ -531,8 +531,11 @@ SHOT SLOTS
 
 REQUIREMENTS
 - compiled_prompt must be ONE prompt, optimized for ${tool || "a generic T2V model"}, within ${wordTarget} words (hard cap 90).
+- The compiled_prompt MUST reference the actual product from BRIEF (product_name / product_description / category). Never substitute a different product or category.
+- Fold in BRAND primary_color and STYLE BIBLE film_look / color_grade / lighting_signature / lens_feel where they don't conflict with the shot's own lighting/lens/grade slots.
+- Honor must_include as mandatory. Do not violate cannot_claim, no_go_list, or regulatory_notes.
 - If has_anchor_image is true OR generation_method is image-to-video, write MOTION-ONLY.
-- negative_prompt: clean, deduped, comma-separated; empty string if nothing.
+- negative_prompt: merge shot negative_prompt + brand no_go_list + brief cannot_claim + style_bible default_negative. Clean, deduped, comma-separated; empty string if nothing.
 - audio_prompt: only set for Veo (audio line) or avatar/UGC tools (the spoken line); null otherwise.
 - seed: echo the input seed as a number, or null.
 - word_count: integer count of words in compiled_prompt.
