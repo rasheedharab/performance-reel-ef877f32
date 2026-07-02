@@ -206,6 +206,11 @@ function GenerationBoard() {
   const [studioShot, setStudioShot] = useState<ShotRow | null>(null);
   const [brandStyleBible, setBrandStyleBible] = useState<ImageStudioStyleBible>(null);
   const [briefProductPaths, setBriefProductPaths] = useState<string[]>([]);
+  // Full brand + brief context passed into compile_prompt so the AI has the
+  // product identity, brand voice, must-includes, and regulatory guardrails
+  // — not just the storyboard slot fields.
+  const [brandContext, setBrandContext] = useState<Record<string, unknown> | null>(null);
+  const [briefContext, setBriefContext] = useState<Record<string, unknown> | null>(null);
 
   const [manualOpen, setManualOpen] = useState<{ shot: ShotRow } | null>(null);
   const [audioOpen, setAudioOpen] = useState<{ type: AssetType } | null>(null);
@@ -335,6 +340,7 @@ function GenerationBoard() {
     if (!brandId) {
       setBrandLockedSeed(null);
       setBrandStyleBible(null);
+      setBrandContext(null);
       return;
     }
     let alive = true;
@@ -351,6 +357,16 @@ function GenerationBoard() {
       setBrandStyleBible(sb ?? null);
       const s = sb?.locked_seed;
       setBrandLockedSeed(typeof s === "number" ? s : null);
+
+      const { data: brandRow } = await supabase
+        .from("brands")
+        .select(
+          "name, category, one_line_what_you_sell, brand_voice, tone_do, tone_dont, personality, primary_color, secondary_color, fonts, no_go_list, avoid_competitors, notes",
+        )
+        .eq("id", brandId)
+        .maybeSingle();
+      if (!alive) return;
+      setBrandContext((brandRow as Record<string, unknown> | null) ?? null);
     })();
     return () => {
       alive = false;
@@ -361,13 +377,16 @@ function GenerationBoard() {
   useEffect(() => {
     if (!briefId) {
       setBriefProductPaths([]);
+      setBriefContext(null);
       return;
     }
     let alive = true;
     (async () => {
       const { data } = await supabase
         .from("briefs")
-        .select("product_asset_urls")
+        .select(
+          "project_name, product_name, product_description, offer_type, offer_detail, price, destination_url, objective, kpi_type, kpi_target, awareness_stage, audience_age, audience_gender, audience_location, audience_income, psychographic, headspace, core_driver, objection, wedge, benefits, customer_language, must_include, cannot_claim, disclosures, legal_copy, regulated, regulatory_notes, ai_disclosure, stats_claims, testimonials, awards, benchmark, reference_links, notes, languages, product_asset_urls",
+        )
         .eq("id", briefId)
         .maybeSingle();
       if (!alive) return;
@@ -376,6 +395,7 @@ function GenerationBoard() {
         ? raw.filter((p): p is string => typeof p === "string")
         : [];
       setBriefProductPaths(paths);
+      setBriefContext((data as Record<string, unknown> | null) ?? null);
     })();
     return () => {
       alive = false;
