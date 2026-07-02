@@ -1097,8 +1097,8 @@ function GenerationBoard() {
           brandLockedSeed={brandLockedSeed}
           brandContext={brandContext}
           briefContext={briefContext}
-          styleBible={brandStyleBible}
-          scriptContext={selected}
+          styleBible={brandStyleBible as unknown as Record<string, unknown> | null}
+          scriptContext={selected as unknown as Record<string, unknown> | null}
           existingVersionCount={
             (assetsByShot.get(generateOpen.shot.id) ?? []).length
           }
