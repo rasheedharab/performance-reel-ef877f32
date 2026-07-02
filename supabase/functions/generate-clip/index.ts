@@ -218,6 +218,10 @@ Deno.serve(async (req) => {
       await refundCredit(admin, reservationId);
       return json({ error: "fal.ai did not return a request_id", detail: falData }, 502);
     }
+    const falStatusUrl: string | null =
+      typeof falData?.status_url === "string" ? falData.status_url : null;
+    const falResponseUrl: string | null =
+      typeof falData?.response_url === "string" ? falData.response_url : null;
 
     const assetVersion =
       typeof version === "number" && version > 0 ? Math.floor(version) : 1;
@@ -254,7 +258,11 @@ Deno.serve(async (req) => {
             ? variant_label.trim()
             : null,
         frame_id: typeof frame_id === "string" && frame_id ? frame_id : null,
-        usage_meta: { reservation_ledger_id: reservationId },
+        usage_meta: {
+          reservation_ledger_id: reservationId,
+          fal_status_url: falStatusUrl,
+          fal_response_url: falResponseUrl,
+        },
       })
       .select("id")
       .single();
