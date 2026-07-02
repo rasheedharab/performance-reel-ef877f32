@@ -1095,6 +1095,10 @@ function GenerationBoard() {
           shot={generateOpen.shot}
           briefId={briefId}
           brandLockedSeed={brandLockedSeed}
+          brandContext={brandContext}
+          briefContext={briefContext}
+          styleBible={brandStyleBible}
+          scriptContext={selected}
           existingVersionCount={
             (assetsByShot.get(generateOpen.shot.id) ?? []).length
           }
