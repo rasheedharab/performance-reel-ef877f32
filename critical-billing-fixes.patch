@@ -1,0 +1,507 @@
+diff --git a/supabase/functions/_shared/pricing.ts b/supabase/functions/_shared/pricing.ts
+index 6d59faa..55a6dc1 100644
+--- a/supabase/functions/_shared/pricing.ts
++++ b/supabase/functions/_shared/pricing.ts
+@@ -107,4 +107,58 @@ export function anthropicActualCost(
+     rateIn: rates.input,
+     rateOut: rates.output,
+   };
+-}
+\ No newline at end of file
++}
++// ============================================================
++// VIDEO MODEL CATALOG — the single server-side source of truth.
++// Only slugs listed here may be generated. Billing NEVER trusts a
++// client-supplied cost estimate; it prices from this table only.
++// To add a model: verify the exact slug + $/sec on fal.ai, add a row.
++// ============================================================
++export type VideoModelEntry = {
++  slug: string;
++  label: string;
++  usdPerSecond: number;
++  methods: Array<"text-to-video" | "image-to-video">;
++  // How the fal input's `duration` field must be shaped for this family.
++  durationMode: "veo" | "kling";
++};
++
++export const VIDEO_MODEL_CATALOG: VideoModelEntry[] = [
++  { slug: "fal-ai/veo3/fast", label: "Veo 3 Fast", usdPerSecond: 0.10, methods: ["text-to-video"], durationMode: "veo" },
++  { slug: "fal-ai/veo3", label: "Veo 3", usdPerSecond: 0.50, methods: ["text-to-video"], durationMode: "veo" },
++  { slug: "fal-ai/kling-video/v2.1/standard/text-to-video", label: "Kling 2.1 Standard", usdPerSecond: 0.05, methods: ["text-to-video"], durationMode: "kling" },
++  { slug: "fal-ai/kling-video/v2.1/standard/image-to-video", label: "Kling 2.1 Standard (I2V)", usdPerSecond: 0.05, methods: ["image-to-video"], durationMode: "kling" },
++  { slug: "fal-ai/kling-video/v2.1/master/text-to-video", label: "Kling 2.1 Master", usdPerSecond: 0.28, methods: ["text-to-video"], durationMode: "kling" },
++  { slug: "fal-ai/kling-video/v2.1/master/image-to-video", label: "Kling 2.1 Master (I2V)", usdPerSecond: 0.28, methods: ["image-to-video"], durationMode: "kling" },
++];
++
++export function resolveVideoModel(
++  modelId: string,
++  method: "text-to-video" | "image-to-video",
++): VideoModelEntry | null {
++  const entry = VIDEO_MODEL_CATALOG.find((m) => m.slug === modelId);
++  if (!entry) return null;
++  if (!entry.methods.includes(method)) return null;
++  return entry;
++}
++
++// Clamp the requested duration to what the model family actually accepts,
++// and return BOTH the billing seconds and the fal input value — so the
++// amount billed always matches the duration actually generated.
++export function clampDurationForModel(
++  entry: VideoModelEntry,
++  requestedSeconds: number,
++): { billSeconds: number; falDuration: string } {
++  const req = Number(requestedSeconds) || 8;
++  if (entry.durationMode === "veo") {
++    const s = Math.max(4, Math.min(8, Math.round(req)));
++    return { billSeconds: s, falDuration: `${s}s` };
++  }
++  // kling accepts "5" or "10"
++  const s = req >= 8 ? 10 : 5;
++  return { billSeconds: s, falDuration: String(s) };
++}
++
++// Conservative fallback used when an image model isn't matched:
++// never bill from a client-supplied number.
++export const IMAGE_FALLBACK_USD = 0.05;
+diff --git a/supabase/functions/check-generation/index.ts b/supabase/functions/check-generation/index.ts
+index d668ec0..306794c 100644
+--- a/supabase/functions/check-generation/index.ts
++++ b/supabase/functions/check-generation/index.ts
+@@ -225,6 +225,9 @@ Deno.serve(async (req) => {
+       if (updErr) return json({ error: updErr.message }, 500);
+ 
+       // Capture the held credits against the actual provider spend.
++      // If pricing can't match the model, capture the ORIGINAL reserved
++      // estimate — never 0 (capturing 0 would refund the whole hold and
++      // make the generation free while we still pay the provider).
+       if (reservationLedgerId) {
+         const dur =
+           (result?.video?.duration as number | undefined) ||
+@@ -232,7 +235,13 @@ Deno.serve(async (req) => {
+           (asset.duration_seconds as number | undefined) ||
+           0;
+         const priced = falActualCost(asset.model_id ?? "", Number(dur) || 0);
+-        await captureCredit(admin, reservationLedgerId, priced?.cost ?? 0);
++        const reservedUsd = Number(
++          (asset.usage_meta as Record<string, unknown> | null)?.reserved_usd,
++        );
++        const fallbackUsd = Number.isFinite(reservedUsd) && reservedUsd > 0
++          ? reservedUsd
++          : Number(asset.duration_seconds) * 0.5 || 4; // conservative last resort
++        await captureCredit(admin, reservationLedgerId, priced?.cost ?? fallbackUsd);
+       }
+ 
+       return json({ status: "review", file_url: storedPath });
+diff --git a/supabase/functions/generate-clip/index.ts b/supabase/functions/generate-clip/index.ts
+index 8cb79c0..4be4e21 100644
+--- a/supabase/functions/generate-clip/index.ts
++++ b/supabase/functions/generate-clip/index.ts
+@@ -11,7 +11,10 @@ import {
+   refundCredit,
+   insufficientCreditsResponse,
+ } from "../_shared/billing.ts";
+-import { falActualCost } from "../_shared/pricing.ts";
++import {
++  resolveVideoModel,
++  clampDurationForModel,
++} from "../_shared/pricing.ts";
+ 
+ const corsHeaders = {
+   "Access-Control-Allow-Origin": "*",
+@@ -46,29 +49,18 @@ type GenMethod = keyof typeof MODEL_DEFAULTS;
+ function buildFalInput(
+   method: GenMethod,
+   prompt: string,
+-  durationSeconds: number,
++  falDuration: string, // pre-clamped by clampDurationForModel — same value billing used
+   aspectRatio: string,
+   referenceImageUrl: string | null,
+   negativePrompt: string | null,
+   seed: number | null,
+ ) {
+-  // Veo3 expects duration as a string like "8s"; Kling expects "5"/"10".
+-  if (method === "text-to-video") {
+-    const input: Record<string, unknown> = {
+-      prompt,
+-      aspect_ratio: aspectRatio,
+-      duration: `${Math.max(4, Math.min(8, durationSeconds || 8))}s`,
+-    };
+-    if (negativePrompt) input.negative_prompt = negativePrompt;
+-    if (typeof seed === "number" && Number.isFinite(seed)) input.seed = seed;
+-    return input;
+-  }
+   const input: Record<string, unknown> = {
+     prompt,
+-    image_url: referenceImageUrl,
+-    duration: String(durationSeconds >= 8 ? 10 : 5),
+     aspect_ratio: aspectRatio,
++    duration: falDuration,
+   };
++  if (method === "image-to-video") input.image_url = referenceImageUrl;
+   if (negativePrompt) input.negative_prompt = negativePrompt;
+   if (typeof seed === "number" && Number.isFinite(seed)) input.seed = seed;
+   return input;
+@@ -133,8 +125,27 @@ Deno.serve(async (req) => {
+ 
+     const defaults = MODEL_DEFAULTS[method];
+     const finalModelId = (typeof model_id === "string" && model_id) || defaults.model_id;
+-    const finalTool = (typeof tool_used === "string" && tool_used) || defaults.tool;
+-    const finalDuration = Number(duration_seconds) || 8;
++
++    // ---- HARD ALLOWLIST: only catalogued models may generate. ----
++    // Billing prices exclusively from the catalog; client cost_estimate is
++    // display-only and never used for money.
++    const catalogEntry = resolveVideoModel(finalModelId, method);
++    if (!catalogEntry) {
++      return json(
++        {
++          error: "model_not_supported",
++          detail:
++            `Model "${finalModelId}" is not in the server catalog for ${method}. ` +
++            "Add it to VIDEO_MODEL_CATALOG (with verified pricing) to enable it.",
++        },
++        400,
++      );
++    }
++    const finalTool = (typeof tool_used === "string" && tool_used) || catalogEntry.label;
++    const { billSeconds, falDuration } = clampDurationForModel(
++      catalogEntry,
++      Number(duration_seconds) || 8,
++    );
+     const finalAspect = (typeof aspect_ratio === "string" && aspect_ratio) || "9:16";
+ 
+     const negative =
+@@ -150,31 +161,45 @@ Deno.serve(async (req) => {
+ 
+     const tier: "draft" | "final" =
+       render_tier === "final" ? "final" : "draft";
+-    const finalCost =
+-      typeof cost_estimate === "number" && Number.isFinite(cost_estimate)
+-        ? cost_estimate
+-        : defaults.cost;
+ 
+-    // ---- Reserve credits BEFORE calling fal.ai ----
+     const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
+       auth: { persistSession: false, autoRefreshToken: false },
+     });
+ 
+-    // Best estimate of actual USD spend (used for the hold).
+-    const priced = falActualCost(finalModelId, finalDuration);
+-    const estimatedUsd = priced?.cost ?? finalCost;
++    // ---- OWNERSHIP: the shot must belong to the caller. ----
++    // Attribution (brief/brand) is DERIVED server-side from the shot's
++    // lineage — client-supplied brand_id/brief_id are ignored for billing.
++    const { data: shotRow, error: shotErr } = await admin
++      .from("shots")
++      .select(
++        "id, user_id, script:script_id ( id, angle:angle_id ( id, brief:brief_id ( id, brand_id ) ) )",
++      )
++      .eq("id", shot_id)
++      .maybeSingle();
++    if (shotErr || !shotRow) return json({ error: "Shot not found" }, 404);
++    if (shotRow.user_id !== userId) return json({ error: "not_owner" }, 403);
++    type Lineage = {
++      script?: { angle?: { brief?: { id?: string; brand_id?: string | null } | null } | null } | null;
++    };
++    const lineageBrief = (shotRow as unknown as Lineage).script?.angle?.brief ?? null;
++    const derivedBriefId = lineageBrief?.id ?? null;
++    const derivedBrandId = lineageBrief?.brand_id ?? null;
++
++    // ---- Reserve credits BEFORE calling fal.ai ----
++    // Priced exclusively from the server catalog at the CLAMPED duration —
++    // the same seconds the model will actually generate.
++    const estimatedUsd =
++      Math.round(catalogEntry.usdPerSecond * billSeconds * 10000) / 10000;
+ 
+     const reservation = await reserveCredit(admin, {
+       user_id: userId,
+       estimated_usd: estimatedUsd,
+       operation: "video_generation",
+       model_id: finalModelId,
+-      entity_type:
+-        typeof entity_type === "string" ? entity_type : (shot_id ? "shot" : "none"),
+-      entity_id:
+-        typeof entity_id === "string" && entity_id ? entity_id : (shot_id as string),
+-      brand_id: typeof brand_id === "string" ? brand_id : null,
+-      brief_id: typeof brief_id === "string" ? brief_id : null,
++      entity_type: "shot",
++      entity_id: shot_id as string,
++      brand_id: derivedBrandId,
++      brief_id: derivedBriefId,
+     });
+     if (!reservation.ok) {
+       const status = reservation.code === "insufficient_credits" ? 402 : 403;
+@@ -186,7 +211,7 @@ Deno.serve(async (req) => {
+     const falInput = buildFalInput(
+       method,
+       prompt,
+-      finalDuration,
++      falDuration,
+       finalAspect,
+       typeof reference_image_url === "string" ? reference_image_url : null,
+       negative,
+@@ -231,7 +256,7 @@ Deno.serve(async (req) => {
+       .insert({
+         user_id: userId,
+         shot_id,
+-        brief_id: typeof brief_id === "string" ? brief_id : null,
++        brief_id: derivedBriefId,
+         type: "clip",
+         status: "generating",
+         version: assetVersion,
+@@ -245,8 +270,8 @@ Deno.serve(async (req) => {
+         generation_method: method,
+         reference_image_url:
+           typeof reference_image_url === "string" ? reference_image_url : null,
+-        duration_seconds: finalDuration,
+-        cost_estimate: finalCost,
++        duration_seconds: billSeconds,
++        cost_estimate: estimatedUsd,
+         render_tier: tier,
+         is_selected: false,
+         ab_group_id:
+@@ -260,6 +285,7 @@ Deno.serve(async (req) => {
+         frame_id: typeof frame_id === "string" && frame_id ? frame_id : null,
+         usage_meta: {
+           reservation_ledger_id: reservationId,
++          reserved_usd: estimatedUsd,
+           fal_status_url: falStatusUrl,
+           fal_response_url: falResponseUrl,
+         },
+diff --git a/supabase/functions/generate-image/index.ts b/supabase/functions/generate-image/index.ts
+index 798a67d..ff251a1 100644
+--- a/supabase/functions/generate-image/index.ts
++++ b/supabase/functions/generate-image/index.ts
+@@ -6,7 +6,7 @@
+ // Secrets: FAL_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
+ 
+ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+-import { falImageActualCost } from "../_shared/pricing.ts";
++import { falImageActualCost, IMAGE_FALLBACK_USD } from "../_shared/pricing.ts";
+ import {
+   reserveCredit,
+   captureCredit,
+@@ -188,12 +188,10 @@ Deno.serve(async (req) => {
+     typeof purpose === "string" && purpose ? purpose : "anchor_frame";
+ 
+   // ---- Reserve credits BEFORE submitting to fal.ai ----
++  // Server-priced only. Client cost_estimate is display-only and never
++  // used for billing; unmatched models bill the conservative fallback.
+   const priceEst = falImageActualCost(model_id, 1);
+-  const estimatedUsd =
+-    priceEst?.cost ??
+-    (typeof cost_estimate === "number" && Number.isFinite(cost_estimate)
+-      ? cost_estimate
+-      : 0.05);
++  const estimatedUsd = priceEst?.cost ?? IMAGE_FALLBACK_USD;
+   const reservation = await reserveCredit(admin, {
+     user_id: userId,
+     estimated_usd: estimatedUsd,
+diff --git a/supabase/functions/reap-stale-generations/index.ts b/supabase/functions/reap-stale-generations/index.ts
+new file mode 100644
+index 0000000..5890c4d
+--- /dev/null
++++ b/supabase/functions/reap-stale-generations/index.ts
+@@ -0,0 +1,160 @@
++// reap-stale-generations — Resolves generation jobs abandoned mid-flight.
++//
++// Problem: check-generation is driven by the user's browser. If the tab
++// closes while a job runs, the asset stays "generating" forever and its
++// credit reservation keeps reducing the user's available balance for life.
++//
++// This function scans for assets stuck in "generating" older than
++// STALE_AFTER_MINUTES, polls fal one final time, and either:
++//   - completes them (stores the fal video URL, captures the reservation), or
++//   - fails them (status "rejected", refunds the reservation in full).
++//
++// Auth: requires header  x-reaper-secret: <REAPER_SECRET>  — set the
++// REAPER_SECRET function secret, and schedule this via Supabase's cron
++// (see migration) or any external scheduler, every 15 minutes.
++//
++// Secrets: FAL_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, REAPER_SECRET.
++
++import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
++import { falActualCost } from "../_shared/pricing.ts";
++import { captureCredit, refundCredit } from "../_shared/billing.ts";
++
++const STALE_AFTER_MINUTES = 45;
++const BATCH_LIMIT = 25;
++
++const json = (body: unknown, status = 200) =>
++  new Response(JSON.stringify(body), {
++    status,
++    headers: { "Content-Type": "application/json" },
++  });
++
++function pickVideoUrl(result: unknown): string | null {
++  if (!result || typeof result !== "object") return null;
++  const r = result as Record<string, unknown>;
++  const v = r.video as Record<string, unknown> | string | undefined;
++  if (typeof v === "string") return v;
++  if (v && typeof v === "object" && typeof v.url === "string") return v.url;
++  const videos = r.videos as Array<Record<string, unknown>> | undefined;
++  if (Array.isArray(videos) && typeof videos[0]?.url === "string") {
++    return videos[0].url as string;
++  }
++  if (typeof r.url === "string") return r.url;
++  return null;
++}
++
++Deno.serve(async (req) => {
++  try {
++    const secret = Deno.env.get("REAPER_SECRET");
++    if (!secret || req.headers.get("x-reaper-secret") !== secret) {
++      return json({ error: "Unauthorized" }, 401);
++    }
++
++    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
++    const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
++    const FAL_KEY = Deno.env.get("FAL_API_KEY");
++
++    const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
++      auth: { persistSession: false, autoRefreshToken: false },
++    });
++
++    const cutoff = new Date(
++      Date.now() - STALE_AFTER_MINUTES * 60 * 1000,
++    ).toISOString();
++
++    const { data: stale, error: qErr } = await admin
++      .from("assets")
++      .select("id, user_id, model_id, job_id, status, duration_seconds, usage_meta, created_at")
++      .eq("status", "generating")
++      .lt("created_at", cutoff)
++      .limit(BATCH_LIMIT);
++    if (qErr) return json({ error: qErr.message }, 500);
++    if (!stale?.length) return json({ reaped: 0, completed: 0, failed: 0 });
++
++    let completed = 0;
++    let failed = 0;
++
++    for (const asset of stale) {
++      const meta = (asset.usage_meta as Record<string, unknown> | null) ?? {};
++      const ledgerId =
++        typeof meta.reservation_ledger_id === "string"
++          ? meta.reservation_ledger_id
++          : null;
++      const statusUrl =
++        typeof meta.fal_status_url === "string" ? meta.fal_status_url : null;
++      const responseUrl =
++        typeof meta.fal_response_url === "string" ? meta.fal_response_url : null;
++
++      let finished = false;
++      let videoUrl: string | null = null;
++      let resultDuration = 0;
++
++      // One last poll — the job may simply have finished after the tab closed.
++      if (FAL_KEY && statusUrl) {
++        try {
++          const sRes = await fetch(statusUrl, {
++            headers: { Authorization: `Key ${FAL_KEY}` },
++          });
++          if (sRes.ok) {
++            const sData = await sRes.json();
++            if (sData?.status === "COMPLETED" && responseUrl) {
++              const rRes = await fetch(responseUrl, {
++                headers: { Authorization: `Key ${FAL_KEY}` },
++              });
++              if (rRes.ok) {
++                const result = await rRes.json();
++                videoUrl = pickVideoUrl(result);
++                resultDuration =
++                  (result?.video?.duration as number | undefined) ||
++                  (result?.duration as number | undefined) ||
++                  0;
++                finished = Boolean(videoUrl);
++              }
++            }
++          }
++        } catch (e) {
++          console.error("reaper poll failed", asset.id, e);
++        }
++      }
++
++      if (finished && videoUrl) {
++        // Complete: store the fal CDN URL directly (re-hosting is the
++        // interactive path's job); capture the hold at real or reserved cost.
++        const dur = Number(resultDuration) || Number(asset.duration_seconds) || 0;
++        const priced = falActualCost(asset.model_id ?? "", dur);
++        const reservedUsd = Number(meta.reserved_usd);
++        const captureUsd =
++          priced?.cost ??
++          (Number.isFinite(reservedUsd) && reservedUsd > 0 ? reservedUsd : 4);
++        await admin
++          .from("assets")
++          .update({
++            status: "review",
++            file_url: videoUrl,
++            error_message: null,
++            notes: "Recovered by reaper after client stopped polling.",
++          })
++          .eq("id", asset.id);
++        if (ledgerId) await captureCredit(admin, ledgerId, captureUsd);
++        completed++;
++      } else {
++        // Fail: reject the asset and give the money back in full.
++        await admin
++          .from("assets")
++          .update({
++            status: "rejected",
++            error_message:
++              `Timed out after ${STALE_AFTER_MINUTES} minutes — reservation refunded.`,
++          })
++          .eq("id", asset.id);
++        if (ledgerId) await refundCredit(admin, ledgerId);
++        failed++;
++      }
++    }
++
++    return json({ reaped: stale.length, completed, failed });
++  } catch (e) {
++    const msg = e instanceof Error ? e.message : String(e);
++    console.error("reap-stale-generations error", msg);
++    return json({ error: msg }, 500);
++  }
++});
+diff --git a/supabase/migrations/20260705120000_reaper_cron.sql b/supabase/migrations/20260705120000_reaper_cron.sql
+new file mode 100644
+index 0000000..a157fba
+--- /dev/null
++++ b/supabase/migrations/20260705120000_reaper_cron.sql
+@@ -0,0 +1,36 @@
++-- Schedule the stale-generation reaper every 15 minutes.
++--
++-- REQUIRES two one-time manual steps in the Supabase dashboard:
++--   1. Set the REAPER_SECRET secret on the reap-stale-generations edge
++--      function (any long random string).
++--   2. Replace the two placeholders below (PROJECT_REF and the secret)
++--      before applying, OR store them in Vault and reference them.
++--
++-- pg_cron + pg_net ship enabled on Supabase projects; the CREATE EXTENSION
++-- lines are idempotent safety.
++
++CREATE EXTENSION IF NOT EXISTS pg_cron;
++CREATE EXTENSION IF NOT EXISTS pg_net;
++
++-- Remove any previous schedule with the same name (idempotent re-apply).
++DO $$
++BEGIN
++  PERFORM cron.unschedule('reap-stale-generations');
++EXCEPTION WHEN OTHERS THEN
++  NULL; -- not scheduled yet
++END $$;
++
++SELECT cron.schedule(
++  'reap-stale-generations',
++  '*/15 * * * *',
++  $$
++  SELECT net.http_post(
++    url := 'https://rswmvgrxhqynspuxmcep.supabase.co/functions/v1/reap-stale-generations',
++    headers := jsonb_build_object(
++      'Content-Type', 'application/json',
++      'x-reaper-secret', '__SET_REAPER_SECRET_BEFORE_APPLYING__'
++    ),
++    body := '{}'::jsonb
++  );
++  $$
++);
